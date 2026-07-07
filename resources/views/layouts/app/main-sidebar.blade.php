@@ -16,7 +16,19 @@
                         {{ __('Dashboard') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="rectangle-stack" :href="route('projects')" :current="request()->routeIs('projects')" wire:navigate>
-                        {{ __('Projects') }}
+                        {{ __('Runs') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="rectangle-stack" :href="route('projects')" :current="request()->routeIs('projects')" wire:navigate>
+                        {{ __('Scripts') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="rectangle-stack" :href="route('projects')" :current="request()->routeIs('projects')" wire:navigate>
+                        {{ __('Logs') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="rectangle-stack" :href="route('projects')" :current="request()->routeIs('projects')" wire:navigate>
+                        {{ __('Repositories') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="rectangle-stack" :href="route('projects')" :current="request()->routeIs('projects')" wire:navigate>
+                        {{ __('Context') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>
@@ -35,6 +47,15 @@
 
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>
+
+        <flux:header class="block! bg-white lg:bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
+            <flux:navbar scrollable>
+                <flux:navbar.item href="#" current>Back to Projects</flux:navbar.item>
+                <flux:navbar.item badge="32" href="#">Orders</flux:navbar.item>
+                <flux:navbar.item href="#">Catalog</flux:navbar.item>
+                <flux:navbar.item href="#">Configuration</flux:navbar.item>
+            </flux:navbar>
+        </flux:header>
 
         <!-- Mobile User Menu -->
         <flux:header class="lg:hidden">
