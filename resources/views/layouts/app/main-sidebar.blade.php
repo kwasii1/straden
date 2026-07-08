@@ -4,39 +4,39 @@
         @include('partials.head')
     </head>
     <body class="min-h-screen bg-white dark:bg-zinc-800">
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+        <flux:sidebar sticky collapsible class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+            <flux:button variant="subtle" icon="arrow-left" class="flex justify-start" wire:navigate :href="route('projects')">Projects</flux:button>
             <flux:sidebar.header>
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
                 <flux:sidebar.collapse class="lg:hidden" />
+                <flux:sidebar.collapse class="in-data-flux-sidebar-on-desktop:not-in-data-flux-sidebar-collapsed-desktop:-mr-2" />
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')" class="grid">
-                    <flux:sidebar.item icon="squares-2x2" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                        {{ __('Dashboard') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="rectangle-stack" :href="route('projects')" :current="request()->routeIs('projects')" wire:navigate>
-                        {{ __('Runs') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="rectangle-stack" :href="route('projects')" :current="request()->routeIs('projects')" wire:navigate>
-                        {{ __('Scripts') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="rectangle-stack" :href="route('projects')" :current="request()->routeIs('projects')" wire:navigate>
-                        {{ __('Logs') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="rectangle-stack" :href="route('projects')" :current="request()->routeIs('projects')" wire:navigate>
-                        {{ __('Repositories') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="rectangle-stack" :href="route('projects')" :current="request()->routeIs('projects')" wire:navigate>
-                        {{ __('Context') }}
-                    </flux:sidebar.item>
-                </flux:sidebar.group>
+                <flux:sidebar.item icon="squares-2x2" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
+                    {{ __('Overview') }}
+                </flux:sidebar.item>
+                <flux:sidebar.item icon="beaker" :href="route('projects')" :current="request()->routeIs('projects')" wire:navigate>
+                    {{ __('Tests') }}
+                </flux:sidebar.item>
+                <flux:sidebar.item icon="rectangle-stack" :href="route('projects')" :current="request()->routeIs('projects')" wire:navigate>
+                    {{ __('Runs') }}
+                </flux:sidebar.item>
+                <flux:sidebar.item icon="link" :href="route('projects')" :current="request()->routeIs('projects')" wire:navigate>
+                    {{ __('Connectors') }}
+                </flux:sidebar.item>
+                <flux:sidebar.item icon="folder-git-2" :href="route('projects')" :current="request()->routeIs('projects')" wire:navigate>
+                    {{ __('Repositories') }}
+                </flux:sidebar.item>
+                <flux:sidebar.item icon="cog-6-tooth" :href="route('projects')" :current="request()->routeIs('projects')" wire:navigate>
+                    {{ __('Settings') }}
+                </flux:sidebar.item>
             </flux:sidebar.nav>
 
             <flux:spacer />
 
             <flux:sidebar.nav>
-                <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
+                <flux:sidebar.item icon="git-branch" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
                     {{ __('Repository') }}
                 </flux:sidebar.item>
 
@@ -50,10 +50,7 @@
 
         <flux:header class="block! bg-white lg:bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
             <flux:navbar scrollable>
-                <flux:navbar.item href="#" current>Back to Projects</flux:navbar.item>
-                <flux:navbar.item badge="32" href="#">Orders</flux:navbar.item>
-                <flux:navbar.item href="#">Catalog</flux:navbar.item>
-                <flux:navbar.item href="#">Configuration</flux:navbar.item>
+                <livewire:dropdown-search />
             </flux:navbar>
         </flux:header>
 
