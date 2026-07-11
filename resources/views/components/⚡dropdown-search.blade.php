@@ -6,6 +6,17 @@ use Livewire\Component;
 
 new class extends Component
 {
+    public ?Project $currentProject = null;
+
+    public function mount(): void
+    {
+        $projectId = request()->route('id');
+
+        if ($projectId) {
+            $this->currentProject = Project::find($projectId);
+        }
+    }
+
     #[Computed]
     public function projects()
     {
@@ -14,7 +25,7 @@ new class extends Component
             ->get(['id', 'name']);
     }
 
-    public function goToProject(int $projectId)
+    public function goToProject(string $projectId)
     {
         return $this->redirect(route('project', ['id' => $projectId]), navigate: true);
     }
@@ -25,6 +36,7 @@ new class extends Component
         open: false,
         search: '',
         panelStyle: '',
+        currentProjectId: @js($this->currentProject?->id),
         projects: @js($this->projects->map->only(['id', 'name'])),
         get recent() {
             return this.projects.slice(0, 8);
@@ -52,7 +64,7 @@ new class extends Component
 >
     <div x-ref="trigger">
         <flux:button @click="togglePanel()" variant="ghost" icon:trailing="chevron-down">
-            Switch project
+            {{ $this->currentProject?->name ?? 'Switch project' }}
         </flux:button>
     </div>
 
@@ -89,8 +101,13 @@ new class extends Component
                             type="button"
                             @click="open = false; $wire.goToProject(project.id)"
                             class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-700"
-                            x-text="project.name"
-                        ></button>
+                        >
+                            <flux:icon.check
+                                x-show="project.id === currentProjectId"
+                                class="mr-2 h-4 w-4 shrink-0 text-zinc-500"
+                            />
+                            <span x-text="project.name"></span>
+                        </button>
                     </template>
                 </div>
             </template>
@@ -110,8 +127,13 @@ new class extends Component
                             type="button"
                             @click="open = false; $wire.goToProject(project.id)"
                             class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-700"
-                            x-text="project.name"
-                        ></button>
+                        >
+                            <flux:icon.check
+                                x-show="project.id === currentProjectId"
+                                class="mr-2 h-4 w-4 shrink-0 text-zinc-500"
+                            />
+                            <span x-text="project.name"></span>
+                        </button>
                     </template>
                 </div>
             </template>

@@ -12,5 +12,5 @@ class extends Component
 ?>
 
 <div>
-    {{-- The only way to do great work is to love what you do. - Steve Jobs --}}
+    {{-- The biggest battle is the war against ignorance. - Mustafa Kemal Atatürk --}}
 </div>

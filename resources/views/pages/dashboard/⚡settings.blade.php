@@ -12,5 +12,5 @@ class extends Component
 ?>
 
 <div>
-    {{-- The only way to do great work is to love what you do. - Steve Jobs --}}
+    {{-- Happiness is not something readymade. It comes from your own actions. - Dalai Lama --}}
 </div>
