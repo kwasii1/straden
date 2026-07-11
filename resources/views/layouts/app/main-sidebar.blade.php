@@ -53,8 +53,11 @@
         </flux:sidebar>
 
         <flux:header class="block! bg-white lg:bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
-            <flux:navbar scrollable>
+            <flux:navbar class="flex justify-between items-center" scrollable>
                 <livewire:dropdown-search />
+                <div class="flex">
+                    <flux:icon.bell />
+                </div>
             </flux:navbar>
         </flux:header>
 
