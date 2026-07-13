@@ -10,10 +10,10 @@ new class extends Component
 
     public function mount(): void
     {
-        $projectId = request()->route('id');
+        $projectId = request()->route('slug');
 
         if ($projectId) {
-            $this->currentProject = Project::find($projectId);
+            $this->currentProject = Project::where('slug', $projectId)->first();
         }
     }
 
@@ -22,12 +22,12 @@ new class extends Component
     {
         return Project::query()
             ->orderByDesc('created_at')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'slug']);
     }
 
     public function goToProject(string $projectId)
     {
-        return $this->redirect(route('project', ['id' => $projectId]), navigate: true);
+        return $this->redirect(route('projects.overview', ['slug' => $projectId]), navigate: true);
     }
 }; ?>
 
@@ -36,8 +36,8 @@ new class extends Component
         open: false,
         search: '',
         panelStyle: '',
-        currentProjectId: @js($this->currentProject?->id),
-        projects: @js($this->projects->map->only(['id', 'name'])),
+        currentProjectId: @js($this->currentProject?->slug),
+        projects: @js($this->projects->map->only(['id', 'name', 'slug'])),
         get recent() {
             return this.projects.slice(0, 8);
         },
@@ -99,11 +99,11 @@ new class extends Component
                     <template x-for="project in recent" :key="project.id">
                         <button
                             type="button"
-                            @click="open = false; $wire.goToProject(project.id)"
+                            @click="open = false; $wire.goToProject(project.slug)"
                             class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-700"
                         >
                             <flux:icon.check
-                                x-show="project.id === currentProjectId"
+                                x-show="project.slug === currentProjectId"
                                 class="mr-2 h-4 w-4 shrink-0 text-zinc-500"
                             />
                             <span x-text="project.name"></span>
@@ -125,11 +125,11 @@ new class extends Component
                     <template x-for="project in filtered" :key="project.id">
                         <button
                             type="button"
-                            @click="open = false; $wire.goToProject(project.id)"
+                            @click="open = false; $wire.goToProject(project.slug)"
                             class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-700"
                         >
                             <flux:icon.check
-                                x-show="project.id === currentProjectId"
+                                x-show="project.slug === currentProjectId"
                                 class="mr-2 h-4 w-4 shrink-0 text-zinc-500"
                             />
                             <span x-text="project.name"></span>

@@ -11,11 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('projects', function (Blueprint $table) {
+        Schema::create('tests', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('name');
-            $table->string('slug')->unique();
-            $table->string('description')->nullable();
+            $table->string('UID')->unique();
+            $table->string('target_endpoint');
+            $table->string('version');
+            $table->enum('status', ['FAILED', 'RUNNING', 'PASSED', 'PAUSED']);
             $table->timestamps();
         });
     }
@@ -25,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('projects');
+        Schema::dropIfExists('tests');
     }
 };

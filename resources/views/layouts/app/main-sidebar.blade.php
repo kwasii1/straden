@@ -13,26 +13,26 @@
             </flux:sidebar.header>
 
             @php
-                $projectId = request()->route('id');
+                $projectId = request()->route('slug');
             @endphp
 
             <flux:sidebar.nav>
-                <flux:sidebar.item icon="squares-2x2" :href="route('projects.overview', ['id' => $projectId])" :current="request()->routeIs('projects.overview')" wire:navigate>
+                <flux:sidebar.item icon="squares-2x2" :href="route('projects.overview', ['slug' => $projectId])" :current="request()->routeIs('projects.overview')" wire:navigate>
                     {{ __('Overview') }}
                 </flux:sidebar.item>
-                <flux:sidebar.item icon="beaker" :href="route('projects.tests', ['id' => $projectId])" :current="request()->routeIs('projects.tests')" wire:navigate>
+                <flux:sidebar.item icon="beaker" :href="route('projects.tests', ['slug' => $projectId])" :current="request()->routeIs('projects.tests')" wire:navigate>
                     {{ __('Tests') }}
                 </flux:sidebar.item>
-                <flux:sidebar.item icon="rectangle-stack" :href="route('projects.runs', ['id' => $projectId])" :current="request()->routeIs('projects.runs')" wire:navigate>
+                <flux:sidebar.item icon="rectangle-stack" :href="route('projects.runs', ['slug' => $projectId])" :current="request()->routeIs('projects.runs')" wire:navigate>
                     {{ __('Runs') }}
                 </flux:sidebar.item>
-                <flux:sidebar.item icon="link" :href="route('projects.connectors', ['id' => $projectId])" :current="request()->routeIs('projects.connectors')" wire:navigate>
+                <flux:sidebar.item icon="link" :href="route('projects.connectors', ['slug' => $projectId])" :current="request()->routeIs('projects.connectors')" wire:navigate>
                     {{ __('Connectors') }}
                 </flux:sidebar.item>
-                <flux:sidebar.item icon="folder-git-2" :href="route('projects.repositories', ['id' => $projectId])" :current="request()->routeIs('projects.repositories')" wire:navigate>
+                <flux:sidebar.item icon="folder-git-2" :href="route('projects.repositories', ['slug' => $projectId])" :current="request()->routeIs('projects.repositories')" wire:navigate>
                     {{ __('Repositories') }}
                 </flux:sidebar.item>
-                <flux:sidebar.item icon="cog-6-tooth" :href="route('projects.settings', ['id' => $projectId])" :current="request()->routeIs('projects.settings')" wire:navigate>
+                <flux:sidebar.item icon="cog-6-tooth" :href="route('projects.settings', ['slug' => $projectId])" :current="request()->routeIs('projects.settings')" wire:navigate>
                     {{ __('Settings') }}
                 </flux:sidebar.item>
             </flux:sidebar.nav>
