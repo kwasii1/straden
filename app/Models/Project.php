@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Services\SlugGenerator;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Project extends Model
 {
@@ -30,4 +31,9 @@ class Project extends Model
         'slug',
         'description'
     ];
+
+
+    public function tests(): HasMany {
+        return $this->hasMany(Test::class, 'project_id');
+    }
 }

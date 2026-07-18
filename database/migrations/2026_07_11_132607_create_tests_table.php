@@ -13,11 +13,11 @@ return new class extends Migration
     {
         Schema::create('tests', function (Blueprint $table) {
             $table->uuid('id')->primary();
+            $table->foreignUuid('project_id')->constrained()->cascadeOnDelete();
             $table->string('name');
-            $table->string('UID')->unique();
-            $table->string('target_endpoint');
-            $table->string('version');
-            $table->enum('status', ['FAILED', 'RUNNING', 'PASSED', 'PAUSED']);
+            $table->text('description')->nullable();
+            $table->string('slug')->unique();
+            $table->string('target_url');
             $table->timestamps();
         });
     }

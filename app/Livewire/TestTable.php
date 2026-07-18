@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\Test;
 use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Blade;
 use PowerComponents\LivewirePowerGrid\Button;
 use PowerComponents\LivewirePowerGrid\Column;
 use PowerComponents\LivewirePowerGrid\Facades\Filter;
@@ -31,7 +32,7 @@ final class TestTable extends PowerGridComponent
 
     public function datasource(): Builder
     {
-        return Test::query();
+        return Test::query()->with('project');
     }
 
     public function relationSearch(): array
@@ -41,12 +42,37 @@ final class TestTable extends PowerGridComponent
 
     public function fields(): PowerGridFields
     {
-        return PowerGrid::fields();
+        return PowerGrid::fields()
+            ->add('name')
+            ->add('target_url')
+            ->add('project_id')
+            ->add('project_name', fn ($test) => e($test->project->name))
+            ->add('description')
+            ->add('created_at');
     }
 
     public function columns(): array
     {
         return [
+            Column::make('Name', 'name')
+                ->sortable()
+                ->searchable(),
+
+            Column::make('Target url', 'target_url')
+                ->sortable()
+                ->searchable(),
+
+            Column::make('Project', 'project_name')
+                ->sortable()
+                ->searchable(),
+            // Column::make('Project', 'project_id')
+            //     ->sortable()
+            //     ->searchable(),
+
+            Column::make('Created at', 'created_at')
+                ->sortable()
+                ->searchable(),
+
             Column::action('Action')
         ];
     }
@@ -66,11 +92,24 @@ final class TestTable extends PowerGridComponent
     public function actions(Test $row): array
     {
         return [
-            Button::add('edit')
-                ->slot('Edit: '.$row->id)
+            Button::add('view')
+                ->slot(Blade::render(<<<'HTML'
+                    <flux:icon.eye class="size-4 border-none cursor-pointer" />
+                HTML))
                 ->id()
-                ->class('pg-btn-white dark:ring-pg-primary-600 dark:border-pg-primary-600 dark:hover:bg-pg-primary-700 dark:ring-offset-pg-primary-800 dark:text-pg-primary-300 dark:bg-pg-primary-700')
-                ->dispatch('edit', ['rowId' => $row->id])
+                ->route('projects.view-test', ['slug' => $row->project->slug, 'test_slug' => $row->slug]),
+            Button::add('edit')
+                ->slot(Blade::render(<<<'HTML'
+                    <flux:icon.pencil class="size-4 border-none cursor-pointer" />
+                HTML))
+                ->id()
+                ->dispatch('edit', ['rowId' => $row->id]),
+            Button::add('delete')
+                ->slot(Blade::render(<<<'HTML'
+                    <flux:icon.trash class="size-4 border-none cursor-pointer" />
+                HTML))
+                ->id()
+                ->dispatch('delete', ['rowId' => $row->id]),
         ];
     }
 
