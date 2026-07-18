@@ -22,6 +22,9 @@ export default defineConfig({
         }),
         tailwindcss(),
     ],
+    worker: {
+        format: 'es',
+    },
     server: {
         cors: true,
         watch: {

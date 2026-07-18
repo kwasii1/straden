@@ -18,5 +18,10 @@
         "@rollup/rollup-linux-x64-gnu": "4.9.5",
         "@tailwindcss/oxide-linux-x64-gnu": "^4.0.1",
         "lightningcss-linux-x64-gnu": "^1.29.1"
+    },
+    "devDependencies": {
+        "esbuild": "^0.28.1",
+        "monaco-editor": "^0.55.1",
+        "vite-plugin-monaco-editor-esm": "^2.0.2"
     }
 }

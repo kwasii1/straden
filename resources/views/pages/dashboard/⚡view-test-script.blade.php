@@ -16,6 +16,13 @@ class extends Component
 };
 ?>
 
-<div>
-    
+<div class="p-0">
+    {{-- inside your Volt single-file component --}}
+    <x-code-editor
+        name="script_content"
+        :value="$script->content"
+        language="javascript"
+        height="500px"
+        wire:key="editor-{{ $script->id }}"
+    />
 </div>
