@@ -15,6 +15,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('test_id')->constrained()->cascadeOnDelete();
             $table->string('name');
+            $table->string('slug')->unique();
             $table->text('description')->nullable();
             $table->string('disk')->default('local');           // storage disk name
             $table->string('script_path')->nullable();          // e.g. scripts/{test_id}/{script_id}/script.js

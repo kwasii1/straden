@@ -97,7 +97,7 @@ final class TestTable extends PowerGridComponent
                     <flux:icon.eye class="size-4 border-none cursor-pointer" />
                 HTML))
                 ->id()
-                ->route('projects.view-test', ['slug' => $row->project->slug, 'test_slug' => $row->slug]),
+                ->route('projects.view-test', ['project' => $row->project, 'test' => $row]),
             Button::add('edit')
                 ->slot(Blade::render(<<<'HTML'
                     <flux:icon.pencil class="size-4 border-none cursor-pointer" />

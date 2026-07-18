@@ -6,6 +6,7 @@ use App\Services\SlugGenerator;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Test extends Model
 {
@@ -33,5 +34,10 @@ class Test extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function scripts(): HasMany
+    {
+        return $this->hasMany(Script::class);
     }
 }

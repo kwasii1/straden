@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Project;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -7,7 +8,7 @@ new
 #[Layout('layouts::main-app')]
 class extends Component
 {
-    //
+    public Project $project;
 };
 ?>
 

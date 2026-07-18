@@ -18,11 +18,6 @@ class extends Component
 
     public Project $project;
 
-    public function mount(string $slug)
-    {
-        $this->project = Project::where('slug', $slug)->firstOrFail();
-    }
-
     public function submit() {
         $this->validate([
             'name' => 'required|string|max:255',

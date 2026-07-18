@@ -48,7 +48,7 @@ class extends Component
         @forelse ($this->projects as $project)
             <a
                 wire:navigate
-                href="{{ route('projects.overview', ['slug' => $project->slug]) }}"
+                href="{{ route('projects.overview', ['project' => $project]) }}"
                 wire:key="{{ $project->id }}"
                 class="block"
             >
