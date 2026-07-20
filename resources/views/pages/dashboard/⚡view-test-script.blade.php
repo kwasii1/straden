@@ -19,11 +19,11 @@ class extends Component
 <div class="flex flex-col h-full">
     <div class="flex flex-1 min-h-0">
         <div class="flex flex-col w-3/5 min-h-0">
-            <div class="shrink-0 flex justify-between items-center p-3">
+            <div class="shrink-0 flex justify-between items-center p-1">
                 <flux:heading>{{ $script->name }}</flux:heading>
                 <flux:button icon="play" variant="primary">Run Test</flux:button>
             </div>
-            <div class="flex-1 flex flex-col min-h-0 rounded border border-zinc-800 overflow-hidden">
+            <div class="flex-1 flex flex-col min-h-0 border border-zinc-800 overflow-hidden">
                 <x-editor-tabs class="shrink-0" :tabs="[
                     ['name' => 'test-script.js', 'active' => true],
                     ['name' => 'helpers.ts', 'active' => false],

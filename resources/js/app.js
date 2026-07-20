@@ -51,6 +51,7 @@ document.addEventListener('alpine:init', () => {
                     automaticLayout: true,
                     minimap: { enabled: true },
                     fontSize: 13,
+                    roundedSelection: false,
                 });
 
                 editor.onDidChangeModelContent(() => {

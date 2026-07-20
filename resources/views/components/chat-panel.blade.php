@@ -1,7 +1,7 @@
 @props(['messages' => []])
 
 <div class="flex flex-col h-full">
-    <div class="flex-1 overflow-y-auto p-4 space-y-4">
+    <div class="flex-1 overflow-y-auto p-4 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div class="flex justify-start">
             <div class="max-w-[85%] rounded-lg rounded-bl-sm px-3 py-2 text-sm bg-zinc-800 text-zinc-200">
                 <p class="text-xs text-zinc-500 mb-1">AI Assistant</p>

@@ -10,10 +10,12 @@ new class extends Component
 
     public function mount(): void
     {
-        $projectId = request()->route('slug');
+        $routeProject = request()->route('project');
 
-        if ($projectId) {
-            $this->currentProject = Project::where('slug', $projectId)->first();
+        if ($routeProject instanceof Project) {
+            $this->currentProject = $routeProject;
+        } elseif (is_string($routeProject)) {
+            $this->currentProject = Project::where('slug', $routeProject)->first();
         }
     }
 
@@ -25,9 +27,9 @@ new class extends Component
             ->get(['id', 'name', 'slug']);
     }
 
-    public function goToProject(string $projectId)
+    public function goToProject(string $slug): void
     {
-        return $this->redirect(route('projects.overview', ['slug' => $projectId]), navigate: true);
+        $this->redirect(route('projects.overview', ['project' => $slug]), navigate: true);
     }
 }; ?>
 
