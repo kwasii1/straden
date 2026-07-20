@@ -11,6 +11,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // dashboard
     Route::livewire('projects/{project:slug}', 'pages::dashboard.overview')->name('projects.overview');
     Route::livewire('projects/{project:slug}/repositories', 'pages::dashboard.repositories')->name('projects.repositories');
+    Route::livewire('projects/{project:slug}/repositories/{repository}', 'pages::dashboard.repository-browse')->name('projects.repository-browse');
     Route::livewire('projects/{project:slug}/runs', 'pages::dashboard.runs')->name('projects.runs');
     Route::livewire('projects/{project:slug}/settings', 'pages::dashboard.settings')->name('projects.settings');
     Route::livewire('projects/{project:slug}/tests', 'pages::dashboard.tests')->name('projects.tests');

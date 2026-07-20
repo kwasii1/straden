@@ -40,4 +40,9 @@ class Project extends Model
     {
         return $this->hasMany(Test::class, 'project_id');
     }
+
+    public function repositories(): HasMany
+    {
+        return $this->hasMany(Repository::class);
+    }
 }
