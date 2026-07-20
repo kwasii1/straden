@@ -11,6 +11,12 @@ class extends Component
 };
 ?>
 
-<div>
-    {{-- The only way to do great work is to love what you do. - Steve Jobs --}}
+<div class="flex flex-col gap-y-10">
+    <div class="flex flex-col">
+        <flux:heading size="xl">Runs</flux:heading>
+        <flux:text>View and manage all load test runs.</flux:text>
+    </div>
+    <div>
+        <livewire:run-table/>
+    </div>
 </div>
