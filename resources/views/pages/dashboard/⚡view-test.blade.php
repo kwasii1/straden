@@ -16,7 +16,7 @@ class extends Component
     public Test $test;
 
     public string $name;
-    public string $description;
+    public string $description = '';
 
     #[Computed()]
     public function scripts() {

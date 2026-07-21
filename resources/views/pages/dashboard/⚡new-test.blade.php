@@ -14,7 +14,7 @@ class extends Component
     public string $target_endpoint;
     public string $repository_source;
     public $connectors = [];
-    public string $description;
+    public string $description = '';
 
     public Project $project;
 
