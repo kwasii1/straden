@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Run extends Model
 {
+    use HasFactory;
     use HasUuids;
 
     public $incrementing = true;
@@ -40,4 +43,24 @@ class Run extends Model
         'exit_code',
         'error_message',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'started_at' => 'datetime',
+            'completed_at' => 'datetime',
+            'thresholds_summary' => 'json',
+            'run_config' => 'json',
+        ];
+    }
+
+    public function script(): BelongsTo
+    {
+        return $this->belongsTo(Script::class);
+    }
+
+    public function triggeredByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'triggered_by_user_id');
+    }
 }

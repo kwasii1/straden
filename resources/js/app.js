@@ -1,5 +1,9 @@
+import { Chart, registerables } from 'chart.js';
 import './../../vendor/power-components/livewire-powergrid/dist/powergrid'
 import * as monaco from 'monaco-editor';
+
+Chart.register(...registerables);
+window.Chart = Chart;
 
 import editorWorkerUrl from 'monaco-editor/esm/vs/editor/editor.worker?worker&url';
 import jsonWorkerUrl from 'monaco-editor/esm/vs/language/json/json.worker?worker&url';

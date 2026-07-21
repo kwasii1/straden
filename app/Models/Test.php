@@ -4,12 +4,15 @@ namespace App\Models;
 
 use App\Services\SlugGenerator;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Test extends Model
 {
+    use HasFactory;
     use HasUuids;
 
     public $incrementing = true;
@@ -21,7 +24,7 @@ class Test extends Model
         'target_url',
         'project_id',
         'description',
-        'slug'
+        'slug',
     ];
 
     protected static function booted(): void
@@ -39,5 +42,10 @@ class Test extends Model
     public function scripts(): HasMany
     {
         return $this->hasMany(Script::class);
+    }
+
+    public function runs(): HasManyThrough
+    {
+        return $this->hasManyThrough(Run::class, Script::class);
     }
 }
