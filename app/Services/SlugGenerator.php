@@ -1,10 +1,9 @@
 <?php
 
-
 namespace App\Services;
 
-use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class SlugGenerator
 {
