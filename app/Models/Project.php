@@ -51,4 +51,9 @@ class Project extends Model
     {
         return $this->hasManyThrough(Script::class, Test::class);
     }
+
+    public function connectors(): HasMany
+    {
+        return $this->hasMany(Connector::class);
+    }
 }
