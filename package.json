@@ -22,7 +22,9 @@
     },
     "devDependencies": {
         "esbuild": "^0.28.1",
+        "laravel-echo": "^2.4.0",
         "monaco-editor": "^0.55.1",
+        "pusher-js": "^8.6.0",
         "vite-plugin-monaco-editor-esm": "^2.0.2"
     }
 }
