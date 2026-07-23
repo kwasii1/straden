@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\SyncRepositoryJob;
 use App\Models\Project;
 use App\Models\Repository;
 use Flux\Flux;
@@ -75,9 +76,9 @@ class extends Component
             'sync_error' => null,
         ]);
 
-        Flux::toast(variant: 'info', text: 'Sync started...');
+        SyncRepositoryJob::dispatch($repository);
 
-        $this->dispatch('repository-syncing');
+        Flux::toast(variant: 'info', text: 'Sync dispatched.');
     }
 
     public function updatedType(): void

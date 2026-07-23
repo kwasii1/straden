@@ -1,8 +1,11 @@
 <?php
 
+use App\Jobs\SyncRepositoryJob;
 use App\Models\Project;
 use App\Models\Repository;
 use App\Models\User;
+use App\Services\RepositorySyncService;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 test('guests are redirected to login from repositories page', function () {
@@ -160,4 +163,188 @@ test('adding a local path repository requires path', function () {
         ->set('local_path', '')
         ->call('addRepository')
         ->assertHasErrors(['local_path']);
+});
+
+test('sync dispatches a job and sets status to syncing', function () {
+    Queue::fake();
+
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $repository = Repository::factory()->create([
+        'project_id' => $project->id,
+        'sync_status' => 'pending',
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('pages::dashboard.repositories', ['project' => $project])
+        ->call('syncRepository', $repository->id);
+
+    Queue::assertPushed(SyncRepositoryJob::class, fn ($job) => $job->repository->id === $repository->id);
+
+    expect($repository->fresh()->sync_status)->toBe('syncing');
+});
+
+test('service scans local path and builds file tree', function () {
+    $dir = sys_get_temp_dir().'/straden-sync-test-'.uniqid();
+    mkdir($dir);
+    mkdir($dir.'/src');
+    mkdir($dir.'/src/utils');
+    file_put_contents($dir.'/src/utils/helper.js', '// helper');
+    file_put_contents($dir.'/src/index.ts', '// index');
+    file_put_contents($dir.'/README.md', '# Readme');
+    file_put_contents($dir.'/package.json', '{}');
+
+    try {
+        $service = new RepositorySyncService;
+
+        $repository = Repository::factory()->make([
+            'type' => 'local_path',
+            'local_path' => $dir,
+        ]);
+
+        $result = $service->sync($repository);
+
+        expect($result['last_commit_sha'])->toBeNull();
+        expect($result['file_tree'])->toBe([
+            ['name' => 'README.md'],
+            ['name' => 'package.json'],
+            [
+                'name' => 'src',
+                'children' => [
+                    ['name' => 'index.ts'],
+                    [
+                        'name' => 'utils',
+                        'children' => [
+                            ['name' => 'helper.js'],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    } finally {
+        unlink($dir.'/src/utils/helper.js');
+        unlink($dir.'/src/index.ts');
+        unlink($dir.'/README.md');
+        unlink($dir.'/package.json');
+        rmdir($dir.'/src/utils');
+        rmdir($dir.'/src');
+        rmdir($dir);
+    }
+});
+
+test('service excludes ignored directories from file tree', function () {
+    $dir = sys_get_temp_dir().'/straden-sync-test-'.uniqid();
+    mkdir($dir);
+    mkdir($dir.'/node_modules');
+    mkdir($dir.'/.git');
+    mkdir($dir.'/vendor');
+    mkdir($dir.'/src');
+    file_put_contents($dir.'/node_modules/ignored.js', 'ignored');
+    file_put_contents($dir.'/.git/config', 'ignored');
+    file_put_contents($dir.'/vendor/ignored.php', '<?php // ignored');
+    file_put_contents($dir.'/src/main.js', '// kept');
+
+    try {
+        $service = new RepositorySyncService;
+
+        $repository = Repository::factory()->make([
+            'type' => 'local_path',
+            'local_path' => $dir,
+        ]);
+
+        $result = $service->sync($repository);
+
+        // Should only contain src/main.js — node_modules, .git, and vendor excluded
+        expect($result['file_tree'])->toBe([
+            ['name' => 'src', 'children' => [
+                ['name' => 'main.js'],
+            ]],
+        ]);
+    } finally {
+        unlink($dir.'/src/main.js');
+        unlink($dir.'/node_modules/ignored.js');
+        unlink($dir.'/.git/config');
+        unlink($dir.'/vendor/ignored.php');
+        rmdir($dir.'/src');
+        rmdir($dir.'/node_modules');
+        rmdir($dir.'/.git');
+        rmdir($dir.'/vendor');
+        rmdir($dir);
+    }
+});
+
+test('service throws on missing local path', function () {
+    $service = new RepositorySyncService;
+
+    $repository = Repository::factory()->make([
+        'type' => 'local_path',
+        'local_path' => '/nonexistent/path/12345',
+    ]);
+
+    $service->sync($repository);
+})->throws(RuntimeException::class, 'does not exist');
+
+test('service throws on empty local path', function () {
+    $service = new RepositorySyncService;
+
+    $repository = Repository::factory()->make([
+        'type' => 'local_path',
+        'local_path' => null,
+    ]);
+
+    $service->sync($repository);
+})->throws(RuntimeException::class, 'not configured');
+
+test('job marks repository as synced with file tree on success', function () {
+    $dir = sys_get_temp_dir().'/straden-sync-test-'.uniqid();
+    mkdir($dir);
+    file_put_contents($dir.'/hello.js', 'console.log("hi");');
+
+    try {
+        $project = Project::factory()->create();
+        $repository = Repository::factory()->create([
+            'project_id' => $project->id,
+            'type' => 'local_path',
+            'local_path' => $dir,
+            'sync_status' => 'syncing',
+        ]);
+
+        $job = new SyncRepositoryJob($repository);
+        $job->handle(app(RepositorySyncService::class));
+
+        $repository->refresh();
+
+        expect($repository->sync_status)->toBe('synced');
+        expect($repository->sync_error)->toBeNull();
+        expect($repository->last_synced_at)->not->toBeNull();
+        expect($repository->file_tree)->toBe([
+            ['name' => 'hello.js'],
+        ]);
+    } finally {
+        unlink($dir.'/hello.js');
+        rmdir($dir);
+    }
+});
+
+test('job marks repository as failed on error', function () {
+    $project = Project::factory()->create();
+    $repository = Repository::factory()->create([
+        'project_id' => $project->id,
+        'type' => 'local_path',
+        'local_path' => '/nonexistent/path/12345',
+        'sync_status' => 'syncing',
+    ]);
+
+    $job = new SyncRepositoryJob($repository);
+
+    try {
+        $job->handle(app(RepositorySyncService::class));
+    } catch (Throwable) {
+        // Expected
+    }
+
+    $repository->refresh();
+
+    expect($repository->sync_status)->toBe('failed');
+    expect($repository->sync_error)->toContain('does not exist');
 });
