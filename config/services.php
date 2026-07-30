@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'opencode' => [
+        'password' => env('OPENCODE_SERVER_PASSWORD'),
+    ],
+
 ];

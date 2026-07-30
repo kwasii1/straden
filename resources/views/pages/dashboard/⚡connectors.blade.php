@@ -16,16 +16,27 @@ class extends Component
     public Project $project;
 
     public string $name = '';
+
     public string $type = '';
+
     public string $host = '';
+
     public ?int $port = null;
+
     public string $database = '';
+
     public bool $ssl_enabled = false;
+
     public bool $verify_ssl = false;
+
     public int $timeout = 5;
+
     public string $username = '';
+
     public string $password = '';
+
     public string $token = '';
+
     public array $settings = [];
 
     #[Computed]

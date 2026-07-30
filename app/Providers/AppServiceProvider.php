@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Foundation\DevCommands;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
@@ -24,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureDevCommands();
     }
 
     /**
@@ -46,5 +49,17 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null,
         );
+    }
+
+    protected function configureDevCommands(): void
+    {
+        DevCommands::artisan('serve --port=8001', 'server');
+
+        if (App::environment('local')) {
+            DevCommands::register(
+                'opencode serve --hostname 0.0.0.0',
+                'opencode'
+            )->purple();
+        }
     }
 }
