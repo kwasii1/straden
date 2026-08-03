@@ -221,9 +221,6 @@ JS);
         </form>
     </flux:modal>
     <flux:modal class="md:w-1/3 space-y-5" name="generate-with-ai" flyout>
-        <flux:heading>Generate Test Scripts</flux:heading>
-        <div class="flex">
-            <x-chat-panel />
-        </div>
+        <livewire:agent-chat :project="$project" :test="$test" />
     </flux:modal>
 </div>
