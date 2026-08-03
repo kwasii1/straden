@@ -3,6 +3,7 @@
 use App\Ai\Agents\TestAgent;
 use App\Ai\Tools\CreateScriptTool;
 use App\Ai\Tools\ScanContextTool;
+use App\Ai\Tools\UpdateScriptTool;
 use App\Ai\Tools\ValidateScriptTool;
 use App\Enums\ConnectorType;
 use App\Models\Connector;
@@ -55,10 +56,11 @@ test('test agent provides all tools including file storage', function () {
 
     $tools = collect($agent->tools());
 
-    expect($tools->count())->toBeGreaterThan(3);
+    expect($tools->count())->toBeGreaterThan(4);
     expect($tools->first())->toBeInstanceOf(ScanContextTool::class);
     expect($tools->slice(1, 1)->first())->toBeInstanceOf(CreateScriptTool::class);
-    expect($tools->slice(2, 1)->first())->toBeInstanceOf(ValidateScriptTool::class);
+    expect($tools->slice(2, 1)->first())->toBeInstanceOf(UpdateScriptTool::class);
+    expect($tools->slice(3, 1)->first())->toBeInstanceOf(ValidateScriptTool::class);
 });
 
 test('scan context tool returns all context sections', function () {

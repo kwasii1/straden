@@ -1,6 +1,8 @@
 <?php
 
+use App\Jobs\RunTestJob;
 use App\Models\Project;
+use App\Models\Run;
 use App\Models\Script;
 use App\Models\Test;
 use App\Services\ScriptFileManager;
@@ -141,6 +143,19 @@ class extends Component
         return $this->fm()->readFile($relativePath);
     }
 
+    public function runTest(): void
+    {
+        $run = $this->script->runs()->create([
+            'status' => 'queued',
+            'triggered_by' => 'manual',
+            'triggered_by_user_id' => auth()->id(),
+        ]);
+
+        RunTestJob::dispatch($run);
+
+        Flux::toast(variant: 'success', text: 'Test run queued.');
+    }
+
     public function detectLanguage(string $path): string
     {
         return $this->fm()->detectLanguage($path);
@@ -265,7 +280,7 @@ class extends Component
 >
     <div class="shrink-0 flex justify-between items-center p-1">
         <flux:heading>{{ $script->name }}</flux:heading>
-        <flux:button icon="play" variant="primary">Run Test</flux:button>
+        <flux:button wire:click="runTest" wire:loading.attr="disabled" icon="play" variant="primary">Run Test</flux:button>
     </div>
 
     <div class="flex flex-1 min-h-0">

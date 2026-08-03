@@ -5,6 +5,7 @@ namespace App\Ai\Agents;
 use App\Ai\Tools\CreateScriptTool;
 use App\Ai\Tools\NamedTool;
 use App\Ai\Tools\ScanContextTool;
+use App\Ai\Tools\UpdateScriptTool;
 use App\Ai\Tools\ValidateScriptTool;
 use App\Models\Test;
 use Laravel\Ai\Attributes\MaxSteps;
@@ -23,7 +24,7 @@ use Stringable;
 
 #[Provider(Lab::DeepSeek)]
 #[Model('deepseek-v4-flash')]
-#[MaxSteps(20)]
+#[MaxSteps(35)]
 #[Temperature(0.2)]
 #[Timeout(240)]
 class TestAgent implements Agent, Conversational, HasTools
@@ -46,13 +47,14 @@ Follow this process strictly:
 
 2. **Propose a Plan**: After scanning, describe a test plan in plain text. Include:
    - Which endpoints or services to test
-   - What k6 scenarios to create (e.g., smoke, load, stress, soak)
+   - What k6 scenarios to create (e.g., smoke, load, stress, soak). Each distinct test type should be proposed as a separate script. Only combine multiple scenarios into one script if the user explicitly requests it.
    - What checks and assertions to include
    - What thresholds to set
    - How many VUs and what duration
    Do NOT write any code yet. Wait for the human to approve the plan.
 
-3. **Create Scripts**: After plan approval, use the CreateScriptTool to write k6 scripts. The entry_point_content must be valid k6 JavaScript with:
+3. **Create Scripts**: After plan approval, use the CreateScriptTool once per script — one script per scenario type. Each script should contain exactly one k6 scenario focused on a single test purpose. For example, if the user asks for a smoke test and a load test, create two separate scripts: "smoke-test" and "load-test". Only combine multiple scenarios into a single script if the user explicitly asked for that.
+   The entry_point_content must be valid k6 JavaScript with:
    - Imports from k6/http, k6/metrics, k6/html, etc.
    - An export default function
    - Proper check() assertions on responses
@@ -60,12 +62,19 @@ Follow this process strictly:
    - Thresholds in the options block
    Provide additional_files for helpers, utilities, config, or data files.
 
-4. **Validate Scripts**: After creation, use the ValidateScriptTool to verify correctness. Fix any issues found.
+4. **Validate Scripts**: After creating each script, use the ValidateScriptTool to verify correctness. If validation fails:
+   a. Analyze the reported issues (syntax issues, pattern issues, k6 inspect errors)
+   b. Use the UpdateScriptTool to apply fixes to the failing files
+   c. Validate again with ValidateScriptTool
+   d. Repeat this fix-and-validate loop up to 5 times per script
+   e. If a script still fails after 5 retries, inform the user of the persistent issues and recommend manual review
 
 Key rules:
 - Always scan context before proposing a plan.
 - Always propose a plan and wait for approval before writing code.
-- Always validate scripts after creation.
+- Always validate each script after creation.
+- Create separate scripts for different test types by default. One script = one scenario type. Do not combine multiple scenarios (e.g., smoke + load) into a single script unless the user explicitly asks to combine them.
+- When validation fails, do not give up. Retry the fix-and-validate cycle up to 5 times per script before reporting a persistent issue to the user.
 - Use k6 best practices: checks, thresholds, proper error handling, realistic think times.
 - Output scripts as clean, well-structured JavaScript.
 INSTRUCTIONS;
@@ -84,6 +93,7 @@ INSTRUCTIONS;
         $tools = [
             new ScanContextTool($this->test),
             (new CreateScriptTool($this->test))->requireApproval('Creating scripts writes files to disk. Review the proposed content before approving.'),
+            (new UpdateScriptTool($this->test))->requireApproval('Updating scripts writes files to disk. Review the proposed changes before approving.'),
             new ValidateScriptTool,
             ...FileStorage::all($scriptsDisk),
         ];
