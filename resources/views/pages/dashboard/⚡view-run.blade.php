@@ -2,6 +2,8 @@
 
 use App\Models\Project;
 use App\Models\Run;
+use App\Services\InfluxDbService;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -16,6 +18,22 @@ class extends Component
     public function mount(): void
     {
         $this->run->load('script.test');
+    }
+
+    public function isActive(): bool
+    {
+        return in_array($this->run->status, ['queued', 'running'], true);
+    }
+
+    #[Computed]
+    public function influxMetrics(): ?array
+    {
+        try {
+            return (new InfluxDbService(\App\Models\Connector::influxDb()))
+                ->metricsForRun($this->run->id);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function statusColor(string $status): string
@@ -132,7 +150,7 @@ class extends Component
         </div>
     @endif
 
-    @if ($this->run->status === 'passed' || $this->run->status === 'failed')
+    @if (in_array($this->run->status, ['passed', 'failed', 'error']))
         <flux:heading size="lg">Performance Metrics</flux:heading>
 
         <div class="grid grid-cols-3 gap-4">
@@ -205,10 +223,151 @@ class extends Component
                 @endforeach
             </div>
         @endif
+
+        {{-- InfluxDB Time-Series Charts --}}
+        @php $metrics = $this->influxMetrics; @endphp
+        @if ($metrics)
+            <flux:heading size="lg">Time-Series Charts</flux:heading>
+
+            <script type="application/json" data-run-metrics>
+                @json($metrics)
+            </script>
+
+            <div
+                class="grid grid-cols-1 lg:grid-cols-2 gap-6"
+                @if ($this->isActive()) wire:poll.5s @endif
+                x-data="{
+                    charts: {},
+
+                    init() {
+                        this.buildAllCharts();
+                    },
+
+                    updated() {
+                        this.buildAllCharts();
+                    },
+
+                    destroyAll() {
+                        Object.values(this.charts).forEach(c => c.destroy());
+                        this.charts = {};
+                    },
+
+                    getMetrics() {
+                        const el = document.querySelector('[data-run-metrics]');
+                        return el ? JSON.parse(el.textContent) : {};
+                    },
+
+                    buildAllCharts() {
+                        this.destroyAll();
+                        const m = this.getMetrics();
+
+                        this.buildChart('vusChart', 'line', m.vus.labels, [{ label: 'VUs', data: m.vus.values, borderColor: '#a78bfa', backgroundColor: 'rgba(167, 139, 250, 0.1)', fill: true, tension: 0.3, pointRadius: 0 }], 'VUs');
+                        this.buildChart('requestRateChart', 'line', m.request_rate.labels, [{ label: 'req/s', data: m.request_rate.values, borderColor: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.1)', fill: true, tension: 0.3, pointRadius: 0 }], 'req/s');
+                        this.buildChart('responseTimeChart', 'line', m.response_time.labels, [{ label: 'p95', data: m.response_time.p95, borderColor: '#60a5fa', backgroundColor: 'rgba(96, 165, 250, 0.1)', fill: true, tension: 0.3, pointRadius: 0 }, { label: 'p99', data: m.response_time.p99, borderColor: '#f87171', backgroundColor: 'rgba(248, 113, 113, 0.05)', fill: true, tension: 0.3, pointRadius: 0 }], 'ms');
+                        this.buildChart('errorRateChart', 'line', m.error_rate.labels, [{ label: '%', data: m.error_rate.values, borderColor: '#fbbf24', backgroundColor: 'rgba(251, 191, 36, 0.1)', fill: true, tension: 0.3, pointRadius: 0 }], '%');
+                        this.buildChart('checksChart', 'line', m.checks.labels, [{ label: 'Passed', data: m.checks.passed, borderColor: '#34d399', fill: false, tension: 0.3, pointRadius: 0 }, { label: 'Failed', data: m.checks.failed, borderColor: '#f87171', fill: false, tension: 0.3, pointRadius: 0 }], 'Count');
+                        this.buildChart('dataTransferChart', 'line', m.data_transfer.labels, [{ label: 'Sent', data: m.data_transfer.sent, borderColor: '#60a5fa', fill: false, tension: 0.3, pointRadius: 0 }, { label: 'Received', data: m.data_transfer.received, borderColor: '#a78bfa', fill: false, tension: 0.3, pointRadius: 0 }], 'Bytes');
+                    },
+
+                    buildChart(ref, type, labels, datasets, unit) {
+                        const canvas = this.$refs[ref];
+                        if (!canvas || !labels || labels.length === 0) return;
+
+                        this.charts[ref] = new Chart(canvas.getContext('2d'), {
+                            type: type,
+                            data: {
+                                labels: labels,
+                                datasets: datasets,
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                animation: false,
+                                interaction: {
+                                    intersect: false,
+                                    mode: 'index',
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        title: {
+                                            display: true,
+                                            text: unit,
+                                        },
+                                        grid: {
+                                            color: 'rgba(255,255,255,0.06)',
+                                        },
+                                    },
+                                    x: {
+                                        grid: {
+                                            display: false,
+                                        },
+                                    },
+                                },
+                                plugins: {
+                                    legend: {
+                                        display: datasets.length > 1,
+                                        position: 'bottom',
+                                        labels: {
+                                            padding: 12,
+                                            usePointStyle: true,
+                                            color: '#a1a1aa',
+                                        },
+                                    },
+                                },
+                            },
+                        });
+                    },
+                }"
+            >
+                <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+                    <flux:heading size="sm" class="mb-3">Active VUs</flux:heading>
+                    <div class="relative h-56">
+                        <canvas x-ref="vusChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+                    <flux:heading size="sm" class="mb-3">Request Rate</flux:heading>
+                    <div class="relative h-56">
+                        <canvas x-ref="requestRateChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+                    <flux:heading size="sm" class="mb-3">Response Time</flux:heading>
+                    <div class="relative h-56">
+                        <canvas x-ref="responseTimeChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+                    <flux:heading size="sm" class="mb-3">Error Rate</flux:heading>
+                    <div class="relative h-56">
+                        <canvas x-ref="errorRateChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+                    <flux:heading size="sm" class="mb-3">Checks</flux:heading>
+                    <div class="relative h-56">
+                        <canvas x-ref="checksChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+                    <flux:heading size="sm" class="mb-3">Data Transfer</flux:heading>
+                    <div class="relative h-56">
+                        <canvas x-ref="dataTransferChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        @endif
     @endif
 
     @if ($this->run->status === 'queued' || $this->run->status === 'running')
-        <div class="flex items-center justify-center p-10 text-zinc-500">
+        <div class="flex items-center justify-center p-10 text-zinc-500"
+             @if ($this->influxMetrics) wire:poll.5s @endif>
             <div class="flex flex-col items-center gap-y-3">
                 <flux:icon.clock class="size-10 animate-spin" />
                 <flux:text>Waiting for test run to complete...</flux:text>

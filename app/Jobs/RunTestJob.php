@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\Connector;
 use App\Models\Run;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -37,10 +38,17 @@ class RunTestJob implements ShouldQueue
         try {
             $targetUrl = $script->test->target_url;
 
+            $k6Command = "k6 run script.js --summary-export={$summaryFile}";
+
+            $influxOutput = $this->buildInfluxOutput();
+            if ($influxOutput !== null) {
+                $k6Command .= ' '.$influxOutput;
+            }
+
             $result = Process::timeout(600)
                 ->path($scriptDir)
                 ->env(['TARGET_URL' => $targetUrl])
-                ->run("k6 run script.js --summary-export={$summaryFile}");
+                ->run($k6Command);
 
             $exitCode = $result->exitCode();
             $duration = (int) floor(microtime(true) - $this->run->started_at->timestamp);
@@ -61,7 +69,7 @@ class RunTestJob implements ShouldQueue
 
             $update['status'] = match (true) {
                 $exitCode === 0 => 'passed',
-                $exitCode === 104 => 'failed',
+                $exitCode === 99, $exitCode === 104 => 'failed',
                 $exitCode === 108 => 'error',
                 default => 'error',
             };
@@ -102,40 +110,64 @@ class RunTestJob implements ShouldQueue
         return 'run-test-'.$this->run->script_id;
     }
 
+    private function buildInfluxOutput(): ?string
+    {
+        try {
+            $connector = Connector::influxDb();
+
+            $protocol = $connector->ssl_enabled ? 'https' : 'http';
+            $influxUrl = "{$protocol}://{$connector->host}:{$connector->port}/{$connector->database}";
+
+            return sprintf(
+                '--out influxdb=%s --tag run_id=%s --tag test_id=%s --tag script_id=%s',
+                escapeshellarg($influxUrl),
+                escapeshellarg($this->run->id),
+                escapeshellarg($this->run->script->test_id),
+                escapeshellarg($this->run->script->id),
+            );
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     private function parseSummary(array $summary): array
     {
         $metrics = $summary['metrics'] ?? [];
 
-        $metric = fn (string $key, string $prop = 'value') => $metrics[$key]['values'][$prop] ?? null;
+        $metric = fn (string $key, string $prop = 'value') => $metrics[$key][$prop] ?? null;
 
         $vusMax = $metric('vus_max');
         $requestsTotal = $metric('http_reqs', 'count');
         $requestsPerSecond = $metric('http_reqs', 'rate');
         $reqDurationP95 = $metric('http_req_duration', 'p(95)');
         $reqDurationP99 = $metric('http_req_duration', 'p(99)');
-        $errorRate = $metric('http_req_failed', 'rate');
 
-        $checksTotal = ($metric('checks', 'passes') ?? 0) + ($metric('checks', 'fails') ?? 0);
-        $checksFailed = $metric('checks', 'fails');
+        $failedData = $metrics['http_req_failed'] ?? [];
+        $failedPasses = $failedData['passes'] ?? 0;
+        $failedFails = $failedData['fails'] ?? 0;
+        $failedTotal = $failedPasses + $failedFails;
+        $errorRate = $failedTotal > 0 ? ($failedFails / $failedTotal) * 100 : 0;
+
+        $checks = $this->collectChecks($summary['root_group'] ?? []);
+        $checksTotal = $checks['passes'] + $checks['fails'];
+        $checksFailed = $checks['fails'];
 
         $thresholdsPassed = null;
         $thresholdsSummary = null;
 
-        if (isset($metrics)) {
-            $thresholds = [];
-            foreach ($metrics as $name => $data) {
-                if (! empty($data['thresholds'])) {
-                    foreach ($data['thresholds'] as $name => $th) {
-                        $thresholds[] = [
-                            'name' => $name,
-                            'ok' => $th['ok'] ?? false,
-                        ];
-                    }
+        $thresholds = [];
+        foreach ($metrics as $name => $data) {
+            if (! empty($data['thresholds'])) {
+                foreach ($data['thresholds'] as $thName => $th) {
+                    $thresholds[] = [
+                        'name' => $thName,
+                        'ok' => $th['ok'] ?? false,
+                    ];
                 }
             }
-            $thresholdsSummary = $thresholds;
-            $thresholdsPassed = ! empty($thresholds) && collect($thresholds)->every(fn ($t) => $t['ok']);
         }
+        $thresholdsSummary = $thresholds;
+        $thresholdsPassed = ! empty($thresholds) && collect($thresholds)->every(fn ($t) => $t['ok']);
 
         return array_filter([
             'vus_max' => is_numeric($vusMax) ? (int) $vusMax : null,
@@ -143,11 +175,30 @@ class RunTestJob implements ShouldQueue
             'requests_per_second' => is_numeric($requestsPerSecond) ? round((float) $requestsPerSecond, 2) : null,
             'req_duration_p95_ms' => is_numeric($reqDurationP95) ? round((float) $reqDurationP95, 2) : null,
             'req_duration_p99_ms' => is_numeric($reqDurationP99) ? round((float) $reqDurationP99, 2) : null,
-            'error_rate' => is_numeric($errorRate) ? round((float) $errorRate, 2) : null,
-            'checks_total' => is_numeric($checksTotal) ? (int) $checksTotal : null,
-            'checks_failed' => is_numeric($checksFailed) ? (int) $checksFailed : null,
+            'error_rate' => round($errorRate, 2),
+            'checks_total' => $checksTotal > 0 ? $checksTotal : null,
+            'checks_failed' => $checksTotal > 0 ? $checksFailed : null,
             'thresholds_passed' => $thresholdsPassed,
             'thresholds_summary' => $thresholdsSummary,
         ], fn ($v) => $v !== null);
+    }
+
+    private function collectChecks(array $group): array
+    {
+        $passes = 0;
+        $fails = 0;
+
+        foreach ($group['checks'] ?? [] as $check) {
+            $passes += $check['passes'] ?? 0;
+            $fails += $check['fails'] ?? 0;
+        }
+
+        foreach ($group['groups'] ?? [] as $subGroup) {
+            $sub = $this->collectChecks($subGroup);
+            $passes += $sub['passes'];
+            $fails += $sub['fails'];
+        }
+
+        return ['passes' => $passes, 'fails' => $fails];
     }
 }
