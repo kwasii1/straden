@@ -132,9 +132,14 @@ JS);
     </div>
     <div class="flex justify-between items-center">
         <flux:heading size="lg">{{ $this->test->name }}</flux:heading>
-        <flux:modal.trigger name="create-test-script">
-            <flux:button variant="primary">Create Test Script</flux:button>
-        </flux:modal.trigger>
+        <div class="flex items-center gap-x-2">
+            <flux:modal.trigger name="create-test-script">
+                <flux:button variant="primary">Create Test Script</flux:button>
+            </flux:modal.trigger>
+            <flux:modal.trigger name="generate-with-ai">
+                <flux:button variant="primary">Generate Script</flux:button>
+            </flux:modal.trigger>
+        </div>
     </div>
     <div class="grid grid-cols-3 border divide-x">
         <div class="flex flex-col p-3">
@@ -214,5 +219,11 @@ JS);
                 <flux:button type="submit" variant="primary">Submit</flux:button>
             </div>
         </form>
+    </flux:modal>
+    <flux:modal class="md:w-1/3 space-y-5" name="generate-with-ai" flyout>
+        <flux:heading>Generate Test Scripts</flux:heading>
+        <div class="flex">
+            <x-chat-panel />
+        </div>
     </flux:modal>
 </div>
