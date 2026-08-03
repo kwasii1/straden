@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\SlugGenerator;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +18,7 @@ class Run extends Model
     protected $primaryKey = 'id';
 
     protected $fillable = [
+        'slug',
         'script_id',
         'status',
         'triggered_by',
@@ -52,6 +54,19 @@ class Run extends Model
             'thresholds_summary' => 'json',
             'run_config' => 'json',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Run $run) {
+            $scriptName = Script::find($run->script_id)?->name ?? 'run';
+            $run->slug = SlugGenerator::unique($scriptName.' '.now()->format('YmdHis'), self::class);
+        });
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
     }
 
     public function script(): BelongsTo

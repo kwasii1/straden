@@ -23,7 +23,7 @@
                 <flux:sidebar.item icon="beaker" :href="route('projects.tests', ['project' => $project])" :current="request()->routeIs('projects.tests')" wire:navigate>
                     {{ __('Tests') }}
                 </flux:sidebar.item>
-                <flux:sidebar.item icon="rectangle-stack" :href="route('projects.runs', ['project' => $project])" :current="request()->routeIs('projects.runs')" wire:navigate>
+                <flux:sidebar.item icon="rectangle-stack" :href="route('projects.runs', ['project' => $project])" :current="request()->routeIs('projects.runs*')" wire:navigate>
                     {{ __('Runs') }}
                 </flux:sidebar.item>
                 <flux:sidebar.item icon="link" :href="route('projects.connectors', ['project' => $project])" :current="request()->routeIs('projects.connectors')" wire:navigate>

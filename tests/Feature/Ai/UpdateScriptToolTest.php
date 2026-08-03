@@ -7,6 +7,7 @@ use App\Models\Test;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Contracts\Approvable;
 use Laravel\Ai\Tools\Request;
@@ -200,4 +201,11 @@ test('update script tool is registered in test agent', function () {
     $updateTools = $tools->filter(fn ($tool) => $tool instanceof UpdateScriptTool);
 
     expect($updateTools)->toHaveCount(1);
+});
+
+it('shows the test database', function () {
+    dd([
+        'connection' => config('database.default'),
+        'database' => DB::connection()->getDatabaseName(),
+    ]);
 });

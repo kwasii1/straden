@@ -8,6 +8,7 @@ use App\Ai\Tools\ScanContextTool;
 use App\Ai\Tools\UpdateScriptTool;
 use App\Ai\Tools\ValidateScriptTool;
 use App\Models\Test;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Attributes\MaxSteps;
 use Laravel\Ai\Attributes\Model;
 use Laravel\Ai\Attributes\Provider;
@@ -86,7 +87,7 @@ INSTRUCTIONS;
 
         config(['filesystems.disks.'.$scriptsDisk => [
             'driver' => 'local',
-            'root' => storage_path('app/scripts/'.$this->test->id),
+            'root' => Storage::disk('local')->path('scripts/'.$this->test->id),
             'throw' => false,
         ]]);
 

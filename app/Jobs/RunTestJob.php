@@ -7,6 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Storage;
 
 class RunTestJob implements ShouldQueue
 {
@@ -25,7 +26,7 @@ class RunTestJob implements ShouldQueue
         $this->run->loadMissing('script.test');
 
         $script = $this->run->script;
-        $scriptDir = storage_path('app/scripts/'.$script->test_id.'/'.$script->id);
+        $scriptDir = Storage::disk('local')->path('scripts/'.$script->test_id.'/'.$script->id);
         $summaryFile = sys_get_temp_dir().'/k6-summary-'.$this->run->id.'.json';
 
         $this->run->update([

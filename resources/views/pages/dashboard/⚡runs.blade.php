@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Project;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -7,7 +8,7 @@ new
 #[Layout('layouts::main-app')]
 class extends Component
 {
-    //
+    public Project $project;
 };
 ?>
 
@@ -17,6 +18,6 @@ class extends Component
         <flux:text>View and manage all load test runs.</flux:text>
     </div>
     <div>
-        <livewire:run-table/>
+        <livewire:run-table :projectId="$project->id" :projectSlug="$project->slug"/>
     </div>
 </div>
