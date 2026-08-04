@@ -96,9 +96,14 @@ class extends Component
 ?>
 
 <div class="flex flex-col gap-y-10">
-    <div class="flex flex-col">
-        <flux:heading size="xl">Run Detail</flux:heading>
-        <flux:text>View test run results and performance metrics.</flux:text>
+    <div class="flex items-start justify-between gap-x-4">
+        <div class="flex flex-col">
+            <flux:heading size="xl">Run Detail</flux:heading>
+            <flux:text>View test run results and performance metrics.</flux:text>
+        </div>
+        <flux:modal.trigger name="run-insights">
+            <flux:button variant="primary" icon="sparkles">AI Insights</flux:button>
+        </flux:modal.trigger>
     </div>
 
     <div class="flex items-center gap-x-2 text-sm text-zinc-500">
@@ -390,4 +395,8 @@ class extends Component
             View Script
         </flux:button>
     </div>
+
+    <flux:modal name="run-insights" flyout class="md:w-2xl">
+        <livewire:run-insight-panel :run="$run" />
+    </flux:modal>
 </div>

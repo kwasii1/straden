@@ -55,3 +55,14 @@ test('run page renders the cancel button for running runs', function () {
         ->assertOk()
         ->assertSee('Cancel Run');
 });
+
+test('run page renders the AI insights trigger and flyout', function () {
+    $user = User::factory()->create();
+    $run = makeRun('passed');
+
+    $this->actingAs($user)
+        ->get(route('projects.runs.view', ['project' => $run->script->test->project, 'run' => $run]))
+        ->assertOk()
+        ->assertSee('AI Insights')
+        ->assertSee('run-insights');
+});

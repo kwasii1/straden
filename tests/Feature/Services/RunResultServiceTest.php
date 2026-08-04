@@ -40,8 +40,10 @@ function k6Summary(array $overrides = []): array
 }
 
 test('finalize marks a successful run as passed with parsed metrics', function () {
-    $run = Run::factory()->running()->create();
+    $this->travel(-1)->minute();
+    $run = Run::factory()->running()->create(['started_at' => now()]);
     writeRunArtifacts($run, 0, k6Summary());
+    $this->travelBack();
 
     RunResultService::finalize($run);
     $run->refresh();
@@ -58,7 +60,7 @@ test('finalize marks a successful run as passed with parsed metrics', function (
     expect($run->checks_failed)->toBe(5);
     expect($run->thresholds_passed)->toBeTrue();
     expect($run->completed_at)->not->toBeNull();
-    expect($run->duration_seconds)->not->toBeNull();
+    expect($run->duration_seconds)->toBe(60);
 
     expect(file_exists(RunResultService::summaryFilePath($run->id)))->toBeFalse();
     expect(file_exists(RunResultService::exitCodeFilePath($run->id)))->toBeFalse();

@@ -83,7 +83,7 @@ class RunResultService
         $update = [
             'completed_at' => now(),
             'duration_seconds' => $run->started_at
-                ? (int) max(0, now()->diffInSeconds($run->started_at))
+                ? (int) max(0, abs(now()->diffInSeconds($run->started_at)))
                 : null,
             'exit_code' => $exitCode,
         ];

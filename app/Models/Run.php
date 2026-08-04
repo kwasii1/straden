@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Run extends Model
 {
@@ -52,6 +53,7 @@ class Run extends Model
         return [
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
+            'thresholds_passed' => 'boolean',
             'thresholds_summary' => 'json',
             'run_config' => 'json',
         ];
@@ -78,5 +80,10 @@ class Run extends Model
     public function triggeredByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'triggered_by_user_id');
+    }
+
+    public function insight(): HasOne
+    {
+        return $this->hasOne(RunInsight::class);
     }
 }
