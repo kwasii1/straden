@@ -56,7 +56,7 @@
             <flux:navbar class="flex justify-between items-center" scrollable>
                 <livewire:dropdown-search />
                 <div class="flex">
-                    <flux:icon.bell />
+                    <livewire:notification-bell />
                 </div>
             </flux:navbar>
         </flux:header>

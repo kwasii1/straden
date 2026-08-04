@@ -8,6 +8,8 @@ use App\Events\ConversationUpdated;
 use App\Models\Project;
 use App\Models\Script;
 use App\Models\Test;
+use App\Models\User;
+use App\Notifications\ScriptGenerationCompleted;
 use Laravel\Ai\Approvals\Decision;
 use Laravel\Ai\Approvals\Decisions;
 use Laravel\Ai\Models\Conversation;
@@ -75,6 +77,8 @@ class ScriptAgentChat extends Component
         $this->input = '';
 
         $testId = $this->test->id;
+        $scriptId = $this->script->id;
+        $userId = auth()->id();
 
         $agent = new ScriptAgent($this->script);
 
@@ -85,8 +89,12 @@ class ScriptAgentChat extends Component
         }
 
         $agent->queue($userInput)
-            ->then(function () use ($testId) {
+            ->then(function () use ($testId, $scriptId, $userId) {
                 event(new ConversationUpdated($testId));
+
+                if ($userId) {
+                    User::find($userId)?->notify(new ScriptGenerationCompleted($scriptId, $testId));
+                }
             })
             ->catch(function (\Throwable $e) use ($testId) {
                 event(new ConversationErrored($testId, $e->getMessage()));

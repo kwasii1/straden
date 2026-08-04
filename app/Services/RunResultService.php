@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Run;
+use App\Notifications\RunCompleted;
 
 class RunResultService
 {
@@ -66,6 +67,8 @@ class RunResultService
                 'completed_at' => now(),
                 'duration_seconds' => 0,
             ]);
+
+            self::notifyCompletion($run);
         }
     }
 
@@ -107,9 +110,20 @@ class RunResultService
 
         $run->update($update);
 
+        self::notifyCompletion($run);
+
         @unlink(self::summaryFilePath($runId));
         @unlink(self::exitCodeFilePath($runId));
         @unlink(self::k6PidFilePath($runId));
+    }
+
+    private static function notifyCompletion(Run $run): void
+    {
+        $user = $run->triggeredByUser;
+
+        if ($user) {
+            $user->notify(new RunCompleted($run->id));
+        }
     }
 
     private static function readExitCode(string $runId): ?int

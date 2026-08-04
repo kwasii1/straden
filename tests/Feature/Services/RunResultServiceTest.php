@@ -1,8 +1,11 @@
 <?php
 
 use App\Models\Run;
+use App\Models\User;
+use App\Notifications\RunCompleted;
 use App\Services\RunResultService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Process;
 
 uses(RefreshDatabase::class);
@@ -160,4 +163,40 @@ test('cancel aborts a queued run immediately', function () {
 
     expect($run->status)->toBe('aborted');
     expect($run->completed_at)->not->toBeNull();
+});
+
+test('finalize notifies the triggering user about the completed run', function () {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    $run = Run::factory()->running()->create(['triggered_by_user_id' => $user->id]);
+    writeRunArtifacts($run, 0, k6Summary());
+
+    RunResultService::finalize($run);
+    $run->refresh();
+
+    expect($run->status)->toBe('passed');
+    Notification::assertSentTo($user, RunCompleted::class);
+});
+
+test('finalize does not notify when no user triggered the run', function () {
+    Notification::fake();
+
+    $run = Run::factory()->running()->create();
+    writeRunArtifacts($run, 0, k6Summary());
+
+    RunResultService::finalize($run);
+
+    Notification::assertNothingSent();
+});
+
+test('cancel notifies the triggering user when a queued run is aborted', function () {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    $run = Run::factory()->queued()->create(['triggered_by_user_id' => $user->id]);
+
+    RunResultService::cancel($run);
+
+    Notification::assertSentTo($user, RunCompleted::class);
 });

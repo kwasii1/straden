@@ -5,8 +5,11 @@ namespace App\Jobs;
 use App\Ai\Agents\RunInsightAgent;
 use App\Models\Run;
 use App\Models\RunInsight;
+use App\Notifications\RunInsightFailed;
+use App\Notifications\RunInsightReady;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Notifications\Notification;
 
 class GenerateRunInsightJob implements ShouldQueue
 {
@@ -55,6 +58,8 @@ class GenerateRunInsightJob implements ShouldQueue
                 'report' => $this->toReport($response),
                 'error' => null,
             ]);
+
+            $this->notifyUser($run, new RunInsightReady($run->id));
         } catch (\Throwable $e) {
             report($e);
 
@@ -62,7 +67,16 @@ class GenerateRunInsightJob implements ShouldQueue
                 'status' => 'failed',
                 'error' => mb_substr($e->getMessage(), 0, 65535),
             ]);
+
+            $this->notifyUser($run, new RunInsightFailed($run->id, $e->getMessage()));
         }
+    }
+
+    private function notifyUser(Run $run, Notification $notification): void
+    {
+        $run->loadMissing('triggeredByUser');
+
+        $run->triggeredByUser?->notify($notification);
     }
 
     private function resolveInsight(Run $run): RunInsight

@@ -7,7 +7,11 @@ use App\Models\Run;
 use App\Models\RunInsight;
 use App\Models\Script;
 use App\Models\Test;
+use App\Models\User;
+use App\Notifications\RunInsightFailed;
+use App\Notifications\RunInsightReady;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
@@ -114,4 +118,34 @@ test('job is dispatched to the queue by the panel', function () {
     Queue::assertPushed(GenerateRunInsightJob::class, function ($job) use ($run, $insight) {
         return $job->runId === $run->id && $job->runInsightId === $insight->id;
     });
+});
+
+test('job notifies the triggering user when the insight completes', function () {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    $run = makeJobRun();
+    $run->update(['triggered_by_user_id' => $user->id]);
+    RunInsight::factory()->queued()->create(['run_id' => $run->id]);
+
+    RunInsightAgent::fake();
+
+    (new GenerateRunInsightJob($run->id))->handle();
+
+    Notification::assertSentTo($user, RunInsightReady::class);
+});
+
+test('job notifies the triggering user when insight generation fails', function () {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    $run = makeJobRun();
+    $run->update(['triggered_by_user_id' => $user->id]);
+    RunInsight::factory()->queued()->create(['run_id' => $run->id]);
+
+    RunInsightAgent::fake(fn () => throw new RuntimeException('AI provider down'));
+
+    (new GenerateRunInsightJob($run->id))->handle();
+
+    Notification::assertSentTo($user, RunInsightFailed::class);
 });
