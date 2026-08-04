@@ -27,6 +27,28 @@ function fakeInfluxSeries(): void
         $q = $request['q'] ?? '';
         $t = 1690000000000;
 
+        if (str_contains($q, 'GROUP BY "name"')) {
+            $series = match (true) {
+                str_contains($q, 'http_req_duration') => [
+                    'columns' => ['time', 'p95', 'p99'],
+                    'values' => [[0, 100, 200]],
+                ],
+                str_contains($q, '"http_reqs"') => [
+                    'columns' => ['time', 'value'],
+                    'values' => [[0, 20]],
+                ],
+                default => [
+                    'columns' => ['time', 'error_rate'],
+                    'values' => [[0, 1]],
+                ],
+            };
+
+            return Http::response(['results' => [['series' => [
+                array_merge(['tags' => ['name' => 'https://api.example.com/v1/users']], $series),
+                array_merge(['tags' => ['name' => 'https://api.example.com/v1/orders']], $series),
+            ]]]]);
+        }
+
         $series = match (true) {
             str_contains($q, 'http_req_duration') => [
                 'columns' => ['time', 'p95', 'p99'],
@@ -92,6 +114,26 @@ test('run influx metrics tool returns aggregates for the run', function () {
     expect($aggregates['checks_failed'])->toBe(0);
     expect($aggregates['data_sent_bytes'])->toBe(30);
     expect($aggregates['data_received_bytes'])->toBe(80);
+});
+
+test('run influx metrics tool returns a per-endpoint breakdown', function () {
+    fakeInfluxSeries();
+
+    Connector::factory()->influxDb()->create();
+    $run = makeInfluxRun();
+
+    $result = json_decode((string) (new RunInfluxMetricsTool($run))->handle(new Request([])), true);
+
+    $perEndpoint = $result['per_endpoint'];
+
+    expect($perEndpoint)->toHaveCount(2);
+    expect($perEndpoint[0]['name'])->toBe('https://api.example.com/v1/users');
+    expect($perEndpoint[0]['total_requests'])->toBe(20);
+    expect($perEndpoint[0]['requests_share_percent'])->toEqual(50.0);
+    expect($perEndpoint[0]['p95_ms'])->toEqual(100.0);
+    expect($perEndpoint[0]['p99_ms'])->toEqual(200.0);
+    expect($perEndpoint[0]['error_rate_percent'])->toEqual(1.0);
+    expect($perEndpoint[1]['name'])->toBe('https://api.example.com/v1/orders');
 });
 
 test('run influx metrics tool identifies peak latency and error windows', function () {

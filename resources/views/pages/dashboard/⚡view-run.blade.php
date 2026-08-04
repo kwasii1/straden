@@ -16,6 +16,8 @@ class extends Component
 
     public Run $run;
 
+    public ?string $selectedEndpoint = null;
+
     public function mount(): void
     {
         $this->run->load('script.test');
@@ -27,14 +29,65 @@ class extends Component
     }
 
     #[Computed]
+    public function endpoints(): array
+    {
+        try {
+            return (new InfluxDbService(\App\Models\Connector::influxDb()))
+                ->endpointsForRun($this->run->id);
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    #[Computed]
     public function influxMetrics(): ?array
     {
         try {
             return (new InfluxDbService(\App\Models\Connector::influxDb()))
-                ->metricsForRun($this->run->id);
+                ->metricsForRun($this->run->id, $this->endpointFilter());
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    #[Computed]
+    public function selectedEndpointSummary(): ?array
+    {
+        if ($this->selectedEndpoint === null || $this->selectedEndpoint === '') {
+            return null;
+        }
+
+        try {
+            return (new InfluxDbService(\App\Models\Connector::influxDb()))
+                ->endpointSummary($this->run->id, $this->selectedEndpoint);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function endpointFilter(): ?string
+    {
+        return $this->selectedEndpoint !== '' && $this->selectedEndpoint !== null
+            ? $this->selectedEndpoint
+            : null;
+    }
+
+    public function endpointLabel(string $endpoint): string
+    {
+        if (! preg_match('#^https?://#i', $endpoint)) {
+            return $endpoint;
+        }
+
+        $segments = array_values(array_filter(
+            explode('/', (string) parse_url($endpoint, PHP_URL_PATH)),
+            fn (string $segment) => $segment !== ''
+        ));
+
+        if (count($segments) >= 2) {
+            return implode('/', array_slice($segments, -2));
+        }
+
+        return $segments[0] ?? $endpoint;
     }
 
     public function statusColor(string $status): string
@@ -239,7 +292,43 @@ class extends Component
         {{-- InfluxDB Time-Series Charts --}}
         @php $metrics = $this->influxMetrics; @endphp
         @if ($metrics)
-            <flux:heading size="lg">Time-Series Charts</flux:heading>
+            <div class="flex items-start justify-between gap-x-4">
+                <flux:heading size="lg">Time-Series Charts</flux:heading>
+                @if (! empty($this->endpoints))
+                    <flux:select wire:model.live="selectedEndpoint" class="w-72" label="Endpoint">
+                        <flux:select.option value="">All endpoints</flux:select.option>
+                        @foreach ($this->endpoints as $endpoint)
+                            <flux:select.option value="{{ $endpoint }}" title="{{ $endpoint }}">
+                                {{ $this->endpointLabel($endpoint) }}
+                            </flux:select.option>
+                        @endforeach
+                    </flux:select>
+                @endif
+            </div>
+
+            @if ($this->selectedEndpoint)
+                @php $summary = $this->selectedEndpointSummary; @endphp
+                @if ($summary)
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
+                            <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">Total Requests</flux:text>
+                            <flux:heading size="xl">{{ $this->formatMetric($summary['total_requests']) }}</flux:heading>
+                        </div>
+                        <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
+                            <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">P95 Duration</flux:text>
+                            <flux:heading size="xl">{{ $this->formatMetric($summary['p95_ms'], 'ms') }}</flux:heading>
+                        </div>
+                        <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
+                            <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">P99 Duration</flux:text>
+                            <flux:heading size="xl">{{ $this->formatMetric($summary['p99_ms'], 'ms') }}</flux:heading>
+                        </div>
+                        <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
+                            <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">Error Rate</flux:text>
+                            <flux:heading size="xl">{{ $this->formatMetric($summary['error_rate_percent'], '%') }}</flux:heading>
+                        </div>
+                    </div>
+                @endif
+            @endif
 
             <script type="application/json" data-run-metrics>
                 @json($metrics)
@@ -332,12 +421,14 @@ class extends Component
                     },
                 }"
             >
-                <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
-                    <flux:heading size="sm" class="mb-3">Active VUs</flux:heading>
-                    <div class="relative h-56">
-                        <canvas x-ref="vusChart"></canvas>
+                @if ($this->selectedEndpoint === null || $this->selectedEndpoint === '')
+                    <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+                        <flux:heading size="sm" class="mb-3">Active VUs</flux:heading>
+                        <div class="relative h-56">
+                            <canvas x-ref="vusChart"></canvas>
+                        </div>
                     </div>
-                </div>
+                @endif
 
                 <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
                     <flux:heading size="sm" class="mb-3">Request Rate</flux:heading>
@@ -360,19 +451,21 @@ class extends Component
                     </div>
                 </div>
 
-                <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
-                    <flux:heading size="sm" class="mb-3">Checks</flux:heading>
-                    <div class="relative h-56">
-                        <canvas x-ref="checksChart"></canvas>
+                @if ($this->selectedEndpoint === null || $this->selectedEndpoint === '')
+                    <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+                        <flux:heading size="sm" class="mb-3">Checks</flux:heading>
+                        <div class="relative h-56">
+                            <canvas x-ref="checksChart"></canvas>
+                        </div>
                     </div>
-                </div>
 
-                <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
-                    <flux:heading size="sm" class="mb-3">Data Transfer</flux:heading>
-                    <div class="relative h-56">
-                        <canvas x-ref="dataTransferChart"></canvas>
+                    <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+                        <flux:heading size="sm" class="mb-3">Data Transfer</flux:heading>
+                        <div class="relative h-56">
+                            <canvas x-ref="dataTransferChart"></canvas>
+                        </div>
                     </div>
-                </div>
+                @endif
             </div>
         @endif
     @endif

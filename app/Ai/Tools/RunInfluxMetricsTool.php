@@ -15,7 +15,7 @@ class RunInfluxMetricsTool implements Tool
 
     public function description(): Stringable|string
     {
-        return 'Fetch the InfluxDB time-series performance metrics recorded for this specific run. Returns aggregated statistics (max VUs, total requests, average/max p95 and p99 latency, average/max error rate, checks passed/failed, data transfer) plus a downsampled trend so you can spot when latency or errors spiked. Use this to identify what is slow and when the degradation happened.';
+        return 'Fetch the InfluxDB time-series performance metrics recorded for this specific run. Returns aggregated statistics (max VUs, total requests, average/max p95 and p99 latency, average/max error rate, checks passed/failed, data transfer), a per-endpoint breakdown (requests, p95/p99, error rate for each endpoint tested), and a downsampled trend so you can spot when latency or errors spiked. Use this to identify what is slow, which endpoint is slowest, and when the degradation happened.';
     }
 
     public function handle(Request $request): Stringable|string
@@ -30,12 +30,99 @@ class RunInfluxMetricsTool implements Tool
             ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         }
 
-        return json_encode($this->summarize($metrics), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        return json_encode(
+            array_merge($this->summarize($metrics), [
+                'per_endpoint' => $this->perEndpointBreakdown($service),
+            ]),
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+        );
     }
 
     public function schema(JsonSchema $schema): array
     {
         return [];
+    }
+
+    private function perEndpointBreakdown(InfluxDbService $service): array
+    {
+        $runId = $this->run->id;
+
+        try {
+            $requests = $this->groupByEndpoint($service->query(
+                sprintf('SELECT count("value") FROM "http_reqs" WHERE "run_id"=\'%s\' GROUP BY "name"', $runId)
+            ), 1);
+
+            $latency = $this->groupByEndpoint($service->query(
+                sprintf('SELECT percentile("value", 95) AS "p95", percentile("value", 99) AS "p99" FROM "http_req_duration" WHERE "run_id"=\'%s\' GROUP BY "name"', $runId)
+            ), 1);
+
+            $errors = $this->groupByEndpoint($service->query(
+                sprintf('SELECT mean("value") * 100 AS "error_rate" FROM "http_req_failed" WHERE "run_id"=\'%s\' GROUP BY "name"', $runId)
+            ), 1);
+        } catch (\Throwable) {
+            return [];
+        }
+
+        $totalRequests = (int) array_sum(array_column($requests, 'count'));
+
+        $breakdown = [];
+
+        foreach ($requests as $endpoint => $requestRow) {
+            $latencyRow = $latency[$endpoint] ?? null;
+            $errorRow = $errors[$endpoint] ?? null;
+
+            $breakdown[] = [
+                'name' => $endpoint,
+                'total_requests' => (int) $requestRow['count'],
+                'requests_share_percent' => $totalRequests > 0 ? round($requestRow['count'] / $totalRequests * 100, 2) : 0,
+                'p95_ms' => $this->roundNullable(($latencyRow['p95'] ?? null)),
+                'p99_ms' => $this->roundNullable(($latencyRow['p99'] ?? null)),
+                'error_rate_percent' => $this->roundNullable(($errorRow['error_rate'] ?? null)),
+            ];
+        }
+
+        usort($breakdown, fn (array $a, array $b) => $b['total_requests'] <=> $a['total_requests']);
+
+        return $breakdown;
+    }
+
+    /**
+     * Map InfluxDB GROUP BY "name" results into a [endpoint => column => value] map.
+     */
+    private function groupByEndpoint(array $results, int $valueOffset): array
+    {
+        $map = [];
+
+        foreach ($results[0]['series'] ?? [] as $series) {
+            $endpoint = $series['tags']['name'] ?? null;
+            $row = $series['values'][0] ?? null;
+
+            if ($endpoint === null || $row === null) {
+                continue;
+            }
+
+            $map[$endpoint] = array_merge(
+                ['count' => $row[$valueOffset] ?? 0],
+                $this->mapColumns($series['columns'] ?? [], $row)
+            );
+        }
+
+        return $map;
+    }
+
+    private function mapColumns(array $columns, array $row): array
+    {
+        $mapped = [];
+
+        foreach ($columns as $index => $column) {
+            if ($column === 'time') {
+                continue;
+            }
+
+            $mapped[$column] = $row[$index] ?? null;
+        }
+
+        return $mapped;
     }
 
     private function summarize(array $metrics): array

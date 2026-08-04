@@ -50,6 +50,7 @@ test('run insight agent instructions include run, test, and tool context', funct
         ->toContain('checkout-load')
         ->toContain('RunContextTool')
         ->toContain('RunInfluxMetricsTool')
+        ->toContain('per-endpoint breakdown')
         ->toContain('read_script_')
         ->toContain('repo_')
         ->toContain('scripts/'.$run->script->test_id.'/'.$run->script->id);
