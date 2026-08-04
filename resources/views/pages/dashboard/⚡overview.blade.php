@@ -177,6 +177,13 @@ class extends Component
         </div>
     @else
         {{-- Charts Row --}}
+        <script type="application/json" data-status-distribution>
+            @json($this->statusDistribution)
+        </script>
+        <script type="application/json" data-performance-trend>
+            @json($this->performanceTrend)
+        </script>
+
         <div
             class="grid grid-cols-1 lg:grid-cols-2 gap-6"
             x-data="{
@@ -198,7 +205,8 @@ class extends Component
                     const canvas = this.$refs.statusChart;
                     if (!canvas) return;
 
-                    const data = @json($this->statusDistribution);
+                    const el = document.querySelector('[data-status-distribution]');
+                    const data = el ? JSON.parse(el.textContent) : { labels: [], counts: [] };
                     if (data.counts.every(c => c === 0)) return;
 
                     this.statusChart = new Chart(canvas.getContext('2d'), {
@@ -228,7 +236,8 @@ class extends Component
                     const canvas = this.$refs.perfChart;
                     if (!canvas) return;
 
-                    const data = @json($this->performanceTrend);
+                    const el = document.querySelector('[data-performance-trend]');
+                    const data = el ? JSON.parse(el.textContent) : { labels: [], p95: [], p99: [] };
                     if (data.labels.length === 0) return;
 
                     this.perfChart = new Chart(canvas.getContext('2d'), {
