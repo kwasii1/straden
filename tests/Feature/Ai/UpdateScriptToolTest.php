@@ -202,10 +202,3 @@ test('update script tool is registered in test agent', function () {
 
     expect($updateTools)->toHaveCount(1);
 });
-
-it('shows the test database', function () {
-    dd([
-        'connection' => config('database.default'),
-        'database' => DB::connection()->getDatabaseName(),
-    ]);
-});

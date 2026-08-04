@@ -353,7 +353,7 @@ class extends Component
             </div>
 
             <div x-show="sidebarTab === 'chat'" class="flex-1 flex flex-col min-h-0">
-                <x-chat-panel />
+                <livewire:script-agent-chat :project="$project" :test="$test" :script="$script" />
             </div>
 
             <div x-show="sidebarTab === 'files'" class="flex-1 flex flex-col min-h-0">
