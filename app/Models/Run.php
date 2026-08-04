@@ -42,6 +42,7 @@ class Run extends Model
         'run_config',
 
         'k6_container_id',
+        'pid',
         'exit_code',
         'error_message',
     ];

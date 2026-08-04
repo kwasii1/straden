@@ -3,6 +3,7 @@
 use App\Models\Project;
 use App\Models\Run;
 use App\Services\InfluxDbService;
+use App\Services\RunResultService;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -84,6 +85,12 @@ class extends Component
         }
 
         return $unit ? "{$value} {$unit}" : (string) $value;
+    }
+
+    public function cancelRun(): void
+    {
+        RunResultService::cancel($this->run);
+        $this->run->refresh();
     }
 };
 ?>
@@ -366,11 +373,11 @@ class extends Component
     @endif
 
     @if ($this->run->status === 'queued' || $this->run->status === 'running')
-        <div class="flex items-center justify-center p-10 text-zinc-500"
-             @if ($this->influxMetrics) wire:poll.5s @endif>
+        <div class="flex items-center justify-center p-10 text-zinc-500" wire:poll.5s>
             <div class="flex flex-col items-center gap-y-3">
                 <flux:icon.clock class="size-10 animate-spin" />
                 <flux:text>Waiting for test run to complete...</flux:text>
+                <flux:button wire:click="cancelRun" variant="danger" size="sm">Cancel Run</flux:button>
             </div>
         </div>
     @endif

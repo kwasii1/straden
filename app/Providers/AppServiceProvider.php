@@ -54,6 +54,7 @@ class AppServiceProvider extends ServiceProvider
     protected function configureDevCommands(): void
     {
         DevCommands::artisan('serve --port=8001', 'server');
+        DevCommands::artisan('schedule:work', 'scheduler');
 
         if (App::environment('local')) {
             DevCommands::register(
