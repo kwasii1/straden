@@ -1,14 +1,45 @@
 <div class="flex flex-col h-full">
-    <div class="flex items-center justify-between shrink-0 px-3 py-2 border-b border-zinc-800">
-        <div class="flex items-center gap-2">
-            <flux:heading size="sm">AI Script Assistant</flux:heading>
-        </div>
+    <div class="flex items-center justify-between shrink-0 px-3 py-1.5 border-b border-zinc-800">
+        <flux:heading size="sm">AI Script Assistant</flux:heading>
         <button
             wire:click="newConversation"
             class="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
         >
             New Chat
         </button>
+    </div>
+
+    <div class="shrink-0 border-b border-zinc-800 px-3 py-1.5 flex items-center gap-1.5">
+        <div class="flex-1 min-w-0">
+            <flux:select wire:model.live="selectedProvider" size="sm" placeholder="Provider...">
+                <flux:select.option value="">Provider</flux:select.option>
+                @foreach ($availableProviders as $key => $label)
+                    <flux:select.option value="{{ $key }}">{{ $label }}</flux:select.option>
+                @endforeach
+            </flux:select>
+        </div>
+
+        <div class="flex-1 min-w-0">
+            <flux:select wire:model.live="selectedModel" size="sm" placeholder="Model...">
+                <flux:select.option value="">Model</flux:select.option>
+                @foreach ($availableModels as $model)
+                    <flux:select.option value="{{ $model }}">{{ $model }}</flux:select.option>
+                @endforeach
+            </flux:select>
+        </div>
+
+        @if (! empty($conversations))
+            <div class="flex-[2] min-w-0">
+                <flux:select wire:model.live="conversationId" size="sm" placeholder="History...">
+                    <flux:select.option value="">New Conversation</flux:select.option>
+                    @foreach ($conversations as $convo)
+                        <flux:select.option value="{{ $convo['id'] }}">
+                            {{ \Illuminate\Support\Str::limit($convo['title'], 30) }}
+                        </flux:select.option>
+                    @endforeach
+                </flux:select>
+            </div>
+        @endif
     </div>
 
     <div

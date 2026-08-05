@@ -8,9 +8,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Laravel\Ai\Concerns\HasConversations;
 
 class Script extends Model
 {
+    use HasConversations;
     use HasFactory;
     use HasUuids;
 

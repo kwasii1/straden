@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Ai\Agents\ScriptAgent;
+use App\Ai\Providers\AvailableModelMap;
 use App\Events\ConversationErrored;
 use App\Events\ConversationUpdated;
 use App\Models\Project;
@@ -12,6 +13,7 @@ use App\Models\User;
 use App\Notifications\ScriptGenerationCompleted;
 use Laravel\Ai\Approvals\Decision;
 use Laravel\Ai\Approvals\Decisions;
+use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Models\Conversation;
 use Livewire\Component;
 
@@ -43,11 +45,42 @@ class ScriptAgentChat extends Component
 
     public ?string $error = null;
 
+    public ?string $selectedProvider = null;
+
+    public ?string $selectedModel = null;
+
+    /**
+     * Available providers as [key => label].
+     *
+     * @var array<string, string>
+     */
+    public array $availableProviders = [];
+
+    /**
+     * Available models for the selected provider.
+     *
+     * @var array<string>
+     */
+    public array $availableModels = [];
+
+    /**
+     * Previous conversations for this script.
+     *
+     * @var array<int, array{id: string, title: string, created_at: string}>
+     */
+    public array $conversations = [];
+
     public function mount(Project $project, Test $test, Script $script): void
     {
         $this->project = $project;
         $this->test = $test;
         $this->script = $script;
+
+        $this->buildAvailableProviders();
+        $this->selectedProvider = 'deepseek';
+        $this->buildAvailableModels();
+        $this->selectedModel = 'deepseek-v4-flash';
+        $this->loadConversations();
 
         $existingConversation = Conversation::query()
             ->where('participant_type', $script->getMorphClass())
@@ -59,6 +92,29 @@ class ScriptAgentChat extends Component
             $this->conversationId = $existingConversation->id;
             $this->loadConversationMessages();
             $this->detectApprovalState();
+        }
+    }
+
+    public function updatedSelectedProvider(?string $value): void
+    {
+        $this->buildAvailableModels();
+
+        if (! in_array($this->selectedModel, $this->availableModels, true)) {
+            $this->selectedModel = $this->availableModels[0] ?? null;
+        }
+    }
+
+    public function updatedConversationId(?string $value): void
+    {
+        if ($value) {
+            $this->loadConversationMessages();
+            $this->detectApprovalState();
+            $this->awaitingApproval = false;
+            $this->pendingDecisions = [];
+            $this->error = null;
+            $this->dispatch('chat-scroll-bottom');
+        } else {
+            $this->newConversation();
         }
     }
 
@@ -88,7 +144,11 @@ class ScriptAgentChat extends Component
             $agent->forParticipant($this->script);
         }
 
-        $agent->queue($userInput)
+        $agent->queue(
+            $userInput,
+            provider: $this->selectedProvider ? Lab::from($this->selectedProvider) : null,
+            model: $this->selectedModel,
+        )
             ->then(function () use ($testId, $scriptId, $userId) {
                 event(new ConversationUpdated($testId));
 
@@ -117,6 +177,7 @@ class ScriptAgentChat extends Component
             }
         }
 
+        $this->loadConversations();
         $this->loadConversationMessages();
         $this->detectApprovalState();
         $this->isProcessing = false;
@@ -172,7 +233,11 @@ class ScriptAgentChat extends Component
         $agent = (new ScriptAgent($this->script))
             ->continue($this->conversationId, as: $this->script);
 
-        $agent->queue(Decisions::from($decisions))
+        $agent->queue(
+            Decisions::from($decisions),
+            provider: $this->selectedProvider ? Lab::from($this->selectedProvider) : null,
+            model: $this->selectedModel,
+        )
             ->then(function () use ($testId) {
                 event(new ConversationUpdated($testId));
             })
@@ -260,6 +325,56 @@ class ScriptAgentChat extends Component
                 'created_at' => $message->created_at->toIso8601String(),
             ];
         })->all();
+    }
+
+    private function buildAvailableProviders(): void
+    {
+        $providers = config('ai.providers');
+        $textProviders = AvailableModelMap::textProviders();
+
+        foreach ($providers as $key => $config) {
+            if (! in_array($key, $textProviders, true)) {
+                continue;
+            }
+
+            if (empty($config['key'])) {
+                continue;
+            }
+
+            $this->availableProviders[$key] = AvailableModelMap::labelFor($key);
+        }
+
+        if (empty($this->availableProviders)) {
+            $this->availableProviders['deepseek'] = 'DeepSeek';
+        }
+
+        asort($this->availableProviders);
+    }
+
+    private function buildAvailableModels(): void
+    {
+        if (! $this->selectedProvider) {
+            $this->availableModels = [];
+
+            return;
+        }
+
+        $this->availableModels = AvailableModelMap::modelsFor($this->selectedProvider);
+    }
+
+    private function loadConversations(): void
+    {
+        $this->conversations = Conversation::query()
+            ->where('participant_type', $this->script->getMorphClass())
+            ->where('participant_id', $this->script->getKey())
+            ->latest('updated_at')
+            ->get()
+            ->map(fn (Conversation $conversation) => [
+                'id' => $conversation->id,
+                'title' => $conversation->title,
+                'created_at' => $conversation->created_at->diffForHumans(),
+            ])
+            ->all();
     }
 
     public function render()
