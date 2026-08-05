@@ -72,6 +72,6 @@ class GitHubProvider implements GitProvider
 
     public function requiredScopesHelpText(): string
     {
-        return 'Create a token at https://github.com/settings/personal-access-tokens/new with scopes: Contents (Read-only), Metadata (Read-only).';
+        return 'Create a <a href="https://github.com/settings/personal-access-tokens/new?contents=read&metadata=read" target="_blank" class="underline">fine-grained personal access token</a> with <strong>Contents (Read-only)</strong> and <strong>Metadata (Read-only)</strong> scopes.';
     }
 }

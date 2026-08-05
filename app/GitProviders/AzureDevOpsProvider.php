@@ -55,7 +55,7 @@ class AzureDevOpsProvider implements GitProvider
 
     public function requiredScopesHelpText(): string
     {
-        return 'Create a token at https://dev.azure.com/{org}/_usersSettings/tokens with scope: Code (Read). Replace {org} with your organization name.';
+        return 'Create a personal access token at <code>https://dev.azure.com/{org}/_usersSettings/tokens</code> with <strong>Code (Read)</strong> scope. Replace <code>{org}</code> with your organization name.';
     }
 
     private function listProjects(string $token, string $organization): array

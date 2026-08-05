@@ -84,7 +84,7 @@ class extends Component
         <flux:modal.trigger name="create-repository">
             <flux:button variant="primary" icon="plus">Add Local Path</flux:button>
         </flux:modal.trigger>
-        <flux:button variant="primary" icon="plus" :href="route('projects.settings', ['project' => $project])" wire:navigate>
+        <flux:button variant="primary" icon="plus" :href="route('projects.git-providers', ['project' => $project])" wire:navigate>
             Add from Git Provider
         </flux:button>
     </div>

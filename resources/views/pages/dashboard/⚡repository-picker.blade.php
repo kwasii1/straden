@@ -72,7 +72,7 @@ class extends Component
         try {
             $provider = GitProviderResolver::for($this->connector->type);
 
-            $repos = $provider->listRepositories(decrypt($this->connector->token), [
+            $repos = $provider->listRepositories($this->connector->token, [
                 'organization' => $organization,
                 'project' => $this->selectedProject,
             ]);
@@ -207,7 +207,7 @@ class extends Component
                 variant="ghost"
                 size="sm"
                 icon="arrow-left"
-                :href="route('projects.settings', ['project' => $project])"
+                :href="route('projects.git-providers', ['project' => $project])"
                 wire:navigate
             />
             <div>

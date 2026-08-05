@@ -32,8 +32,11 @@
                 <flux:sidebar.item icon="folder-git-2" :href="route('projects.repositories', ['project' => $project])" :current="request()->routeIs('projects.repositories')" wire:navigate>
                     {{ __('Repositories') }}
                 </flux:sidebar.item>
+                <flux:sidebar.item icon="link" :href="route('projects.git-providers', ['project' => $project])" :current="request()->routeIs('projects.git-providers*')" wire:navigate>
+                    {{ __('Git Providers') }}
+                </flux:sidebar.item>
                 <flux:sidebar.item icon="cog-6-tooth" :href="route('projects.settings', ['project' => $project])" :current="request()->routeIs('projects.settings')" wire:navigate>
-                    {{ __('Settings') }}
+                    {{ __('AI Providers') }}
                 </flux:sidebar.item>
             </flux:sidebar.nav>
 

@@ -28,13 +28,12 @@ test('repository picker shows cached repos', function () {
         ->assertSee('test-owner/test-repo');
 });
 
-test('settings page can switch to git providers tab', function () {
+test('git providers page is accessible', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
 
     Livewire::actingAs($user)
-        ->test('pages::dashboard.settings', ['project' => $project])
-        ->set('activeTab', 'git-providers')
+        ->test('pages::dashboard.git-providers', ['project' => $project])
         ->assertSee('No git providers')
         ->assertSee('Add Git Provider');
 });
@@ -44,8 +43,7 @@ test('git connector form shows token label per provider', function () {
     $project = Project::factory()->create();
 
     $component = Livewire::actingAs($user)
-        ->test('pages::dashboard.settings', ['project' => $project])
-        ->set('activeTab', 'git-providers')
+        ->test('pages::dashboard.git-providers', ['project' => $project])
         ->set('gitType', 'github');
 
     expect($component->get('gitType'))->toBe('github');
@@ -57,8 +55,7 @@ test('git connector form shows workspace field for bitbucket', function () {
     $project = Project::factory()->create();
 
     Livewire::actingAs($user)
-        ->test('pages::dashboard.settings', ['project' => $project])
-        ->set('activeTab', 'git-providers')
+        ->test('pages::dashboard.git-providers', ['project' => $project])
         ->set('gitType', 'bitbucket')
         ->assertSee('Workspace');
 });
@@ -68,8 +65,7 @@ test('git connector form shows organization field for azure devops', function ()
     $project = Project::factory()->create();
 
     Livewire::actingAs($user)
-        ->test('pages::dashboard.settings', ['project' => $project])
-        ->set('activeTab', 'git-providers')
+        ->test('pages::dashboard.git-providers', ['project' => $project])
         ->set('gitType', 'azure_devops')
         ->assertSee('Organization');
 });
@@ -89,8 +85,7 @@ test('adding git connector validates token via API', function () {
     $project = Project::factory()->create();
 
     Livewire::actingAs($user)
-        ->test('pages::dashboard.settings', ['project' => $project])
-        ->set('activeTab', 'git-providers')
+        ->test('pages::dashboard.git-providers', ['project' => $project])
         ->set('gitName', 'Test GitHub')
         ->set('gitType', 'github')
         ->set('gitToken', 'ghp_valid_token')
@@ -109,8 +104,7 @@ test('adding git connector fails on invalid token', function () {
     $project = Project::factory()->create();
 
     Livewire::actingAs($user)
-        ->test('pages::dashboard.settings', ['project' => $project])
-        ->set('activeTab', 'git-providers')
+        ->test('pages::dashboard.git-providers', ['project' => $project])
         ->set('gitName', 'Bad GitHub')
         ->set('gitType', 'github')
         ->set('gitToken', 'invalid_token')
@@ -124,8 +118,7 @@ test('adding bitbucket connector requires workspace', function () {
     $project = Project::factory()->create();
 
     Livewire::actingAs($user)
-        ->test('pages::dashboard.settings', ['project' => $project])
-        ->set('activeTab', 'git-providers')
+        ->test('pages::dashboard.git-providers', ['project' => $project])
         ->set('gitName', 'My Bitbucket')
         ->set('gitType', 'bitbucket')
         ->set('gitToken', 'ATBB123')
@@ -138,8 +131,7 @@ test('adding azure devops connector requires organization', function () {
     $project = Project::factory()->create();
 
     Livewire::actingAs($user)
-        ->test('pages::dashboard.settings', ['project' => $project])
-        ->set('activeTab', 'git-providers')
+        ->test('pages::dashboard.git-providers', ['project' => $project])
         ->set('gitName', 'My Azure')
         ->set('gitType', 'azure_devops')
         ->set('gitToken', 'ado123')

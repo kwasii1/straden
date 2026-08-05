@@ -70,6 +70,6 @@ class GitLabProvider implements GitProvider
 
     public function requiredScopesHelpText(): string
     {
-        return 'Create a token at https://gitlab.com/-/user_settings/personal_access_tokens with scopes: read_repository, api.';
+        return 'Create a <a href="https://gitlab.com/-/user_settings/personal_access_tokens?name=Straden&scopes=read_repository,api" target="_blank" class="underline">personal access token</a> with <strong>read_repository</strong> and <strong>api</strong> scopes.';
     }
 }

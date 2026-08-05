@@ -151,7 +151,7 @@ class RepositorySyncService
 
                 return $provider->buildAuthenticatedCloneUrl(
                     $repository->git_url,
-                    decrypt($connector->token)
+                    $connector->token
                 );
             }
         }

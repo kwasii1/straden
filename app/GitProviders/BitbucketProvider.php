@@ -92,6 +92,6 @@ class BitbucketProvider implements GitProvider
 
     public function requiredScopesHelpText(): string
     {
-        return 'Create an app password at https://bitbucket.org/account/settings/app-passwords/ with permission: Repositories (Read). Note: Bitbucket calls these "App Passwords," not Personal Access Tokens.';
+        return 'Create an <a href="https://bitbucket.org/account/settings/app-passwords/new" target="_blank" class="underline">app password</a> with <strong>Repositories (Read)</strong> permission. Bitbucket calls these "App Passwords," not Personal Access Tokens.';
     }
 }

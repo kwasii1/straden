@@ -16,7 +16,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('projects/{project:slug}/runs', 'pages::dashboard.runs')->name('projects.runs');
     Route::livewire('projects/{project:slug}/runs/{run}', 'pages::dashboard.view-run')->name('projects.runs.view');
     Route::livewire('projects/{project:slug}/settings', 'pages::dashboard.settings')->name('projects.settings');
-    Route::livewire('projects/{project:slug}/settings/git-providers/{connector}/repositories', 'pages::dashboard.repository-picker')->name('projects.repository-picker');
+    Route::livewire('projects/{project:slug}/git-providers', 'pages::dashboard.git-providers')->name('projects.git-providers');
+    Route::livewire('projects/{project:slug}/git-providers/{connector}/repositories', 'pages::dashboard.repository-picker')->name('projects.repository-picker');
     Route::livewire('projects/{project:slug}/tests', 'pages::dashboard.tests')->name('projects.tests');
     Route::livewire('projects/{project:slug}/connectors', 'pages::dashboard.connectors')->name('projects.connectors');
     Route::livewire('projects/{project:slug}/new-test', 'pages::dashboard.new-test')->name('projects.new-test');

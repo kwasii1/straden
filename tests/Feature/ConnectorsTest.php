@@ -98,14 +98,23 @@ test('user can delete non-system connector', function () {
     expect(Connector::find($connector->id))->toBeNull();
 });
 
-test('settings page shows git providers tab', function () {
+test('git providers page is accessible', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('projects.git-providers', ['project' => $project]))
+        ->assertOk()
+        ->assertSee('Git Providers');
+});
+
+test('ai providers page is accessible', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
 
     $this->actingAs($user)
         ->get(route('projects.settings', ['project' => $project]))
         ->assertOk()
-        ->assertSee('Git Providers')
         ->assertSee('AI Providers');
 });
 
@@ -114,8 +123,7 @@ test('git providers list shows empty state', function () {
     $project = Project::factory()->create();
 
     Livewire::actingAs($user)
-        ->test('pages::dashboard.settings', ['project' => $project])
-        ->set('activeTab', 'git-providers')
+        ->test('pages::dashboard.git-providers', ['project' => $project])
         ->assertSee('No git providers');
 });
 
@@ -125,8 +133,7 @@ test('git providers list shows connected providers', function () {
     Connector::factory()->github()->create(['project_id' => $project->id]);
 
     Livewire::actingAs($user)
-        ->test('pages::dashboard.settings', ['project' => $project])
-        ->set('activeTab', 'git-providers')
+        ->test('pages::dashboard.git-providers', ['project' => $project])
         ->assertSee('GitHub');
 });
 
@@ -136,7 +143,7 @@ test('user can delete git provider connector', function () {
     $connector = Connector::factory()->github()->create(['project_id' => $project->id]);
 
     Livewire::actingAs($user)
-        ->test('pages::dashboard.settings', ['project' => $project])
+        ->test('pages::dashboard.git-providers', ['project' => $project])
         ->call('deleteGitConnector', $connector->id);
 
     expect(Connector::find($connector->id))->toBeNull();
