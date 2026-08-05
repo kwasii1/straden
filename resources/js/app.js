@@ -41,31 +41,71 @@ self.MonacoEnvironment = {
 };
 
 document.addEventListener('alpine:init', () => {
-    Alpine.data('monacoEditor', (initialValue, language) => {
+    Alpine.store('editor', { buffers: {} });
+
+    Alpine.data('monacoEditor', (initialValue, language, editable, path) => {
         let editor = null;
+
+        const store = () => Alpine.store('editor').buffers[path] ?? (Alpine.store('editor').buffers[path] = {
+            content: initialValue,
+            savedContent: initialValue,
+            dirty: false,
+        });
+
+        const markDirty = () => {
+            const buf = store();
+            buf.content = editor.getValue();
+            buf.dirty = buf.content !== buf.savedContent;
+        };
 
         return {
             content: initialValue,
 
             init() {
+                const buf = store();
+                const value = buf.content ?? initialValue;
+
+                this.content = value;
+
                 editor = monaco.editor.create(this.$refs.editorContainer, {
-                    value: initialValue,
+                    value: value,
                     language: language,
                     theme: 'vs-dark',
                     automaticLayout: true,
                     minimap: { enabled: true },
                     fontSize: 13,
                     roundedSelection: false,
+                    readOnly: !editable,
                 });
 
                 editor.onDidChangeModelContent(() => {
                     this.content = editor.getValue();
+                    markDirty();
                 });
+
+                if (editable && path) {
+                    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => this.save());
+                }
+            },
+
+            save() {
+                if (! editable || ! path) {
+                    return;
+                }
+
+                this.content = editor.getValue();
+
+                window.dispatchEvent(new CustomEvent('editor-save', {
+                    detail: { path: path, content: this.content },
+                }));
             },
 
             destroy() {
-                editor?.dispose();
-                editor = null;
+                if (editor) {
+                    markDirty();
+                    editor.dispose();
+                    editor = null;
+                }
             },
 
             setValue(val) {

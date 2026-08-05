@@ -28,3 +28,20 @@ it('escapes the initial value passed to the editor', function () {
 
     $view->assertDontSee('<script>alert(1)</script>', false);
 });
+
+it('renders a save toolbar when editable', function () {
+    $view = $this->blade(
+        '<x-code-editor name="content" value="x" editable="true" savePath="script.js" />'
+    );
+
+    $view->assertSee('Ctrl+S to save', false);
+    $view->assertSee('x-on:click="save()"', false);
+    $view->assertSee("monacoEditor('x', 'javascript', true, 'script.js')", false);
+});
+
+it('omits the save toolbar when not editable', function () {
+    $view = $this->blade('<x-code-editor name="content" value="x" />');
+
+    $view->assertDontSee('Ctrl+S to save', false);
+    $view->assertDontSee('x-on:click="save()"', false);
+});

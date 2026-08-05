@@ -552,3 +552,96 @@ test('empty file tree displays placeholder message', function () {
         ->assertOk()
         ->assertSee('No files yet');
 });
+
+test('saving a file persists edited content to disk', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $test = Test::factory()->create(['project_id' => $project->id]);
+    $script = Script::factory()->create(['test_id' => $test->id]);
+
+    $basePath = 'scripts/'.$test->id.'/'.$script->id;
+    Storage::disk('local')->makeDirectory($basePath);
+    Storage::disk('local')->put($basePath.'/script.js', '// original');
+
+    $this->actingAs($user);
+
+    Livewire::actingAs($user)
+        ->test('pages::dashboard.view-test-script', [
+            'project' => $project,
+            'test' => $test,
+            'script' => $script,
+        ])
+        ->call('saveFile', 'script.js', 'console.log("edited");')
+        ->assertHasNoErrors();
+
+    expect(Storage::disk('local')->get($basePath.'/script.js'))->toBe('console.log("edited");');
+});
+
+test('saving a file in a subfolder persists content', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $test = Test::factory()->create(['project_id' => $project->id]);
+    $script = Script::factory()->create(['test_id' => $test->id]);
+
+    $basePath = 'scripts/'.$test->id.'/'.$script->id;
+    Storage::disk('local')->makeDirectory($basePath.'/lib');
+    Storage::disk('local')->put($basePath.'/lib/helper.js', '// helper');
+    Storage::disk('local')->put($basePath.'/script.js', '// entry');
+
+    $this->actingAs($user);
+
+    Livewire::actingAs($user)
+        ->test('pages::dashboard.view-test-script', [
+            'project' => $project,
+            'test' => $test,
+            'script' => $script,
+        ])
+        ->call('saveFile', 'lib/helper.js', 'export const x = 1;');
+
+    expect(Storage::disk('local')->get($basePath.'/lib/helper.js'))->toBe('export const x = 1;');
+});
+
+test('saving a file rejects path traversal', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $test = Test::factory()->create(['project_id' => $project->id]);
+    $script = Script::factory()->create(['test_id' => $test->id]);
+
+    $basePath = 'scripts/'.$test->id.'/'.$script->id;
+    Storage::disk('local')->makeDirectory($basePath);
+    Storage::disk('local')->put($basePath.'/script.js', '// entry');
+
+    $this->actingAs($user);
+
+    Livewire::actingAs($user)
+        ->test('pages::dashboard.view-test-script', [
+            'project' => $project,
+            'test' => $test,
+            'script' => $script,
+        ])
+        ->call('saveFile', '../../evil.js', 'bad')
+        ->assertHasErrors();
+
+    Storage::disk('local')->assertMissing('evil.js');
+});
+
+test('editor page renders save toolbar and dirty dot markup', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $test = Test::factory()->create(['project_id' => $project->id]);
+    $script = Script::factory()->create(['test_id' => $test->id]);
+
+    $basePath = 'scripts/'.$test->id.'/'.$script->id;
+    Storage::disk('local')->makeDirectory($basePath);
+    Storage::disk('local')->put($basePath.'/script.js', '// entry');
+
+    $this->actingAs($user)
+        ->get(route('projects.view-test-script', [
+            'project' => $project,
+            'test' => $test,
+            'script' => $script,
+        ]))
+        ->assertOk()
+        ->assertSee('Ctrl+S to save', false)
+        ->assertSee("Alpine.store('editor')", false);
+});

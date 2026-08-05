@@ -94,6 +94,8 @@ class extends Component
 
         $this->updatePathsAfterMove($sourcePath, $destRel);
         $this->buildFileTree();
+
+        $this->dispatch('editor-moved', sourcePath: $sourcePath, destPath: $destRel);
     }
 
     public function renameItem(string $path, string $newName): void
@@ -114,6 +116,8 @@ class extends Component
 
         $this->updatePathsAfterMove($path, $newPath);
         $this->buildFileTree();
+
+        $this->dispatch('editor-moved', sourcePath: $path, destPath: $newPath);
     }
 
     public function deleteItem(string $path): void
@@ -136,11 +140,26 @@ class extends Component
         }
 
         $this->buildFileTree();
+
+        $this->dispatch('editor-deleted', path: $path);
     }
 
     public function readFile(string $relativePath): ?string
     {
         return $this->fm()->readFile($relativePath);
+    }
+
+    public function saveFile(string $path, string $content): void
+    {
+        try {
+            $this->fm()->updateFile($path, $content);
+        } catch (\InvalidArgumentException $e) {
+            $this->addError('path', $e->getMessage());
+
+            return;
+        }
+
+        Flux::toast(variant: 'success', text: "Saved {$path}.");
     }
 
     public function runTest(): void
@@ -274,8 +293,40 @@ class extends Component
                 }
             }
         },
+
+        saveEditor(detail) {
+            $wire.saveFile(detail.path, detail.content).then(() => {
+                if (Alpine.store('editor').buffers[detail.path]) {
+                    Alpine.store('editor').buffers[detail.path].savedContent = detail.content;
+                    Alpine.store('editor').buffers[detail.path].dirty = false;
+                }
+            });
+        },
+
+        handleEditorMoved(detail) {
+            const buffers = Alpine.store('editor').buffers;
+            const matches = Object.keys(buffers).filter(k => k === detail.sourcePath || k.startsWith(detail.sourcePath + '/'));
+
+            for (const oldKey of matches) {
+                const newKey = detail.destPath + oldKey.substring(detail.sourcePath.length);
+                buffers[newKey] = buffers[oldKey];
+                delete buffers[oldKey];
+            }
+        },
+
+        handleEditorDeleted(detail) {
+            const buffers = Alpine.store('editor').buffers;
+            for (const key of Object.keys(buffers)) {
+                if (key === detail.path || key.startsWith(detail.path + '/')) {
+                    delete buffers[key];
+                }
+            }
+        },
     }"
     @tree-drop.window="handleDrop($event.detail.event, $event.detail.targetDir)"
+    @editor-save.window="saveEditor($event.detail)"
+    @editor-moved.window="handleEditorMoved($event.detail)"
+    @editor-deleted.window="handleEditorDeleted($event.detail)"
     class="flex flex-col h-full"
 >
     <div class="shrink-0 flex justify-between items-center p-1">
@@ -299,6 +350,10 @@ class extends Component
                                       : ' bg-zinc-950 text-zinc-500 hover:bg-zinc-900/50' }}">
                             <flux:icon.document-text class="size-3.5 shrink-0" />
                             <span class="truncate max-w-[160px]">{{ basename($tab) }}</span>
+                            <span
+                                x-show="Alpine.store('editor').buffers['{{ $tab }}']?.dirty"
+                                class="size-1.5 shrink-0 rounded-full bg-amber-400"
+                            ></span>
                             <button
                                 wire:click.stop="closeTab('{{ $tab }}')"
                                 class="rounded p-0.5 hover:bg-zinc-700 text-zinc-500
@@ -318,6 +373,8 @@ class extends Component
                         :value="$this->readFile($activeFilePath)"
                         :language="$this->detectLanguage($activeFilePath)"
                         height="100%"
+                        :editable="true"
+                        :save-path="$activeFilePath"
                         class="!rounded-none !border-0 flex-1"
                     />
                 @else

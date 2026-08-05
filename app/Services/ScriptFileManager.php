@@ -54,6 +54,13 @@ class ScriptFileManager
         return $this->disk->exists($full) ? $this->disk->get($full) : null;
     }
 
+    public function updateFile(string $relativePath, string $content): void
+    {
+        $resolved = $this->resolvePath($relativePath);
+
+        $this->disk->put($this->basePath.'/'.$resolved, $content);
+    }
+
     public function exists(string $relativePath): bool
     {
         return $this->disk->exists($this->basePath.'/'.$relativePath);
@@ -151,6 +158,37 @@ class ScriptFileManager
     public function entryPointPath(): string
     {
         return 'script.js';
+    }
+
+    private function resolvePath(string $path): string
+    {
+        $path = str_replace('\\', '/', $path);
+        $path = ltrim($path, '/');
+        $segments = [];
+
+        foreach (explode('/', $path) as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+
+            if ($segment === '..') {
+                if (empty($segments)) {
+                    throw new \InvalidArgumentException('Path escapes the script directory.');
+                }
+
+                array_pop($segments);
+
+                continue;
+            }
+
+            $segments[] = $segment;
+        }
+
+        if (empty($segments)) {
+            throw new \InvalidArgumentException('A non-empty file path is required.');
+        }
+
+        return implode('/', $segments);
     }
 
     private function scanDir(string $dir): array
