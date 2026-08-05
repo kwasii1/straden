@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Connector;
 use App\Models\Project;
 use App\Models\Repository;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -22,9 +23,9 @@ class RepositoryFactory extends Factory
             'project_id' => Project::factory(),
             'name' => fake()->unique()->words(3, true),
             'type' => 'git',
+            'full_name' => fake()->userName().'/'.fake()->slug(),
             'git_url' => 'https://github.com/'.fake()->userName().'/'.fake()->slug(),
             'git_branch' => 'main',
-            'git_auth_type' => 'none',
             'sync_status' => 'pending',
         ];
     }
@@ -47,10 +48,21 @@ class RepositoryFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'type' => 'local_path',
+            'full_name' => null,
             'git_url' => null,
-            'git_auth_type' => null,
             'git_branch' => 'main',
             'local_path' => '/var/www/'.fake()->slug(),
+        ]);
+    }
+
+    /**
+     * Git repository connected via a provider connector.
+     */
+    public function connected(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => 'git',
+            'connector_id' => Connector::factory()->github(),
         ]);
     }
 
@@ -62,6 +74,7 @@ class RepositoryFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'sync_status' => 'synced',
             'last_synced_at' => now(),
+            'cloned_at' => now(),
             'file_tree' => [
                 [
                     'name' => 'src',

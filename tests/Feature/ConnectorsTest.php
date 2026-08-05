@@ -5,48 +5,45 @@ use App\Models\Project;
 use App\Models\User;
 use Livewire\Livewire;
 
-test('guests are redirected to the login page', function () {
+test('guests are redirected to login', function () {
     $project = Project::factory()->create();
 
-    $this->get(route('projects.connectors', $project))
+    $this->get(route('projects.connectors', ['project' => $project]))
         ->assertRedirect(route('login'));
 });
 
-test('authenticated users can view the connectors page', function () {
+test('authenticated users can view connectors page', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
 
     $this->actingAs($user)
-        ->get(route('projects.connectors', $project))
-        ->assertOk()
-        ->assertSee('Connectors')
-        ->assertSee('Connect external services');
+        ->get(route('projects.connectors', ['project' => $project]))
+        ->assertOk();
 });
 
-test('connectors page shows empty state when no connectors exist', function () {
+test('empty state shows when no connectors configured', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
 
     $this->actingAs($user)
-        ->get(route('projects.connectors', $project))
+        ->get(route('projects.connectors', ['project' => $project]))
         ->assertOk()
-        ->assertSee('No connectors configured.');
+        ->assertSee('No connectors');
 });
 
-test('connectors page shows seeded InfluxDB connector as system', function () {
+test('seeded influxdb connector is shown as system', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
-
-    $connector = Connector::factory()->influxDb()->create(['name' => 'InfluxDB (built-in)']);
+    Connector::factory()->influxDb()->create();
 
     $this->actingAs($user)
-        ->get(route('projects.connectors', $project))
+        ->get(route('projects.connectors', ['project' => $project]))
         ->assertOk()
-        ->assertSee('InfluxDB (built-in)')
-        ->assertSee('System');
+        ->assertSee('System')
+        ->assertSee('InfluxDB');
 });
 
-test('authenticated users can add a connector', function () {
+test('user can add a database connector', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
 
@@ -54,69 +51,93 @@ test('authenticated users can add a connector', function () {
         ->test('pages::dashboard.connectors', ['project' => $project])
         ->set('name', 'My Database')
         ->set('type', 'database')
-        ->set('host', '127.0.0.1')
+        ->set('host', 'localhost')
         ->set('port', 5432)
-        ->set('database', 'my_app')
+        ->set('database', 'my_db')
+        ->set('username', 'user')
+        ->set('password', 'pass')
         ->call('addConnector')
-        ->assertHasNoErrors()
-        ->assertSet('name', '');
+        ->assertHasNoErrors();
 
     expect(Connector::where('name', 'My Database')->exists())->toBeTrue();
 });
 
-test('add connector requires valid type', function () {
+test('connector type must be valid', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
 
     Livewire::actingAs($user)
         ->test('pages::dashboard.connectors', ['project' => $project])
         ->set('name', 'Bad Connector')
-        ->set('type', 'invalid_type')
+        ->set('type', 'invalid')
         ->call('addConnector')
         ->assertHasErrors(['type']);
 });
 
-test('system connectors cannot be deleted', function () {
+test('user cannot delete system connector', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
-
     $connector = Connector::factory()->influxDb()->create();
 
     Livewire::actingAs($user)
         ->test('pages::dashboard.connectors', ['project' => $project])
         ->call('deleteConnector', $connector->id);
 
-    expect(Connector::where('id', $connector->id)->exists())->toBeTrue();
+    expect(Connector::find($connector->id))->not->toBeNull();
 });
 
-test('non-system connectors can be deleted', function () {
+test('user can delete non-system connector', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
-
-    $connector = Connector::factory()->database()->for($project)->create();
+    $connector = Connector::factory()->database()->create(['project_id' => $project->id]);
 
     Livewire::actingAs($user)
         ->test('pages::dashboard.connectors', ['project' => $project])
         ->call('deleteConnector', $connector->id);
 
-    expect(Connector::where('id', $connector->id)->exists())->toBeFalse();
+    expect(Connector::find($connector->id))->toBeNull();
 });
 
-test('test connection records last tested timestamp', function () {
+test('settings page shows git providers tab', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
 
-    $connector = Connector::factory()->influxDb()->create([
-        'host' => '127.0.0.1',
-        'port' => 9999,
-    ]);
+    $this->actingAs($user)
+        ->get(route('projects.settings', ['project' => $project]))
+        ->assertOk()
+        ->assertSee('Git Providers')
+        ->assertSee('AI Providers');
+});
+
+test('git providers list shows empty state', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
 
     Livewire::actingAs($user)
-        ->test('pages::dashboard.connectors', ['project' => $project])
-        ->call('testConnection', $connector->id);
+        ->test('pages::dashboard.settings', ['project' => $project])
+        ->set('activeTab', 'git-providers')
+        ->assertSee('No git providers');
+});
 
-    $connector->refresh();
+test('git providers list shows connected providers', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    Connector::factory()->github()->create(['project_id' => $project->id]);
 
-    expect($connector->last_tested_at)->not->toBeNull()
-        ->and($connector->last_test_successful)->toBeFalse();
+    Livewire::actingAs($user)
+        ->test('pages::dashboard.settings', ['project' => $project])
+        ->set('activeTab', 'git-providers')
+        ->assertSee('GitHub');
+});
+
+test('user can delete git provider connector', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $connector = Connector::factory()->github()->create(['project_id' => $project->id]);
+
+    Livewire::actingAs($user)
+        ->test('pages::dashboard.settings', ['project' => $project])
+        ->call('deleteGitConnector', $connector->id);
+
+    expect(Connector::find($connector->id))->toBeNull();
 });

@@ -21,25 +21,26 @@ class Repository extends Model
 
     protected $fillable = [
         'project_id',
+        'connector_id',
         'name',
         'type',
+        'full_name',
         'git_url',
         'git_branch',
-        'git_auth_type',
-        'git_credentials',
         'local_path',
         'sync_status',
         'sync_error',
         'last_synced_at',
         'last_commit_sha',
+        'cloned_at',
         'file_tree',
     ];
 
     protected function casts(): array
     {
         return [
-            'git_credentials' => 'encrypted',
             'last_synced_at' => 'datetime',
+            'cloned_at' => 'datetime',
             'file_tree' => 'array',
         ];
     }
@@ -47,5 +48,10 @@ class Repository extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function connector(): BelongsTo
+    {
+        return $this->belongsTo(Connector::class);
     }
 }

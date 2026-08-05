@@ -85,4 +85,14 @@ class Connector extends Model
     {
         return $this->type === ConnectorType::InfluxDb;
     }
+
+    public function isGitProvider(): bool
+    {
+        return $this->type->isGitProvider();
+    }
+
+    public function gitProviderTypeLabel(): string
+    {
+        return $this->type->label();
+    }
 }

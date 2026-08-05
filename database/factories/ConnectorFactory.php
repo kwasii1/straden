@@ -74,4 +74,97 @@ class ConnectorFactory extends Factory
             'password' => fake()->password(),
         ]);
     }
+
+    public function github(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => ConnectorType::GitHub,
+            'host' => null,
+            'port' => null,
+            'database' => null,
+            'username' => null,
+            'password' => null,
+            'token' => 'ghp_test_token',
+            'settings' => [
+                'cached_repos' => [
+                    [
+                        'full_name' => 'test-owner/test-repo',
+                        'clone_url' => 'https://github.com/test-owner/test-repo.git',
+                        'default_branch' => 'main',
+                        'private' => false,
+                    ],
+                ],
+                'repos_fetched_at' => now()->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function gitlab(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => ConnectorType::GitLab,
+            'host' => null,
+            'port' => null,
+            'database' => null,
+            'username' => null,
+            'password' => null,
+            'token' => 'glpat-test-token',
+            'settings' => [
+                'cached_repos' => [
+                    [
+                        'full_name' => 'test-group/test-project',
+                        'clone_url' => 'https://gitlab.com/test-group/test-project.git',
+                        'default_branch' => 'main',
+                        'private' => false,
+                    ],
+                ],
+                'repos_fetched_at' => now()->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function bitbucket(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => ConnectorType::Bitbucket,
+            'host' => null,
+            'port' => null,
+            'database' => null,
+            'username' => null,
+            'password' => null,
+            'token' => 'ATBB-test-token',
+            'settings' => [
+                'workspace' => 'test-workspace',
+                'cached_repos' => [
+                    [
+                        'full_name' => 'test-workspace/test-repo',
+                        'clone_url' => 'https://bitbucket.org/test-workspace/test-repo.git',
+                        'default_branch' => 'main',
+                        'private' => false,
+                    ],
+                ],
+                'repos_fetched_at' => now()->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function azureDevOps(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => ConnectorType::AzureDevOps,
+            'host' => null,
+            'port' => null,
+            'database' => null,
+            'username' => null,
+            'password' => null,
+            'token' => 'ado-test-token',
+            'settings' => [
+                'organization' => 'test-org',
+                'cached_projects' => [
+                    ['name' => 'Test Project', 'description' => 'A test project'],
+                ],
+                'repos_fetched_at' => now()->toIso8601String(),
+            ],
+        ]);
+    }
 }

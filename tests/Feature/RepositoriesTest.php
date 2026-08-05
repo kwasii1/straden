@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\SyncRepositoryJob;
+use App\Models\Connector;
 use App\Models\Project;
 use App\Models\Repository;
 use App\Models\User;
@@ -42,26 +43,6 @@ test('authenticated users can visit the repository browse page', function () {
         ->assertOk();
 });
 
-test('user can add a git repository', function () {
-    $user = User::factory()->create();
-    $project = Project::factory()->create();
-
-    Livewire::actingAs($user)
-        ->test('pages::dashboard.repositories', ['project' => $project])
-        ->set('name', 'My Git Repo')
-        ->set('type', 'git')
-        ->set('git_url', 'https://github.com/user/repo.git')
-        ->set('git_branch', 'main')
-        ->set('git_auth_type', 'none')
-        ->call('addRepository')
-        ->assertHasNoErrors()
-        ->assertSet('name', '')
-        ->assertSet('type', 'git');
-
-    expect($project->repositories()->count())->toBe(1);
-    expect($project->repositories()->first()->name)->toBe('My Git Repo');
-});
-
 test('user can add a local path repository', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
@@ -74,7 +55,7 @@ test('user can add a local path repository', function () {
         ->call('addRepository')
         ->assertHasNoErrors()
         ->assertSet('name', '')
-        ->assertSet('type', 'git');
+        ->assertSet('type', 'local_path');
 
     expect($project->repositories()->count())->toBe(1);
     expect($project->repositories()->first()->name)->toBe('My Local Repo');
@@ -139,19 +120,6 @@ test('browse page shows file tree when populated', function () {
         ->assertSee('README.md');
 });
 
-test('adding a git repository requires valid url', function () {
-    $user = User::factory()->create();
-    $project = Project::factory()->create();
-
-    Livewire::actingAs($user)
-        ->test('pages::dashboard.repositories', ['project' => $project])
-        ->set('name', 'Bad Repo')
-        ->set('type', 'git')
-        ->set('git_url', 'not-a-url')
-        ->call('addRepository')
-        ->assertHasErrors(['git_url']);
-});
-
 test('adding a local path repository requires path', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
@@ -163,6 +131,19 @@ test('adding a local path repository requires path', function () {
         ->set('local_path', '')
         ->call('addRepository')
         ->assertHasErrors(['local_path']);
+});
+
+test('local path repository requires name', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test('pages::dashboard.repositories', ['project' => $project])
+        ->set('name', '')
+        ->set('type', 'local_path')
+        ->set('local_path', '/var/www/my-app')
+        ->call('addRepository')
+        ->assertHasErrors(['name']);
 });
 
 test('sync dispatches a job and sets status to syncing', function () {
@@ -182,6 +163,31 @@ test('sync dispatches a job and sets status to syncing', function () {
     Queue::assertPushed(SyncRepositoryJob::class, fn ($job) => $job->repository->id === $repository->id);
 
     expect($repository->fresh()->sync_status)->toBe('syncing');
+});
+
+test('repository belongs to connector', function () {
+    $connector = Connector::factory()->github()->create();
+    $repository = Repository::factory()->create([
+        'connector_id' => $connector->id,
+    ]);
+
+    expect($repository->connector)->not->toBeNull();
+    expect($repository->connector->type->isGitProvider())->toBeTrue();
+});
+
+test('repository shows reconnect badge when git type has no connector', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    Repository::factory()->create([
+        'project_id' => $project->id,
+        'type' => 'git',
+        'connector_id' => null,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('projects.repositories', ['project' => $project]))
+        ->assertOk()
+        ->assertSee('Reconnect');
 });
 
 test('service scans local path and builds file tree', function () {
@@ -254,7 +260,6 @@ test('service excludes ignored directories from file tree', function () {
 
         $result = $service->sync($repository);
 
-        // Should only contain src/main.js — node_modules, .git, and vendor excluded
         expect($result['file_tree'])->toBe([
             ['name' => 'src', 'children' => [
                 ['name' => 'main.js'],
@@ -317,6 +322,7 @@ test('job marks repository as synced with file tree on success', function () {
         expect($repository->sync_status)->toBe('synced');
         expect($repository->sync_error)->toBeNull();
         expect($repository->last_synced_at)->not->toBeNull();
+        expect($repository->cloned_at)->toBeNull();
         expect($repository->file_tree)->toBe([
             ['name' => 'hello.js'],
         ]);
@@ -340,11 +346,38 @@ test('job marks repository as failed on error', function () {
     try {
         $job->handle(app(RepositorySyncService::class));
     } catch (Throwable) {
-        // Expected
     }
 
     $repository->refresh();
 
     expect($repository->sync_status)->toBe('failed');
     expect($repository->sync_error)->toContain('does not exist');
+});
+
+test('job sets cloned_at on first successful clone for git repos', function () {
+    $dir = sys_get_temp_dir().'/straden-sync-test-'.uniqid();
+    mkdir($dir);
+    file_put_contents($dir.'/hello.js', 'console.log("hi");');
+
+    try {
+        $project = Project::factory()->create();
+        $repository = Repository::factory()->create([
+            'project_id' => $project->id,
+            'type' => 'local_path',
+            'local_path' => $dir,
+            'sync_status' => 'syncing',
+            'cloned_at' => null,
+        ]);
+
+        $job = new SyncRepositoryJob($repository);
+        $job->handle(app(RepositorySyncService::class));
+
+        $repository->refresh();
+
+        expect($repository->sync_status)->toBe('synced');
+        expect($repository->cloned_at)->toBeNull();
+    } finally {
+        unlink($dir.'/hello.js');
+        rmdir($dir);
+    }
 });

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\GitProviders\GitProviderResolver;
 use App\Models\Repository;
 use Illuminate\Support\Facades\File;
 use RuntimeException;
@@ -71,7 +72,7 @@ class RepositorySyncService
 
     private function clonePath(Repository $repository): string
     {
-        return storage_path('app/repositories/'.$repository->id);
+        return storage_path('app/repos/'.$repository->project_id.'/'.$repository->id);
     }
 
     private function clone(Repository $repository, string $targetPath): void
@@ -103,7 +104,13 @@ class RepositorySyncService
             $error = $process->getErrorOutput() ?: $process->getOutput();
             $this->cleanupCloneDirectory($targetPath);
 
-            throw new RuntimeException('Git clone failed: '.$this->sanitizeError($error));
+            $sanitizedError = $this->sanitizeError($error);
+
+            if ($this->isAuthError($sanitizedError)) {
+                throw new RuntimeException('Git clone failed (auth error): '.$sanitizedError);
+            }
+
+            throw new RuntimeException('Git clone failed: '.$sanitizedError);
         }
     }
 
@@ -124,24 +131,39 @@ class RepositorySyncService
         if (! $process->isSuccessful()) {
             $error = $process->getErrorOutput() ?: $process->getOutput();
 
-            throw new RuntimeException('Git pull failed: '.$this->sanitizeError($error));
+            $sanitizedError = $this->sanitizeError($error);
+
+            if ($this->isAuthError($sanitizedError)) {
+                throw new RuntimeException('Git pull failed (auth error): '.$sanitizedError);
+            }
+
+            throw new RuntimeException('Git pull failed: '.$sanitizedError);
         }
     }
 
     private function resolveGitUrl(Repository $repository): string
     {
+        if ($repository->connector_id && $repository->connector) {
+            $connector = $repository->connector;
+
+            if ($connector->isGitProvider()) {
+                $provider = GitProviderResolver::for($connector->type);
+
+                return $provider->buildAuthenticatedCloneUrl(
+                    $repository->git_url,
+                    decrypt($connector->token)
+                );
+            }
+        }
+
         $url = $repository->git_url;
 
-        if ($repository->git_auth_type === 'token' && $repository->git_credentials) {
-            $credentials = $repository->git_credentials;
+        if (str_starts_with($url, 'https://')) {
+            return $url;
+        }
 
-            if (str_starts_with($url, 'https://')) {
-                return 'https://'.rawurlencode($credentials).'@'.substr($url, 8);
-            }
-
-            if (! str_contains($url, '@')) {
-                return 'https://'.rawurlencode($credentials).'@github.com/'.$url;
-            }
+        if (! str_contains($url, '@') && ! str_starts_with($url, 'git@')) {
+            return 'https://github.com/'.$url;
         }
 
         return $url;
@@ -149,23 +171,6 @@ class RepositorySyncService
 
     private function gitEnvironment(Repository $repository): ?array
     {
-        if ($repository->git_auth_type === 'ssh_key' && $repository->git_credentials) {
-            $keyPath = storage_path('app/tmp/ssh_key_'.$repository->id);
-            File::ensureDirectoryExists(dirname($keyPath));
-            file_put_contents($keyPath, $repository->git_credentials);
-            chmod($keyPath, 0600);
-
-            register_shutdown_function(function () use ($keyPath) {
-                if (file_exists($keyPath)) {
-                    unlink($keyPath);
-                }
-            });
-
-            return [
-                'GIT_SSH_COMMAND' => 'ssh -i '.escapeshellarg($keyPath).' -o StrictHostKeyChecking=accept-new',
-            ];
-        }
-
         return null;
     }
 
@@ -247,5 +252,18 @@ class RepositorySyncService
         $error = preg_replace('/https:\/\/[^@]+@/', 'https://***@', $error);
 
         return mb_substr(trim($error), 0, 1000);
+    }
+
+    private function isAuthError(string $error): bool
+    {
+        $lower = strtolower($error);
+
+        return str_contains($lower, 'could not read from remote repository')
+            || str_contains($lower, 'authentication failed')
+            || str_contains($lower, 'permission denied')
+            || str_contains($lower, 'unauthorized')
+            || str_contains($lower, 'access denied')
+            || str_contains($lower, 'remote: invalid username or password')
+            || str_contains($lower, 'remote: http basic: access denied');
     }
 }

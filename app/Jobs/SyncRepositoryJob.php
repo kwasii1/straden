@@ -21,17 +21,30 @@ class SyncRepositoryJob implements ShouldQueue
         try {
             $result = $service->sync($this->repository);
 
-            $this->repository->update([
+            $data = [
                 'sync_status' => 'synced',
                 'sync_error' => null,
                 'last_synced_at' => now(),
                 'last_commit_sha' => $result['last_commit_sha'],
                 'file_tree' => $result['file_tree'],
-            ]);
+            ];
+
+            if ($this->repository->cloned_at === null && $this->repository->type === 'git') {
+                $data['cloned_at'] = now();
+            }
+
+            $this->repository->update($data);
         } catch (\Throwable $e) {
+            $status = 'failed';
+            $message = $e->getMessage();
+
+            if (str_contains($message, 'auth error')) {
+                $status = 'auth_error';
+            }
+
             $this->repository->update([
-                'sync_status' => 'failed',
-                'sync_error' => $e->getMessage(),
+                'sync_status' => $status,
+                'sync_error' => $message,
                 'last_synced_at' => now(),
             ]);
 
