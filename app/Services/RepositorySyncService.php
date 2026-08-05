@@ -72,7 +72,7 @@ class RepositorySyncService
 
     private function clonePath(Repository $repository): string
     {
-        return storage_path('app/repos/'.$repository->project_id.'/'.$repository->id);
+        return storage_path('app/repositories/'.$repository->id);
     }
 
     private function clone(Repository $repository, string $targetPath): void

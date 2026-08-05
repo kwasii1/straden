@@ -2,10 +2,15 @@
 
 namespace App\Jobs;
 
+use App\Events\RepositorySyncUpdated;
 use App\Models\Repository;
+use App\Models\User;
+use App\Notifications\RepositorySyncCompleted;
+use App\Notifications\RepositorySyncFailed;
 use App\Services\RepositorySyncService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Notifications\Notification;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 
 class SyncRepositoryJob implements ShouldQueue
@@ -14,6 +19,7 @@ class SyncRepositoryJob implements ShouldQueue
 
     public function __construct(
         public Repository $repository,
+        public ?string $userId = null,
     ) {}
 
     public function handle(RepositorySyncService $service): void
@@ -34,6 +40,9 @@ class SyncRepositoryJob implements ShouldQueue
             }
 
             $this->repository->update($data);
+
+            $this->broadcastUpdate('synced');
+            $this->notifyUser(new RepositorySyncCompleted($this->repository));
         } catch (\Throwable $e) {
             $status = 'failed';
             $message = $e->getMessage();
@@ -48,7 +57,32 @@ class SyncRepositoryJob implements ShouldQueue
                 'last_synced_at' => now(),
             ]);
 
+            $this->broadcastUpdate($status);
+            $this->notifyUser(new RepositorySyncFailed($this->repository, $message));
+
             throw $e;
+        }
+    }
+
+    private function broadcastUpdate(string $status): void
+    {
+        broadcast(new RepositorySyncUpdated(
+            projectId: $this->repository->project_id,
+            repositoryId: $this->repository->id,
+            status: $status,
+        ));
+    }
+
+    private function notifyUser(Notification $notification): void
+    {
+        if ($this->userId === null) {
+            return;
+        }
+
+        $user = User::find($this->userId);
+
+        if ($user) {
+            $user->notify($notification);
         }
     }
 

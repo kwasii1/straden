@@ -9,3 +9,7 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 Broadcast::channel('test.{testId}', function ($user, $testId) {
     return $user !== null;
 });
+
+Broadcast::channel('project.{projectId}', function ($user, $projectId) {
+    return $user !== null;
+});

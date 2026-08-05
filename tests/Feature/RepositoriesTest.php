@@ -1,11 +1,16 @@
 <?php
 
+use App\Events\RepositorySyncUpdated;
 use App\Jobs\SyncRepositoryJob;
 use App\Models\Connector;
 use App\Models\Project;
 use App\Models\Repository;
 use App\Models\User;
+use App\Notifications\RepositorySyncCompleted;
+use App\Notifications\RepositorySyncFailed;
 use App\Services\RepositorySyncService;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
@@ -160,7 +165,7 @@ test('sync dispatches a job and sets status to syncing', function () {
         ->test('pages::dashboard.repositories', ['project' => $project])
         ->call('syncRepository', $repository->id);
 
-    Queue::assertPushed(SyncRepositoryJob::class, fn ($job) => $job->repository->id === $repository->id);
+    Queue::assertPushed(SyncRepositoryJob::class, fn ($job) => $job->repository->id === $repository->id && $job->userId === $user->id);
 
     expect($repository->fresh()->sync_status)->toBe('syncing');
 });
@@ -380,4 +385,134 @@ test('job sets cloned_at on first successful clone for git repos', function () {
         unlink($dir.'/hello.js');
         rmdir($dir);
     }
+});
+
+test('job notifies user on successful sync', function () {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    $dir = sys_get_temp_dir().'/straden-sync-test-'.uniqid();
+    mkdir($dir);
+    file_put_contents($dir.'/hello.js', 'console.log("hi");');
+
+    try {
+        $project = Project::factory()->create();
+        $repository = Repository::factory()->create([
+            'project_id' => $project->id,
+            'type' => 'local_path',
+            'local_path' => $dir,
+            'sync_status' => 'syncing',
+        ]);
+
+        $job = new SyncRepositoryJob($repository, $user->id);
+        $job->handle(app(RepositorySyncService::class));
+
+        Notification::assertSentTo($user, RepositorySyncCompleted::class);
+    } finally {
+        unlink($dir.'/hello.js');
+        rmdir($dir);
+    }
+});
+
+test('job notifies user on failed sync', function () {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $repository = Repository::factory()->create([
+        'project_id' => $project->id,
+        'type' => 'local_path',
+        'local_path' => '/nonexistent/path/12345',
+        'sync_status' => 'syncing',
+    ]);
+
+    $job = new SyncRepositoryJob($repository, $user->id);
+
+    try {
+        $job->handle(app(RepositorySyncService::class));
+    } catch (Throwable) {
+    }
+
+    Notification::assertSentTo($user, RepositorySyncFailed::class);
+});
+
+test('job does not notify when no user id provided', function () {
+    Notification::fake();
+
+    $dir = sys_get_temp_dir().'/straden-sync-test-'.uniqid();
+    mkdir($dir);
+    file_put_contents($dir.'/hello.js', 'console.log("hi");');
+
+    try {
+        $project = Project::factory()->create();
+        $repository = Repository::factory()->create([
+            'project_id' => $project->id,
+            'type' => 'local_path',
+            'local_path' => $dir,
+            'sync_status' => 'syncing',
+        ]);
+
+        $job = new SyncRepositoryJob($repository);
+        $job->handle(app(RepositorySyncService::class));
+
+        Notification::assertNothingSent();
+    } finally {
+        unlink($dir.'/hello.js');
+        rmdir($dir);
+    }
+});
+
+test('job broadcasts synced event on success', function () {
+    Event::fake([RepositorySyncUpdated::class]);
+
+    $dir = sys_get_temp_dir().'/straden-sync-test-'.uniqid();
+    mkdir($dir);
+    file_put_contents($dir.'/hello.js', 'console.log("hi");');
+
+    try {
+        $project = Project::factory()->create();
+        $repository = Repository::factory()->create([
+            'project_id' => $project->id,
+            'type' => 'local_path',
+            'local_path' => $dir,
+            'sync_status' => 'syncing',
+        ]);
+
+        $job = new SyncRepositoryJob($repository);
+        $job->handle(app(RepositorySyncService::class));
+
+        Event::assertDispatched(RepositorySyncUpdated::class, function ($event) use ($repository) {
+            return $event->repositoryId === $repository->id
+                && $event->status === 'synced'
+                && $event->projectId === $repository->project_id;
+        });
+    } finally {
+        unlink($dir.'/hello.js');
+        rmdir($dir);
+    }
+});
+
+test('job broadcasts failed event on error', function () {
+    Event::fake([RepositorySyncUpdated::class]);
+
+    $project = Project::factory()->create();
+    $repository = Repository::factory()->create([
+        'project_id' => $project->id,
+        'type' => 'local_path',
+        'local_path' => '/nonexistent/path/12345',
+        'sync_status' => 'syncing',
+    ]);
+
+    $job = new SyncRepositoryJob($repository);
+
+    try {
+        $job->handle(app(RepositorySyncService::class));
+    } catch (Throwable) {
+    }
+
+    Event::assertDispatched(RepositorySyncUpdated::class, function ($event) use ($repository) {
+        return $event->repositoryId === $repository->id
+            && $event->status === 'failed'
+            && $event->projectId === $repository->project_id;
+    });
 });

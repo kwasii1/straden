@@ -61,7 +61,7 @@ class extends Component
             'sync_error' => null,
         ]);
 
-        SyncRepositoryJob::dispatch($repository);
+        SyncRepositoryJob::dispatch($repository, auth()->id());
 
         Flux::toast(variant: 'info', text: 'Sync dispatched.');
     }
@@ -211,3 +211,15 @@ class extends Component
         </div>
     </flux:modal>
 </div>
+
+@script
+<script>
+    const projectId = '{{ $project->id }}';
+
+    window.Echo.private('project.' + projectId)
+        .listen('.RepositorySyncUpdated', () => {
+            console.log("HELLO SYNC COMPLETED")
+            $wire.$refresh();
+        });
+</script>
+@endscript
