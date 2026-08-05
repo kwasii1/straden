@@ -26,6 +26,8 @@ class extends Component
 
     public ?string $activeFilePath = null;
 
+    public string $mode = 'script';
+
     public function mount(): void
     {
         $this->fileTree = $this->fm()->fileTree();
@@ -214,13 +216,10 @@ class extends Component
 
 <div
     x-data="{
-        sidebarTab: 'chat',
         creating: false,
         createType: 'file',
         newItemName: '',
         newItemParentDir: '',
-        fileDragOver: false,
-        dragCounter: 0,
 
         startCreate(type) {
             this.creating = true;
@@ -270,30 +269,6 @@ class extends Component
             event.target.value = '';
         },
 
-        treeDragEnter() {
-            this.dragCounter++;
-            this.fileDragOver = true;
-        },
-
-        treeDragLeave() {
-            this.dragCounter--;
-            if (this.dragCounter === 0) {
-                this.fileDragOver = false;
-            }
-        },
-
-        treeDragDrop(event) {
-            this.dragCounter = 0;
-            this.fileDragOver = false;
-            if (event.dataTransfer.files.length > 0) {
-                for (const file of event.dataTransfer.files) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => $wire.createFile(file.name, e.target.result, null);
-                    reader.readAsText(file);
-                }
-            }
-        },
-
         saveEditor(detail) {
             $wire.saveFile(detail.path, detail.content).then(() => {
                 if (Alpine.store('editor').buffers[detail.path]) {
@@ -327,93 +302,95 @@ class extends Component
     @editor-save.window="saveEditor($event.detail)"
     @editor-moved.window="handleEditorMoved($event.detail)"
     @editor-deleted.window="handleEditorDeleted($event.detail)"
-    class="flex flex-col h-full"
+    class="flex flex-col h-full relative"
 >
-    <div class="shrink-0 flex justify-between items-center p-1">
-        <flux:heading>{{ $script->name }}</flux:heading>
-        <flux:button wire:click="runTest" wire:loading.attr="disabled" icon="play" variant="primary">Run Test</flux:button>
+    {{-- Floating script name (far left) --}}
+    <div class="absolute top-2.5 left-4 z-20">
+        <span class="text-sm font-semibold text-zinc-300 bg-zinc-900/80 backdrop-blur-sm rounded-lg px-3 py-1.5 border border-zinc-800/50">
+            {{ $script->name }}
+        </span>
     </div>
 
-    <div class="flex flex-1 min-h-0">
-        <div class="flex flex-col w-3/5 min-h-0">
-            <div class="flex-1 flex flex-col min-h-0 border border-zinc-800 overflow-hidden">
-                <div class="shrink-0 flex items-center bg-zinc-950 overflow-x-auto
-                            [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    @foreach ($openTabs as $tab)
-                        @php $isActive = $tab === $activeFilePath; @endphp
-                        <div
-                            wire:click="selectFile('{{ $tab }}')"
-                            class="group/tab flex items-center gap-2 px-3 py-1.5 text-sm border-r
-                                   border-zinc-800 shrink-0 cursor-pointer select-none
-                                   {{ $isActive
-                                      ? ' bg-zinc-800 text-zinc-100 -mb-px border-b border-b-zinc-800'
-                                      : ' bg-zinc-950 text-zinc-500 hover:bg-zinc-900/50' }}">
-                            <flux:icon.document-text class="size-3.5 shrink-0" />
-                            <span class="truncate max-w-[160px]">{{ basename($tab) }}</span>
-                            <span
-                                x-show="Alpine.store('editor').buffers['{{ $tab }}']?.dirty"
-                                class="size-1.5 shrink-0 rounded-full bg-amber-400"
-                            ></span>
-                            <button
-                                wire:click.stop="closeTab('{{ $tab }}')"
-                                class="rounded p-0.5 hover:bg-zinc-700 text-zinc-500
-                                       hover:text-zinc-300 opacity-0 group-hover/tab:opacity-100
-                                       transition-opacity">
-                                <flux:icon.x-mark class="size-3" />
-                            </button>
-                        </div>
-                    @endforeach
-                    <div class="flex-1 self-stretch bg-zinc-950 border-b border-zinc-800"></div>
-                </div>
+    {{-- Floating Run Test button (far right) --}}
+    <div class="absolute top-2.5 right-4 z-20">
+        <flux:button wire:click="runTest" wire:loading.attr="disabled" icon="play" variant="primary" size="sm" class="shadow-lg">Run Test</flux:button>
+    </div>
 
-                @if ($activeFilePath)
-                    <x-code-editor
-                        name="script_content"
-                        wire:key="editor-{{ $script->id }}-{{ $activeFilePath }}"
-                        :value="$this->readFile($activeFilePath)"
-                        :language="$this->detectLanguage($activeFilePath)"
-                        height="100%"
-                        :editable="true"
-                        :save-path="$activeFilePath"
-                        class="!rounded-none !border-0 flex-1"
-                    />
-                @else
-                    <div class="flex-1 flex items-center justify-center text-zinc-600 text-sm">
-                        Select a file to edit
-                    </div>
-                @endif
-            </div>
+    {{-- Floating tab switcher --}}
+    <div class="absolute top-2.5 left-1/2 -translate-x-1/2 z-20">
+        <div class="flex bg-zinc-900/90 backdrop-blur-md border border-zinc-700 rounded-full p-0.5 shadow-lg">
+            <button
+                wire:click="$set('mode', 'script')"
+                class="px-4 py-1.5 text-xs font-medium rounded-full transition-all {{ $mode === 'script' ? 'bg-zinc-700/80 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300' }}"
+            >
+                Script
+            </button>
+            <button
+                wire:click="$set('mode', 'agent')"
+                class="px-4 py-1.5 text-xs font-medium rounded-full transition-all {{ $mode === 'agent' ? 'bg-zinc-700/80 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300' }}"
+            >
+                Agent
+            </button>
         </div>
+    </div>
 
-        <div class="flex flex-col w-2/5 min-h-0 border border-zinc-800 bg-zinc-950 overflow-hidden">
-            <div class="grid grid-cols-2 border-b border-zinc-800 shrink-0">
-                <button
-                    @click="sidebarTab = 'chat'"
-                    :class="sidebarTab === 'chat'
-                        ? 'bg-zinc-800 text-zinc-100'
-                        : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50'"
-                    class="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition-colors"
-                >
-                    <flux:icon.sparkles class="size-4" />
-                    AI Chat
-                </button>
-                <button
-                    @click="sidebarTab = 'files'"
-                    :class="sidebarTab === 'files'
-                        ? 'bg-zinc-800 text-zinc-100'
-                        : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50'"
-                    class="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition-colors"
-                >
-                    <flux:icon.folder-tree class="size-4" />
-                    File Tree
-                </button>
+    {{-- Content area --}}
+    <div class="flex flex-1 min-h-0">
+        {{-- Script mode: IDE (4/5) + File tree (1/5) --}}
+        @if ($mode === 'script')
+            <div class="flex flex-col flex-1 min-h-0 border-r border-zinc-800"
+                 style="width: 80%;">
+                <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
+                    <div class="shrink-0 flex items-center bg-zinc-950 overflow-x-auto
+                                [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-zinc-800">
+                        @foreach ($openTabs as $tab)
+                            @php $isActive = $tab === $activeFilePath; @endphp
+                            <div
+                                wire:click="selectFile('{{ $tab }}')"
+                                class="group/tab flex items-center gap-2 px-3 py-1.5 text-sm border-r
+                                       border-zinc-800 shrink-0 cursor-pointer select-none
+                                       {{ $isActive
+                                           ? ' bg-zinc-800 text-zinc-100 -mb-px border-b border-b-zinc-800'
+                                           : ' bg-zinc-950 text-zinc-500 hover:bg-zinc-900/50' }}">
+                                <flux:icon.document-text class="size-3.5 shrink-0" />
+                                <span class="truncate max-w-[160px]">{{ basename($tab) }}</span>
+                                <span
+                                    x-show="Alpine.store('editor').buffers['{{ $tab }}']?.dirty"
+                                    class="size-1.5 shrink-0 rounded-full bg-amber-400"
+                                ></span>
+                                <button
+                                    wire:click.stop="closeTab('{{ $tab }}')"
+                                    class="rounded p-0.5 hover:bg-zinc-700 text-zinc-500
+                                           hover:text-zinc-300 opacity-0 group-hover/tab:opacity-100
+                                           transition-opacity">
+                                    <flux:icon.x-mark class="size-3" />
+                                </button>
+                            </div>
+                        @endforeach
+                        <div class="flex-1 self-stretch bg-zinc-950 border-b border-zinc-800"></div>
+                    </div>
+
+                    @if ($activeFilePath)
+                        <x-code-editor
+                            name="script_content"
+                            wire:key="editor-{{ $script->id }}-{{ $activeFilePath }}"
+                            :value="$this->readFile($activeFilePath)"
+                            :language="$this->detectLanguage($activeFilePath)"
+                            height="100%"
+                            :editable="true"
+                            :save-path="$activeFilePath"
+                            class="!rounded-none !border-0 flex-1"
+                        />
+                    @else
+                        <div class="flex-1 flex items-center justify-center text-zinc-600 text-sm">
+                            Select a file to edit
+                        </div>
+                    @endif
+                </div>
             </div>
 
-            <div x-show="sidebarTab === 'chat'" class="flex-1 flex flex-col min-h-0">
-                <livewire:script-agent-chat :project="$project" :test="$test" :script="$script" />
-            </div>
-
-            <div x-show="sidebarTab === 'files'" class="flex-1 flex flex-col min-h-0">
+            <div class="flex flex-col bg-zinc-950 overflow-hidden"
+                 style="width: 20%;">
                 <div class="flex items-center gap-0.5 px-1 py-0.5 border-b border-zinc-800 shrink-0">
                     <button
                         @click="startCreate('file')"
@@ -459,13 +436,7 @@ class extends Component
                     />
                 </div>
 
-                <div
-                    class="flex-1 overflow-y-auto p-1 relative"
-                    @dragenter="treeDragEnter()"
-                    @dragleave="treeDragLeave()"
-                    @dragover.prevent
-                    @drop.prevent="treeDragDrop($event)"
-                >
+                <div class="flex-1 overflow-y-auto p-1" @dragenter="$event.preventDefault()" @dragover.prevent @drop.prevent="$event.dataTransfer.files.length > 0 && handleFileUpload({target: {files: $event.dataTransfer.files}, preventDefault: () => {}, stopPropagation: () => {}})">
                     @foreach ($fileTree as $item)
                         <x-script-tree-item :item="$item" :depth="0" path="" :activeFilePath="$activeFilePath" />
                     @endforeach
@@ -475,17 +446,15 @@ class extends Component
                             No files yet.
                         </div>
                     @endif
-
-                    <div
-                        x-show="fileDragOver"
-                        class="absolute inset-0 flex items-center justify-center
-                               bg-blue-900/30 border-2 border-dashed border-blue-500/50
-                               rounded-lg z-10 pointer-events-none"
-                    >
-                        <span class="text-blue-300 text-sm font-medium">Drop files to upload</span>
-                    </div>
                 </div>
             </div>
-        </div>
+        @endif
+
+        {{-- Agent mode: full-width chat --}}
+        @if ($mode === 'agent')
+            <div class="flex-1 flex flex-col min-h-0">
+                <livewire:script-agent-chat :project="$project" :test="$test" :script="$script" wire:key="agent-chat-{{ $script->id }}" />
+            </div>
+        @endif
     </div>
 </div>

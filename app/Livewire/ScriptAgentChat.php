@@ -377,6 +377,80 @@ class ScriptAgentChat extends Component
             ->all();
     }
 
+    public function reasoningHeader(array $message): string
+    {
+        $content = $message['content'] ?? '';
+        $toolCalls = $message['tool_calls'] ?? [];
+
+        if ($content === '' && empty($toolCalls)) {
+            return 'Processing...';
+        }
+
+        $firstSentence = $this->extractFirstSentence($content);
+
+        if ($firstSentence !== '') {
+            return $firstSentence;
+        }
+
+        $toolNames = array_map(fn ($call) => $call['name'] ?? $call['function']['name'] ?? '', $toolCalls);
+        $toolNames = array_filter($toolNames);
+
+        if (! empty($toolNames)) {
+            return 'Calling '.implode(', ', array_map(fn ($n) => $this->formatToolName($n), $toolNames));
+        }
+
+        return 'Processing...';
+    }
+
+    public function toolLabel(string $toolName): string
+    {
+        return $this->formatToolName($toolName);
+    }
+
+    private function extractFirstSentence(string $content): string
+    {
+        $content = trim($content);
+
+        if ($content === '') {
+            return '';
+        }
+
+        $sentence = preg_split('/[.。!！\n]+/', $content, 2)[0] ?? '';
+
+        $sentence = trim($sentence);
+
+        if ($sentence === '') {
+            return mb_substr($content, 0, 60).(mb_strlen($content) > 60 ? '...' : '');
+        }
+
+        $sentence = mb_substr($sentence, 0, 80).(mb_strlen($sentence) > 80 ? '...' : '');
+
+        return $this->cleanupHeader($sentence);
+    }
+
+    private function cleanupHeader(string $text): string
+    {
+        $text = preg_replace('/^(i\'ll|i will|let me|now|first|next|finally|here\'s|this is|ok|okay|alright|well|so|and)\s+/i', '', $text);
+        $text = preg_replace('/^(i( am| have| need| want| see| notice| observe| recommend| suggest))\s+/i', '', $text);
+        $text = preg_replace('/^(the|a|an)\s+/i', '', $text);
+
+        return ucfirst(trim($text));
+    }
+
+    private function formatToolName(string $name): string
+    {
+        return match ($name) {
+            'ListScriptFilesTool' => 'listing files',
+            'ReadScriptFileTool' => 'reading file',
+            'WriteScriptFileTool' => 'writing file',
+            'DeleteScriptFileTool' => 'deleting file',
+            'RenameScriptFileTool' => 'renaming file',
+            'ValidateScriptTool' => 'validating script',
+            'ScriptInsightsTool' => 'checking insights',
+            default => strtolower(str_replace('Tool', '', $name)),
+        };
+    }
+
     public function render()
     {
         return view('livewire.script-agent-chat');
