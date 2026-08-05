@@ -8,6 +8,8 @@ interface GitProvider
 
     public function listRepositories(string $token, array $context = []): array;
 
+    public function listBranches(string $token, array $repo, array $context = []): array;
+
     public function buildAuthenticatedCloneUrl(string $cloneUrl, string $token): string;
 
     public function requiredScopesHelpText(): string;

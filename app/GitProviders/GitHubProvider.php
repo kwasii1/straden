@@ -48,6 +48,7 @@ class GitHubProvider implements GitProvider
                     'clone_url' => $repo['clone_url'],
                     'default_branch' => $repo['default_branch'] ?? 'main',
                     'private' => $repo['private'] ?? false,
+                    'provider_id' => $repo['id'],
                 ];
             }
 
@@ -55,6 +56,40 @@ class GitHubProvider implements GitProvider
         } while (count($repos) === 100);
 
         return $allRepos;
+    }
+
+    public function listBranches(string $token, array $repo, array $context = []): array
+    {
+        $fullName = $repo['full_name'] ?? '';
+        $branches = [];
+        $page = 1;
+
+        do {
+            $response = Http::withToken($token)
+                ->withHeaders(['Accept' => 'application/vnd.github+json'])
+                ->get(self::API_BASE.'/repos/'.$fullName.'/branches', [
+                    'per_page' => 100,
+                    'page' => $page,
+                ]);
+
+            if (! $response->successful()) {
+                throw new \RuntimeException('Failed to list branches: '.$response->body());
+            }
+
+            $data = $response->json();
+
+            if (! is_array($data)) {
+                break;
+            }
+
+            foreach ($data as $branch) {
+                $branches[] = ['name' => $branch['name']];
+            }
+
+            $page++;
+        } while (count($data) === 100);
+
+        return $branches;
     }
 
     public function buildAuthenticatedCloneUrl(string $cloneUrl, string $token): string

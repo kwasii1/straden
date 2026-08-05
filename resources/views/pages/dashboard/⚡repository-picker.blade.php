@@ -24,6 +24,12 @@ class extends Component
 
     public ?string $selectedRepoFullName = null;
 
+    public array $branches = [];
+
+    public string $selectedBranch = 'main';
+
+    public bool $loadingBranches = false;
+
     public function mount(): void
     {
         if (! $this->connector->isGitProvider()) {
@@ -108,7 +114,7 @@ class extends Component
                 $context['project'] = $this->selectedProject;
             }
 
-            $repos = $provider->listRepositories(decrypt($this->connector->token), $context);
+            $repos = $provider->listRepositories($this->connector->token, $context);
 
             if ($this->connector->type === ConnectorType::AzureDevOps && $this->selectedProject === null) {
                 $settings['cached_projects'] = $repos;
@@ -131,6 +137,61 @@ class extends Component
     public function selectRepo(string $fullName): void
     {
         $this->selectedRepoFullName = $fullName;
+        $this->branches = [];
+        $this->selectedBranch = 'main';
+
+        $settings = $this->connector->settings ?? [];
+        $cachedRepos = $settings['cached_repos'] ?? [];
+
+        foreach ($cachedRepos as $repo) {
+            if ($repo['full_name'] === $fullName) {
+                $this->selectedBranch = $repo['default_branch'] ?? 'main';
+
+                break;
+            }
+        }
+
+        $this->loadBranches();
+    }
+
+    public function loadBranches(): void
+    {
+        if ($this->selectedRepoFullName === null) {
+            return;
+        }
+
+        $this->loadingBranches = true;
+
+        try {
+            $provider = GitProviderResolver::for($this->connector->type);
+
+            $settings = $this->connector->settings ?? [];
+            $cachedRepos = $settings['cached_repos'] ?? [];
+            $repo = null;
+
+            foreach ($cachedRepos as $r) {
+                if ($r['full_name'] === $this->selectedRepoFullName) {
+                    $repo = $r;
+
+                    break;
+                }
+            }
+
+            if ($repo === null) {
+                return;
+            }
+
+            $context = [];
+            if ($this->connector->type === ConnectorType::AzureDevOps) {
+                $context['organization'] = $settings['organization'] ?? '';
+            }
+
+            $this->branches = $provider->listBranches($this->connector->token, $repo, $context);
+        } catch (\Throwable $e) {
+            Flux::toast(variant: 'error', text: 'Failed to list branches: '.$e->getMessage());
+        } finally {
+            $this->loadingBranches = false;
+        }
     }
 
     public function addRepository(): void
@@ -166,7 +227,7 @@ class extends Component
             'type' => 'git',
             'full_name' => $selectedRepo['full_name'],
             'git_url' => $selectedRepo['clone_url'],
-            'git_branch' => $selectedRepo['default_branch'],
+            'git_branch' => $this->selectedBranch,
             'sync_status' => 'pending',
         ]);
 
@@ -331,8 +392,24 @@ class extends Component
             </div>
 
             @if ($selectedRepoFullName)
-                <div class="flex">
-                    <flux:spacer />
+                <div class="flex items-end gap-x-4">
+                    <div class="flex-1">
+                        @if ($loadingBranches)
+                            <flux:field>
+                                <flux:label>Branch</flux:label>
+                                <flux:input disabled value="Loading branches..." />
+                            </flux:field>
+                        @elseif ($branches)
+                            <flux:select wire:model="selectedBranch" label="Branch">
+                                @foreach ($branches as $branch)
+                                    <flux:select.option value="{{ $branch['name'] }}">{{ $branch['name'] }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                        @else
+                            <flux:input wire:model="selectedBranch" label="Branch" placeholder="main" />
+                        @endif
+                    </div>
+
                     <flux:button wire:click="addRepository" variant="primary">
                         Add Repository
                     </flux:button>

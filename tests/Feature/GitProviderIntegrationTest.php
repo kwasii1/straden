@@ -74,6 +74,7 @@ test('adding git connector validates token via API', function () {
     Http::fake([
         'api.github.com/user' => Http::response(['login' => 'testuser'], 200),
         'api.github.com/user/repos*' => Http::response([[
+            'id' => 123456,
             'full_name' => 'testuser/hello-world',
             'clone_url' => 'https://github.com/testuser/hello-world.git',
             'default_branch' => 'main',

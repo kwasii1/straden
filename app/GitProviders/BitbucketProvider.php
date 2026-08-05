@@ -68,6 +68,7 @@ class BitbucketProvider implements GitProvider
                     'clone_url' => $cloneUrl,
                     'default_branch' => $repo['mainbranch']['name'] ?? 'main',
                     'private' => ($repo['is_private'] ?? false),
+                    'provider_id' => $repo['full_name'] ?? '',
                 ];
             }
 
@@ -75,6 +76,32 @@ class BitbucketProvider implements GitProvider
         } while ($url !== null);
 
         return $allRepos;
+    }
+
+    public function listBranches(string $token, array $repo, array $context = []): array
+    {
+        $fullName = $repo['provider_id'] ?? ($repo['full_name'] ?? '');
+        $branches = [];
+        $url = self::API_BASE.'/repositories/'.$fullName.'/refs/branches?pagelen=100';
+
+        do {
+            $response = Http::withBasicAuth('x-token-auth', $token)
+                ->get($url);
+
+            if (! $response->successful()) {
+                throw new \RuntimeException('Failed to list branches: '.$response->body());
+            }
+
+            $data = $response->json();
+
+            foreach ($data['values'] ?? [] as $branch) {
+                $branches[] = ['name' => $branch['name']];
+            }
+
+            $url = $data['next'] ?? null;
+        } while ($url !== null);
+
+        return $branches;
     }
 
     public function buildAuthenticatedCloneUrl(string $cloneUrl, string $token): string

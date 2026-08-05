@@ -46,6 +46,7 @@ class GitLabProvider implements GitProvider
                     'clone_url' => $repo['http_url_to_repo'] ?? $repo['clone_url'] ?? '',
                     'default_branch' => $repo['default_branch'] ?? 'main',
                     'private' => ($repo['visibility'] ?? 'private') !== 'public',
+                    'provider_id' => $repo['id'],
                 ];
             }
 
@@ -53,6 +54,39 @@ class GitLabProvider implements GitProvider
         } while (count($repos) === 100);
 
         return $allRepos;
+    }
+
+    public function listBranches(string $token, array $repo, array $context = []): array
+    {
+        $projectId = $repo['provider_id'] ?? '';
+        $branches = [];
+        $page = 1;
+
+        do {
+            $response = Http::withToken($token)
+                ->get(self::API_BASE.'/projects/'.$projectId.'/repository/branches', [
+                    'per_page' => 100,
+                    'page' => $page,
+                ]);
+
+            if (! $response->successful()) {
+                throw new \RuntimeException('Failed to list branches: '.$response->body());
+            }
+
+            $data = $response->json();
+
+            if (! is_array($data)) {
+                break;
+            }
+
+            foreach ($data as $branch) {
+                $branches[] = ['name' => $branch['name']];
+            }
+
+            $page++;
+        } while (count($data) === 100);
+
+        return $branches;
     }
 
     public function buildAuthenticatedCloneUrl(string $cloneUrl, string $token): string

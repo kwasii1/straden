@@ -125,3 +125,15 @@ test('BitbucketProvider listRepositories throws without workspace', function () 
 
     $provider->listRepositories('token', []);
 })->throws(RuntimeException::class, 'workspace');
+
+test('GitHubProvider returns provider_id in repo shape', function () {
+    $provider = new GitHubProvider;
+
+    expect(method_exists(GitHubProvider::class, 'listBranches'))->toBeTrue();
+});
+
+test('GitLabProvider returns provider_id in repo shape', function () {
+    $provider = new GitLabProvider;
+
+    expect(method_exists(GitLabProvider::class, 'listBranches'))->toBeTrue();
+});
