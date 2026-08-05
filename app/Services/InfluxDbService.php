@@ -97,6 +97,7 @@ class InfluxDbService
             'error_rate' => $this->errorRateOverTime($runId, $endpoint),
             'checks' => $perEndpoint ? ['labels' => [], 'passed' => [], 'failed' => []] : $this->checksOverTime($runId),
             'data_transfer' => $perEndpoint ? ['labels' => [], 'sent' => [], 'received' => []] : $this->dataTransferOverTime($runId),
+            'response_codes' => $this->responseCodesOverTime($runId, $endpoint),
         ];
     }
 
@@ -210,6 +211,87 @@ class InfluxDbService
             'sent' => $sent['values'],
             'received' => $received['values'],
         ];
+    }
+
+    public function responseCodeBreakdown(string $runId, ?string $endpoint = null): array
+    {
+        $result = $this->query(
+            sprintf('SELECT count("value") FROM "http_reqs" WHERE "run_id"=\'%s\'%s GROUP BY "status"', $runId, $this->endpointClause($endpoint))
+        );
+
+        $statusCounts = [];
+
+        foreach ($result[0]['series'] ?? [] as $series) {
+            $status = $series['tags']['status'] ?? null;
+            $count = $series['values'][0][1] ?? 0;
+
+            if ($status === null) {
+                continue;
+            }
+
+            $group = $this->statusGroup((int) $status);
+            $statusCounts[$group] = ($statusCounts[$group] ?? 0) + (int) $count;
+        }
+
+        $total = (int) array_sum($statusCounts);
+
+        $groups = [];
+        foreach (['2xx', '3xx', '4xx', '5xx'] as $group) {
+            $count = $statusCounts[$group] ?? 0;
+            $groups[$group] = [
+                'count' => $count,
+                'percent' => $total > 0 ? round($count / $total * 100, 2) : 0,
+            ];
+        }
+
+        return [
+            'total' => $total,
+            'groups' => $groups,
+        ];
+    }
+
+    public function responseCodesOverTime(string $runId, ?string $endpoint = null): array
+    {
+        $prefixes = ['2', '3', '4', '5'];
+        $datasets = [];
+        $allLabels = [];
+
+        foreach ($prefixes as $prefix) {
+            $result = $this->queryTimeSeries(
+                sprintf(
+                    'SELECT count("value") FROM "http_reqs" WHERE "run_id"=\'%s\' AND "status" =~ /^%s/%s GROUP BY time(5s) fill(0)',
+                    $runId,
+                    $prefix,
+                    $this->endpointClause($endpoint)
+                )
+            );
+
+            $key = $prefix.'xx';
+
+            if (! empty($result['labels'])) {
+                $allLabels = $result['labels'];
+            }
+
+            $datasets[$key] = $result['values'];
+        }
+
+        return array_merge(
+            ['labels' => $allLabels],
+            $datasets
+        );
+    }
+
+    private function statusGroup(int $code): string
+    {
+        $prefix = (int) floor($code / 100);
+
+        return match ($prefix) {
+            2 => '2xx',
+            3 => '3xx',
+            4 => '4xx',
+            5 => '5xx',
+            default => 'other',
+        };
     }
 
     public function queryTimeSeries(string $influxQl): array

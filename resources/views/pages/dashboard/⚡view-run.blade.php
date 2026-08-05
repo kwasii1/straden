@@ -65,6 +65,17 @@ class extends Component
         }
     }
 
+    #[Computed]
+    public function responseCodeSummary(): ?array
+    {
+        try {
+            return (new InfluxDbService(\App\Models\Connector::influxDb()))
+                ->responseCodeBreakdown($this->run->id, $this->endpointFilter());
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     private function endpointFilter(): ?string
     {
         return $this->selectedEndpoint !== '' && $this->selectedEndpoint !== null
@@ -245,6 +256,26 @@ class extends Component
             </div>
         </div>
 
+        @php $codeSummary = $this->responseCodeSummary; @endphp
+        @if ($codeSummary && $codeSummary['total'] > 0)
+            <flux:heading size="lg">Response Codes</flux:heading>
+            <div class="grid grid-cols-4 gap-4">
+                @foreach (['2xx' => ['Success', '#16a34a'], '3xx' => ['Redirect', '#ca8a04'], '4xx' => ['Client Error', '#ea580c'], '5xx' => ['Server Error', '#dc2626']] as $group => [$label, $color])
+                    @php $g = $codeSummary['groups'][$group] ?? ['count' => 0, 'percent' => 0]; @endphp
+                    <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
+                        <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">{{ $group }} {{ $label }}</flux:text>
+                        <div class="flex items-baseline gap-x-2">
+                            <flux:heading size="xl" style="color: {{ $color }}">{{ number_format($g['count']) }}</flux:heading>
+                            <flux:text class="text-sm text-zinc-500">{{ $g['percent'] }}%</flux:text>
+                        </div>
+                        <div class="w-full bg-zinc-800 rounded-full h-1.5 mt-1">
+                            <div class="h-1.5 rounded-full" style="width: {{ max($g['percent'], 2) }}%; background-color: {{ $color }}"></div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @endif
+
         @if ($this->run->checks_total !== null)
             <flux:heading size="lg">Checks</flux:heading>
             <div class="grid grid-cols-3 gap-4">
@@ -366,11 +397,17 @@ class extends Component
                         this.buildChart('requestRateChart', 'line', m.request_rate.labels, [{ label: 'req/s', data: m.request_rate.values, borderColor: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.1)', fill: true, tension: 0.3, pointRadius: 0 }], 'req/s');
                         this.buildChart('responseTimeChart', 'line', m.response_time.labels, [{ label: 'p95', data: m.response_time.p95, borderColor: '#60a5fa', backgroundColor: 'rgba(96, 165, 250, 0.1)', fill: true, tension: 0.3, pointRadius: 0 }, { label: 'p99', data: m.response_time.p99, borderColor: '#f87171', backgroundColor: 'rgba(248, 113, 113, 0.05)', fill: true, tension: 0.3, pointRadius: 0 }], 'ms');
                         this.buildChart('errorRateChart', 'line', m.error_rate.labels, [{ label: '%', data: m.error_rate.values, borderColor: '#fbbf24', backgroundColor: 'rgba(251, 191, 36, 0.1)', fill: true, tension: 0.3, pointRadius: 0 }], '%');
+                        this.buildChart('responseCodesChart', 'line', m.response_codes.labels, [
+                            { label: '2xx', data: m.response_codes['2xx'], borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.5)', fill: true, tension: 0.3, pointRadius: 0 },
+                            { label: '3xx', data: m.response_codes['3xx'], borderColor: '#ca8a04', backgroundColor: 'rgba(202, 138, 4, 0.5)', fill: true, tension: 0.3, pointRadius: 0 },
+                            { label: '4xx', data: m.response_codes['4xx'], borderColor: '#ea580c', backgroundColor: 'rgba(234, 88, 12, 0.5)', fill: true, tension: 0.3, pointRadius: 0 },
+                            { label: '5xx', data: m.response_codes['5xx'], borderColor: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.5)', fill: true, tension: 0.3, pointRadius: 0 },
+                        ], 'Requests', true);
                         this.buildChart('checksChart', 'line', m.checks.labels, [{ label: 'Passed', data: m.checks.passed, borderColor: '#34d399', fill: false, tension: 0.3, pointRadius: 0 }, { label: 'Failed', data: m.checks.failed, borderColor: '#f87171', fill: false, tension: 0.3, pointRadius: 0 }], 'Count');
                         this.buildChart('dataTransferChart', 'line', m.data_transfer.labels, [{ label: 'Sent', data: m.data_transfer.sent, borderColor: '#60a5fa', fill: false, tension: 0.3, pointRadius: 0 }, { label: 'Received', data: m.data_transfer.received, borderColor: '#a78bfa', fill: false, tension: 0.3, pointRadius: 0 }], 'Bytes');
                     },
 
-                    buildChart(ref, type, labels, datasets, unit) {
+                    buildChart(ref, type, labels, datasets, unit, stacked = false) {
                         const canvas = this.$refs[ref];
                         if (!canvas || !labels || labels.length === 0) return;
 
@@ -390,6 +427,7 @@ class extends Component
                                 },
                                 scales: {
                                     y: {
+                                        stacked,
                                         beginAtZero: true,
                                         title: {
                                             display: true,
@@ -448,6 +486,13 @@ class extends Component
                     <flux:heading size="sm" class="mb-3">Error Rate</flux:heading>
                     <div class="relative h-56">
                         <canvas x-ref="errorRateChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+                    <flux:heading size="sm" class="mb-3">Response Codes</flux:heading>
+                    <div class="relative h-56">
+                        <canvas x-ref="responseCodesChart"></canvas>
                     </div>
                 </div>
 
