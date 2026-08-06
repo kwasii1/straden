@@ -361,14 +361,11 @@ class extends Component
                 @endif
             @endif
 
-            <script type="application/json" data-run-metrics>
-                @json($metrics)
-            </script>
-
             <div
                 class="grid grid-cols-1 lg:grid-cols-2 gap-6"
                 @if ($this->isActive()) wire:poll.5s @endif
                 x-data="{
+                    metrics: {{ Js::from($metrics) }},
                     charts: {},
 
                     init() {
@@ -385,8 +382,7 @@ class extends Component
                     },
 
                     getMetrics() {
-                        const el = document.querySelector('[data-run-metrics]');
-                        return el ? JSON.parse(el.textContent) : {};
+                        return this.metrics;
                     },
 
                     buildAllCharts() {
