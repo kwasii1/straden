@@ -71,3 +71,21 @@ select:focus[data-flux-control] {
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */
+
+@keyframes pixel-on {
+    0%, 100% { opacity: 0.15; }
+    50% { opacity: 1; }
+}
+
+@keyframes shimmer-text {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.animate-pixel {
+    animation: pixel-on var(--dur, 650ms) ease-in-out var(--delay, 0ms) infinite;
+}
+
+.animate-shimmer {
+    animation: shimmer-text 1.4s linear infinite;
+}
