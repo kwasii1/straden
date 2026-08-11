@@ -115,6 +115,11 @@ document.addEventListener('alpine:init', () => {
     });
 });
 
+import './charts/activity-chart.js';
+import './charts/project-doughnut.js';
+import './charts/status-doughnut.js';
+import './charts/performance-trend.js';
+
 /**
  * Echo exposes an expressive API for subscribing to channels and listening
  * for events that are broadcast by Laravel. Echo and event broadcasting
