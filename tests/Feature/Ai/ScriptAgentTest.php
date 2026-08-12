@@ -48,7 +48,8 @@ test('script agent instructions include script, test, and tool names', function 
         ->toContain('ValidateScriptTool')
         ->toContain('ScriptInsightsTool')
         ->toContain('scripts/'.$test->id.'/'.$script->id)
-        ->toContain('script.js');
+        ->toContain('script.js')
+        ->toContain('Read the room first');
 });
 
 test('script agent instructions mandate validation after changes', function () {

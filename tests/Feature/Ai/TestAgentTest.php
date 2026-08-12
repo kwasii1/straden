@@ -46,7 +46,8 @@ test('test agent instructions include test name and target url', function () {
         ->toContain('https://api.example.com')
         ->toContain('ScanContextTool')
         ->toContain('CreateScriptTool')
-        ->toContain('ValidateScriptTool');
+        ->toContain('ValidateScriptTool')
+        ->toContain('Read the room first');
 });
 
 test('test agent provides all tools including file storage', function () {

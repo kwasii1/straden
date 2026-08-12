@@ -99,6 +99,29 @@ class AgentChat extends Component
         if (! in_array($this->selectedModel, $this->availableModels, true)) {
             $this->selectedModel = $this->availableModels[0] ?? null;
         }
+
+        $this->dispatch('agent-provider-changed', provider: $value);
+    }
+
+    public function updatedSelectedModel(?string $value): void
+    {
+        $this->dispatch('agent-model-changed', model: $value);
+    }
+
+    public function restoreSelection(?string $provider, ?string $model): void
+    {
+        if ($provider !== null && isset($this->availableProviders[$provider])) {
+            $this->selectedProvider = $provider;
+            $this->buildAvailableModels();
+
+            if (! in_array($this->selectedModel, $this->availableModels, true)) {
+                $this->selectedModel = $this->availableModels[0] ?? null;
+            }
+        }
+
+        if ($model !== null && in_array($model, $this->availableModels, true)) {
+            $this->selectedModel = $model;
+        }
     }
 
     public function updatedConversationId(?string $value): void

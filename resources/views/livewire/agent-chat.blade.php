@@ -419,6 +419,24 @@
 
 @script
 <script>
+    // Persist provider/model selection so it survives page refreshes.
+    if (! window.__agentSelectionBound) {
+        window.__agentSelectionBound = true;
+
+        const storedProvider = localStorage.getItem('straden.ai.provider');
+        const storedModel = localStorage.getItem('straden.ai.model');
+
+        $wire.call('restoreSelection', storedProvider, storedModel);
+
+        window.addEventListener('agent-provider-changed', (e) => {
+            localStorage.setItem('straden.ai.provider', e.detail.provider ?? '');
+        });
+
+        window.addEventListener('agent-model-changed', (e) => {
+            localStorage.setItem('straden.ai.model', e.detail.model ?? '');
+        });
+    }
+
     const container = document.getElementById('chat-messages');
 
     let stickToBottom = true;
