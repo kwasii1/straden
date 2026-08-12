@@ -30,9 +30,9 @@ function k6Summary(array $overrides = []): array
             'http_req_duration' => [
                 'p(95)' => 250.5,
                 'p(99)' => 400.2,
-                'thresholds' => ['p(95)<500' => ['ok' => true]],
+                'thresholds' => ['p(95)<500' => true],
             ],
-            'http_req_failed' => ['passes' => 4950, 'fails' => 50],
+            'http_req_failed' => ['passes' => 50, 'fails' => 4950],
         ],
         'root_group' => [
             'checks' => [['passes' => 100, 'fails' => 5]],
@@ -62,6 +62,14 @@ test('finalize marks a successful run as passed with parsed metrics', function (
     expect($run->checks_total)->toBe(105);
     expect($run->checks_failed)->toBe(5);
     expect($run->thresholds_passed)->toBeTrue();
+    expect($run->thresholds_summary)->toBe([
+        [
+            'name' => 'http_req_duration',
+            'condition' => 'p(95)<500',
+            'ok' => true,
+            'value' => 250.5,
+        ],
+    ]);
     expect($run->completed_at)->not->toBeNull();
     expect($run->duration_seconds)->toBe(60);
 
@@ -74,7 +82,8 @@ test('finalize marks a threshold failure as failed', function () {
     writeRunArtifacts($run, 99, k6Summary([
         'metrics' => [
             'http_req_duration' => [
-                'thresholds' => ['p(95)<500' => ['ok' => false]],
+                'p(95)' => 800.5,
+                'thresholds' => ['p(95)<500' => false],
             ],
         ],
     ]));
@@ -84,7 +93,38 @@ test('finalize marks a threshold failure as failed', function () {
 
     expect($run->status)->toBe('failed');
     expect($run->thresholds_passed)->toBeFalse();
+    expect($run->thresholds_summary[0]['name'])->toBe('http_req_duration');
+    expect($run->thresholds_summary[0]['condition'])->toBe('p(95)<500');
     expect($run->thresholds_summary[0]['ok'])->toBeFalse();
+    expect($run->thresholds_summary[0]['value'])->toEqual(800.5);
+});
+
+test('thresholds are self-evaluated against the summary metric values', function () {
+    expect(RunResultService::evaluateThreshold('count>100', ['count' => 324]))->toBeTrue();
+    expect(RunResultService::evaluateThreshold('count>100', ['count' => 50]))->toBeFalse();
+    expect(RunResultService::evaluateThreshold('rate<1', ['value' => 0.188]))->toBeTrue();
+    expect(RunResultService::evaluateThreshold('rate<1', ['value' => 1.5]))->toBeFalse();
+    expect(RunResultService::evaluateThreshold('p(95)<5000', ['p(95)' => 257.11]))->toBeTrue();
+    expect(RunResultService::evaluateThreshold('p(95)<500', ['p(95)' => 800.5]))->toBeFalse();
+    expect(RunResultService::evaluateThreshold('avg<=1', ['avg' => 1]))->toBeTrue();
+    expect(RunResultService::evaluateThreshold('max>=100', ['max' => 100]))->toBeTrue();
+});
+
+test('thresholds support OR and AND combined conditions', function () {
+    expect(RunResultService::evaluateThreshold(
+        'p(95)<500||p(99)<1000',
+        ['p(95)' => 800, 'p(99)' => 900],
+    ))->toBeTrue();
+
+    expect(RunResultService::evaluateThreshold(
+        'count>5&&rate<1000',
+        ['count' => 10, 'rate' => 2000],
+    ))->toBeFalse();
+
+    expect(RunResultService::evaluateThreshold(
+        'count>5&&rate<3000',
+        ['count' => 10, 'rate' => 2000],
+    ))->toBeTrue();
 });
 
 test('finalize maps signal termination to aborted', function () {

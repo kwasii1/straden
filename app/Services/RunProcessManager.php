@@ -23,12 +23,7 @@ class RunProcessManager
     {
         $runId = $run->id;
 
-        $k6Command = 'k6 run script.js --summary-export='.RunResultService::summaryFilePath($runId);
-
-        $influxOutput = $this->buildInfluxOutput($run);
-        if ($influxOutput !== null) {
-            $k6Command .= ' '.$influxOutput;
-        }
+        $k6Command = $this->buildK6Command($run);
 
         $innerShell = $k6Command
             .' & KPID=$!; echo $KPID > '.RunResultService::k6PidFilePath($runId)
@@ -45,6 +40,27 @@ class RunProcessManager
             'pid' => $process->id(),
             'running' => $process->running(),
         ];
+    }
+
+    /**
+     * Build the k6 command for the run.
+     *
+     * Includes p(99) in the summary trend stats — k6's defaults omit it, which
+     * leaves the p99 duration metric and any p(99) thresholds empty.
+     */
+    public function buildK6Command(Run $run): string
+    {
+        $runId = $run->id;
+
+        $k6Command = 'k6 run script.js --summary-export='.RunResultService::summaryFilePath($runId)
+            .' --summary-trend-stats=avg,min,med,max,p(90),p(95),p(99)';
+
+        $influxOutput = $this->buildInfluxOutput($run);
+        if ($influxOutput !== null) {
+            $k6Command .= ' '.$influxOutput;
+        }
+
+        return $k6Command;
     }
 
     private function buildInfluxOutput(Run $run): ?string

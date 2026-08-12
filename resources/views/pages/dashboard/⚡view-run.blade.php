@@ -372,19 +372,43 @@ class extends Component
                 <div class="rounded-xl bg-white dark:bg-zinc-900">
                     <div class="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-800">
                         @foreach ($this->run->thresholds_summary as $threshold)
-                            <div class="flex items-center justify-between px-4 py-3">
-                                <flux:text class="text-sm text-zinc-700 dark:text-zinc-300">{{ $threshold['name'] }}</flux:text>
-                                @if ($threshold['ok'])
-                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                                        <flux:icon.check class="size-4" />
-                                        Passed
-                                    </span>
-                                @else
-                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-red-500">
-                                        <flux:icon.x-mark class="size-4" />
-                                        Failed
-                                    </span>
-                                @endif
+                            @php
+                                $thresholdValue = $threshold['value'] ?? null;
+                                $thresholdName = $threshold['name'] ?? '';
+                                $thresholdCondition = $threshold['condition'] ?? null;
+
+                                $valueLabel = null;
+                                if (is_numeric($thresholdValue)) {
+                                    $valueLabel = is_float($thresholdValue + 0)
+                                        ? number_format((float) $thresholdValue, 2)
+                                        : number_format((int) $thresholdValue);
+                                } elseif ($thresholdValue !== null) {
+                                    $valueLabel = (string) $thresholdValue;
+                                }
+                            @endphp
+                            <div class="flex items-center justify-between gap-x-4 px-4 py-3">
+                                <div class="flex min-w-0 flex-col">
+                                    <flux:text class="text-sm font-medium text-zinc-800 dark:text-zinc-200">{{ $thresholdName }}</flux:text>
+                                    @if ($thresholdCondition)
+                                        <flux:text class="text-xs text-zinc-500">{{ $thresholdCondition }}</flux:text>
+                                    @endif
+                                </div>
+                                <div class="flex shrink-0 items-center gap-x-3">
+                                    @if ($valueLabel !== null)
+                                        <flux:text class="text-xs text-zinc-500 tabular-nums">{{ $valueLabel }}</flux:text>
+                                    @endif
+                                    @if ($threshold['ok'])
+                                        <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                            <flux:icon.check class="size-4" />
+                                            Passed
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center gap-1.5 text-xs font-medium text-red-500">
+                                            <flux:icon.x-mark class="size-4" />
+                                            Failed
+                                        </span>
+                                    @endif
+                                </div>
                             </div>
                         @endforeach
                     </div>

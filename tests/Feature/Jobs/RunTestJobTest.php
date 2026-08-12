@@ -12,6 +12,16 @@ beforeEach(function () {
     Storage::fake('local');
 });
 
+test('run process manager includes p99 in the k6 summary trend stats', function () {
+    $run = Run::factory()->queued()->create();
+
+    $command = (new RunProcessManager)->buildK6Command($run);
+
+    expect($command)
+        ->toContain('--summary-export=')
+        ->toContain('--summary-trend-stats=avg,min,med,max,p(90),p(95),p(99)');
+});
+
 test('run test job starts k6 in the background and records the pid', function () {
     $this->mock(RunProcessManager::class, function ($mock) {
         $mock->shouldReceive('start')->once()->andReturn(['pid' => 4242, 'running' => true]);

@@ -104,6 +104,15 @@ class RunResultService
             default => 'error',
         };
 
+        // k6's exit code is the authoritative threshold result: it only exits 0
+        // when every threshold is met. Only record it when thresholds exist.
+        $update['thresholds_passed'] = match (true) {
+            empty($update['thresholds_summary'] ?? null) => null,
+            $exitCode === 0 => true,
+            in_array($exitCode, [99, 104], true) => false,
+            default => null,
+        };
+
         if ($update['status'] === 'error' && $exitCode !== null) {
             $update['error_message'] = 'k6 exited with code '.$exitCode;
         }
@@ -178,10 +187,13 @@ class RunResultService
         $reqDurationP99 = $metric('http_req_duration', 'p(99)');
 
         $failedData = $metrics['http_req_failed'] ?? [];
+        // For k6's `http_req_failed` rate metric, `passes` counts samples with
+        // value > 0 (failed requests) and `fails` counts samples equal to 0
+        // (successful requests), so the error rate is passes / total.
         $failedPasses = $failedData['passes'] ?? 0;
         $failedFails = $failedData['fails'] ?? 0;
         $failedTotal = $failedPasses + $failedFails;
-        $errorRate = $failedTotal > 0 ? ($failedFails / $failedTotal) * 100 : 0;
+        $errorRate = $failedTotal > 0 ? ($failedPasses / $failedTotal) * 100 : 0;
 
         $checks = self::collectChecks($summary['root_group'] ?? []);
         $checksTotal = $checks['passes'] + $checks['fails'];
@@ -191,18 +203,21 @@ class RunResultService
         $thresholdsSummary = null;
 
         $thresholds = [];
-        foreach ($metrics as $name => $data) {
-            if (! empty($data['thresholds'])) {
-                foreach ($data['thresholds'] as $thName => $th) {
-                    $thresholds[] = [
-                        'name' => $thName,
-                        'ok' => $th['ok'] ?? false,
-                    ];
-                }
+        foreach ($metrics as $metricName => $data) {
+            if (empty($data['thresholds']) || ! is_array($data['thresholds'])) {
+                continue;
+            }
+
+            foreach ($data['thresholds'] as $condition => $result) {
+                $thresholds[] = [
+                    'name' => $metricName,
+                    'condition' => $condition,
+                    'ok' => self::evaluateThreshold($condition, $data),
+                    'value' => self::thresholdValue($data, $condition),
+                ];
             }
         }
         $thresholdsSummary = $thresholds;
-        $thresholdsPassed = ! empty($thresholds) && collect($thresholds)->every(fn ($t) => $t['ok']);
 
         return array_filter([
             'vus_max' => is_numeric($vusMax) ? (int) $vusMax : null,
@@ -213,9 +228,87 @@ class RunResultService
             'error_rate' => round($errorRate, 2),
             'checks_total' => $checksTotal > 0 ? $checksTotal : null,
             'checks_failed' => $checksTotal > 0 ? $checksFailed : null,
-            'thresholds_passed' => $thresholdsPassed,
             'thresholds_summary' => $thresholdsSummary,
         ], fn ($v) => $v !== null);
+    }
+
+    /**
+     * Evaluate a k6 threshold condition against the summary metric values.
+     *
+     * k6's `--summary-export` reports the `thresholds` map values incorrectly
+     * (always false), so we evaluate the condition ourselves against the
+     * reliable metric data. Time metric values are already exported in ms,
+     * matching the units used in threshold expressions.
+     */
+    public static function evaluateThreshold(string $condition, array $data): bool
+    {
+        foreach (preg_split('/\|\|/', $condition) as $orPart) {
+            if (self::evaluateAndExpression($orPart, $data)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function evaluateAndExpression(string $expression, array $data): bool
+    {
+        foreach (preg_split('/&&/', $expression) as $part) {
+            if (! self::evaluateSingleCondition(trim($part), $data)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function evaluateSingleCondition(string $expression, array $data): bool
+    {
+        if (! preg_match('/^\s*(!?)\s*([A-Za-z0-9_().]+)\s*(<=|>=|==|!=|<|>)\s*([+-]?\d*\.?\d+)\s*$/', $expression, $matches)) {
+            return false;
+        }
+
+        [, $negated, $property, $operator, $threshold] = $matches;
+
+        $actual = $data[$property] ?? $data['value'] ?? null;
+
+        if ($actual === null || ! is_numeric($actual)) {
+            return false;
+        }
+
+        $result = match ($operator) {
+            '<' => (float) $actual < (float) $threshold,
+            '>' => (float) $actual > (float) $threshold,
+            '<=' => (float) $actual <= (float) $threshold,
+            '>=' => (float) $actual >= (float) $threshold,
+            '==' => (float) $actual == (float) $threshold,
+            '!=' => (float) $actual != (float) $threshold,
+            default => false,
+        };
+
+        return $negated === '!' ? ! $result : $result;
+    }
+
+    /**
+     * Extract the metric value a threshold evaluated against, when possible.
+     *
+     * k6 does not expose a per-threshold value in its summary, so we pull the
+     * property referenced by the condition (e.g. "p(95)" from "p(95)<500")
+     * directly from the metric's data, falling back to the metric's "value".
+     */
+    private static function thresholdValue(array $data, string $condition): mixed
+    {
+        $expression = preg_split('/\|\||&&/', $condition)[0] ?? $condition;
+
+        if (preg_match('/^\s*([A-Za-z0-9_().]+)/', $expression, $matches)) {
+            $property = $matches[1];
+
+            if (array_key_exists($property, $data)) {
+                return $data[$property];
+            }
+        }
+
+        return $data['value'] ?? null;
     }
 
     private static function collectChecks(array $group): array
