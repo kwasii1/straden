@@ -302,35 +302,37 @@ class extends Component
     @editor-save.window="saveEditor($event.detail)"
     @editor-moved.window="handleEditorMoved($event.detail)"
     @editor-deleted.window="handleEditorDeleted($event.detail)"
-    class="flex flex-col h-full relative"
+    class="flex flex-col h-full bg-white dark:bg-zinc-950"
 >
-    {{-- Floating script name (far left) --}}
-    <div class="absolute top-2.5 left-4 z-20">
-        <span class="text-sm font-semibold text-zinc-300 bg-zinc-900/80 backdrop-blur-sm rounded-lg px-3 py-1.5 border border-zinc-800/50">
-            {{ $script->name }}
-        </span>
-    </div>
+    {{-- In-flow toolbar — replaces the old floating title / tab-switcher / run button.
+         Sits in its own row so it never overlaps editor or chat content. --}}
+    <div class="shrink-0 h-12 flex items-center justify-between gap-3 px-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 z-10">
+        <div class="flex items-center gap-2 min-w-0">
+            <flux:icon.document-text class="size-4 text-zinc-400 dark:text-zinc-500 shrink-0" />
+            <span class="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate">
+                {{ $script->name }}
+            </span>
+        </div>
 
-    {{-- Floating Run Test button (far right) --}}
-    <div class="absolute top-2.5 right-4 z-20">
-        <flux:button wire:click="runTest" wire:loading.attr="disabled" icon="play" variant="primary" size="sm" class="shadow-lg">Run Test</flux:button>
-    </div>
-
-    {{-- Floating tab switcher --}}
-    <div class="absolute top-2.5 left-1/2 -translate-x-1/2 z-20">
-        <div class="flex bg-zinc-900/90 backdrop-blur-md border border-zinc-700 rounded-full p-0.5 shadow-lg">
+        <div class="flex bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-full p-0.5 shrink-0">
             <button
                 wire:click="$set('mode', 'script')"
-                class="px-4 py-1.5 text-xs font-medium rounded-full transition-all {{ $mode === 'script' ? 'bg-zinc-700/80 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300' }}"
+                class="px-3.5 py-1 text-xs font-medium rounded-full transition-colors {{ $mode === 'script' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-xs' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200' }}"
             >
                 Script
             </button>
             <button
                 wire:click="$set('mode', 'agent')"
-                class="px-4 py-1.5 text-xs font-medium rounded-full transition-all {{ $mode === 'agent' ? 'bg-zinc-700/80 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300' }}"
+                class="px-3.5 py-1 text-xs font-medium rounded-full transition-colors {{ $mode === 'agent' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-xs' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200' }}"
             >
                 Agent
             </button>
+        </div>
+
+        <div class="shrink-0">
+            <flux:button wire:click="runTest" wire:loading.attr="disabled" icon="play" variant="primary" size="sm">
+                Run Test
+            </flux:button>
         </div>
     </div>
 
@@ -338,20 +340,20 @@ class extends Component
     <div class="flex flex-1 min-h-0">
         {{-- Script mode: IDE (4/5) + File tree (1/5) --}}
         @if ($mode === 'script')
-            <div class="flex flex-col flex-1 min-h-0 border-r border-zinc-800"
+            <div class="flex flex-col flex-1 min-h-0 border-r border-zinc-200 dark:border-zinc-800"
                  style="width: 80%;">
                 <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
-                    <div class="shrink-0 flex items-center bg-zinc-950 overflow-x-auto
-                                [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-zinc-800">
+                    <div class="shrink-0 flex items-center bg-zinc-50 dark:bg-zinc-950 overflow-x-auto
+                                [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-zinc-200 dark:border-zinc-800">
                         @foreach ($openTabs as $tab)
                             @php $isActive = $tab === $activeFilePath; @endphp
                             <div
                                 wire:click="selectFile('{{ $tab }}')"
                                 class="group/tab flex items-center gap-2 px-3 py-1.5 text-sm border-r
-                                       border-zinc-800 shrink-0 cursor-pointer select-none
+                                       border-zinc-200 dark:border-zinc-800 shrink-0 cursor-pointer select-none
                                        {{ $isActive
-                                           ? ' bg-zinc-800 text-zinc-100 -mb-px border-b border-b-zinc-800'
-                                           : ' bg-zinc-950 text-zinc-500 hover:bg-zinc-900/50' }}">
+                                           ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 -mb-px border-b border-b-white dark:border-b-zinc-800'
+                                           : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900/50' }}">
                                 <flux:icon.document-text class="size-3.5 shrink-0" />
                                 <span class="truncate max-w-[160px]">{{ basename($tab) }}</span>
                                 <span
@@ -360,14 +362,14 @@ class extends Component
                                 ></span>
                                 <button
                                     wire:click.stop="closeTab('{{ $tab }}')"
-                                    class="rounded p-0.5 hover:bg-zinc-700 text-zinc-500
-                                           hover:text-zinc-300 opacity-0 group-hover/tab:opacity-100
+                                    class="rounded p-0.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400
+                                           hover:text-zinc-700 dark:hover:text-zinc-300 opacity-0 group-hover/tab:opacity-100
                                            transition-opacity">
                                     <flux:icon.x-mark class="size-3" />
                                 </button>
                             </div>
                         @endforeach
-                        <div class="flex-1 self-stretch bg-zinc-950 border-b border-zinc-800"></div>
+                        <div class="flex-1 self-stretch bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800"></div>
                     </div>
 
                     @if ($activeFilePath)
@@ -382,27 +384,27 @@ class extends Component
                             class="!rounded-none !border-0 flex-1"
                         />
                     @else
-                        <div class="flex-1 flex items-center justify-center text-zinc-600 text-sm">
+                        <div class="flex-1 flex items-center justify-center text-zinc-400 dark:text-zinc-600 text-sm">
                             Select a file to edit
                         </div>
                     @endif
                 </div>
             </div>
 
-            <div class="flex flex-col bg-zinc-950 overflow-hidden"
+            <div class="flex flex-col bg-zinc-50 dark:bg-zinc-950 overflow-hidden"
                  style="width: 20%;">
-                <div class="flex items-center gap-0.5 px-1 py-0.5 border-b border-zinc-800 shrink-0">
+                <div class="flex items-center gap-0.5 px-1 py-0.5 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
                     <button
                         @click="startCreate('file')"
                         title="New File"
-                        class="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
+                        class="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
                     >
                         <flux:icon.document-plus class="size-4" />
                     </button>
                     <button
                         @click="startCreate('folder')"
                         title="New Folder"
-                        class="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
+                        class="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
                     >
                         <flux:icon.folder-plus class="size-4" />
                     </button>
@@ -410,7 +412,7 @@ class extends Component
                     <button
                         @click="$refs.fileUploadInput.click()"
                         title="Upload Files"
-                        class="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
+                        class="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
                     >
                         <flux:icon.arrow-up-tray class="size-4" />
                     </button>
@@ -430,8 +432,8 @@ class extends Component
                         @keydown.enter="submitCreate()"
                         @keydown.escape="cancelCreate()"
                         :placeholder="createType === 'file' ? 'Filename...' : 'Folder name...'"
-                        class="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1
-                               text-sm text-zinc-200 outline-none focus:border-blue-500"
+                        class="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1
+                               text-sm text-zinc-800 dark:text-zinc-200 outline-none focus:border-blue-500"
                         x-init="$el.focus()"
                     />
                 </div>
@@ -442,7 +444,7 @@ class extends Component
                     @endforeach
 
                     @if (empty($fileTree))
-                        <div class="text-zinc-600 text-sm p-2">
+                        <div class="text-zinc-400 dark:text-zinc-600 text-sm p-2">
                             No files yet.
                         </div>
                     @endif
