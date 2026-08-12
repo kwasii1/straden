@@ -101,26 +101,25 @@ class extends Component
         return $segments[0] ?? $endpoint;
     }
 
-    public function statusColor(string $status): string
+    public function statusVariant(string $status): array
     {
         return match ($status) {
-            'passed' => '#16a34a',
-            'running' => '#ca8a04',
-            'queued' => '#6b7280',
-            'failed', 'error' => '#dc2626',
-            default => '#6b7280',
+            'passed' => ['label' => 'Passed', 'class' => 'text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10'],
+            'running' => ['label' => 'Running', 'class' => 'text-blue-700 bg-blue-50 dark:text-blue-400 dark:bg-blue-500/10'],
+            'queued' => ['label' => 'Queued', 'class' => 'text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/10'],
+            'failed', 'error' => ['label' => ucfirst($status), 'class' => 'text-red-700 bg-red-50 dark:text-red-400 dark:bg-red-500/10'],
+            default => ['label' => ucfirst($status), 'class' => 'text-zinc-600 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800'],
         };
     }
 
-    public function statusIcon(string $status): string
+    public function statusDot(string $status): string
     {
         return match ($status) {
-            'passed' => 'check-circle',
-            'running' => 'clock',
-            'queued' => 'clock',
-            'failed' => 'x-circle',
-            'error' => 'exclamation-triangle',
-            default => 'question-mark-circle',
+            'passed' => 'bg-emerald-500',
+            'running' => 'bg-blue-500',
+            'queued' => 'bg-amber-500',
+            'failed', 'error' => 'bg-red-500',
+            default => 'bg-zinc-400',
         };
     }
 
@@ -159,368 +158,481 @@ class extends Component
 };
 ?>
 
-<div class="flex flex-col gap-y-10">
-    <div class="flex items-start justify-between gap-x-4">
-        <div class="flex flex-col">
+<div class="flex flex-col gap-y-6">
+    {{-- Header --}}
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
             <flux:heading size="xl">Run Detail</flux:heading>
-            <flux:text>View test run results and performance metrics.</flux:text>
+            <flux:text class="mt-1">View test run results and performance metrics.</flux:text>
         </div>
         <flux:modal.trigger name="run-insights">
             <flux:button variant="primary" icon="sparkles">AI Insights</flux:button>
         </flux:modal.trigger>
     </div>
 
-    <div class="flex items-center gap-x-2 text-sm text-zinc-500">
-        <a wire:navigate href="{{ route('projects.overview', ['project' => $this->project]) }}" class="hover:text-zinc-300 transition-colors">
+    {{-- Breadcrumb --}}
+    <nav class="flex items-center gap-x-2 text-sm text-zinc-500">
+        <a wire:navigate href="{{ route('projects.overview', ['project' => $this->project]) }}" class="transition-colors hover:text-zinc-300">
             {{ $this->project->name }}
         </a>
         <flux:icon.chevron-right class="size-3" />
-        <a wire:navigate href="{{ route('projects.view-test', ['project' => $this->project, 'test' => $this->run->script->test]) }}" class="hover:text-zinc-300 transition-colors">
+        <a wire:navigate href="{{ route('projects.view-test', ['project' => $this->project, 'test' => $this->run->script->test]) }}" class="transition-colors hover:text-zinc-300">
             {{ $this->run->script->test->name }}
         </a>
         <flux:icon.chevron-right class="size-3" />
-        <a wire:navigate href="{{ route('projects.view-test-script', ['project' => $this->project, 'test' => $this->run->script->test, 'script' => $this->run->script]) }}" class="hover:text-zinc-300 transition-colors">
+        <a wire:navigate href="{{ route('projects.view-test-script', ['project' => $this->project, 'test' => $this->run->script->test, 'script' => $this->run->script]) }}" class="transition-colors hover:text-zinc-300">
             {{ $this->run->script->name }}
         </a>
         <flux:icon.chevron-right class="size-3" />
         <span class="text-zinc-300">{{ $this->run->slug }}</span>
+    </nav>
+
+    {{-- Run meta card --}}
+    @php $runStatus = $this->statusVariant($this->run->status); @endphp
+    <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
+        <div class="flex flex-col bg-white dark:bg-zinc-900">
+            <div class="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex flex-col gap-2.5">
+                    <div class="flex items-center gap-3">
+                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $runStatus['class'] }}">
+                            <span class="size-1.5 rounded-full {{ $this->statusDot($this->run->status) }}"></span>
+                            {{ $runStatus['label'] }}
+                        </span>
+                        <flux:text class="text-sm font-medium text-zinc-700 dark:text-zinc-200">{{ $this->run->slug }}</flux:text>
+                    </div>
+                    <flux:text class="text-xs text-[#919191]">
+                        @if ($this->run->triggered_by_user_id)
+                            Triggered by {{ $this->run->triggeredByUser?->name ?? 'Unknown' }} ({{ $this->run->triggered_by }})
+                        @else
+                            Triggered by {{ $this->run->triggered_by }}
+                        @endif
+                    </flux:text>
+                </div>
+
+                @if ($this->isActive())
+                    <flux:button wire:click="cancelRun" variant="danger" size="sm">Cancel Run</flux:button>
+                @endif
+            </div>
+
+            <div class="grid grid-cols-1 divide-y divide-zinc-100 border-t border-zinc-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0 dark:divide-zinc-800 dark:border-zinc-800">
+                <div class="flex flex-col gap-y-1 px-5 py-4">
+                    <flux:text class="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">Started At</flux:text>
+                    <flux:text class="text-sm font-semibold text-zinc-900 dark:text-white">
+                        {{ $this->run->started_at?->format('M j, Y H:i:s') ?? 'N/A' }}
+                    </flux:text>
+                </div>
+                <div class="flex flex-col gap-y-1 px-5 py-4">
+                    <flux:text class="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">Completed At</flux:text>
+                    <flux:text class="text-sm font-semibold text-zinc-900 dark:text-white">
+                        {{ $this->run->completed_at?->format('M j, Y H:i:s') ?? 'N/A' }}
+                    </flux:text>
+                </div>
+                <div class="flex flex-col gap-y-1 px-5 py-4">
+                    <flux:text class="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">Duration</flux:text>
+                    <flux:text class="text-sm font-semibold text-zinc-900 dark:text-white">
+                        {{ $this->formatDuration($this->run->duration_seconds) }}
+                    </flux:text>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="flex items-center gap-x-4">
-        <div class="flex items-center gap-x-2">
-            <flux:icon :icon="$this->statusIcon($this->run->status)" class="size-5" style="color: {{ $this->statusColor($this->run->status) }}" />
-            <flux:heading size="lg" style="color: {{ $this->statusColor($this->run->status) }}">
-                {{ ucfirst($this->run->status) }}
-            </flux:heading>
-        </div>
-        @if ($this->run->triggered_by_user_id)
-            <flux:text class="text-zinc-500">
-                Triggered by {{ $this->run->triggeredByUser?->name ?? 'Unknown' }} ({{ $this->run->triggered_by }})
-            </flux:text>
-        @else
-            <flux:text class="text-zinc-500">
-                Triggered by {{ $this->run->triggered_by }}
-            </flux:text>
-        @endif
-    </div>
-
-    <div class="grid grid-cols-3 border divide-x">
-        <div class="flex flex-col p-3">
-            <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">STARTED AT</flux:text>
-            <flux:text>{{ $this->run->started_at?->format('M j, Y H:i:s') ?? 'N/A' }}</flux:text>
-        </div>
-        <div class="flex flex-col p-3">
-            <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">COMPLETED AT</flux:text>
-            <flux:text>{{ $this->run->completed_at?->format('M j, Y H:i:s') ?? 'N/A' }}</flux:text>
-        </div>
-        <div class="flex flex-col p-3">
-            <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">DURATION</flux:text>
-            <flux:text>{{ $this->formatDuration($this->run->duration_seconds) }}</flux:text>
-        </div>
-    </div>
-
+    {{-- Error message --}}
     @if ($this->run->status === 'error' && $this->run->error_message)
-        <div class="flex flex-col gap-y-2 p-4 border border-red-800 bg-red-950/30 rounded-lg">
-            <flux:heading size="sm" class="text-red-400">Error</flux:heading>
-            <pre class="text-sm text-red-300 whitespace-pre-wrap">{{ $this->run->error_message }}</pre>
+        <div class="overflow-hidden rounded-xl border border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-950/30">
+            <div class="flex flex-col gap-y-2 px-5 py-4">
+                <div class="flex items-center gap-2">
+                    <flux:icon.exclamation-triangle class="size-4 text-red-500 dark:text-red-400" />
+                    <flux:heading size="sm" class="text-red-600 dark:text-red-400">Error</flux:heading>
+                </div>
+                <pre class="whitespace-pre-wrap text-sm text-red-700 dark:text-red-300">{{ $this->run->error_message }}</pre>
+            </div>
         </div>
     @endif
 
     @if (in_array($this->run->status, ['passed', 'failed', 'error']))
-        <flux:heading size="lg">Performance Metrics</flux:heading>
+        {{-- Performance metrics --}}
+        @php
+            $metricCards = [
+                ['label' => 'VUs Max', 'value' => $this->formatMetric($this->run->vus_max), 'icon' => 'user', 'color' => 'bg-violet-500', 'hint' => 'peak concurrent virtual users'],
+                ['label' => 'Total Requests', 'value' => $this->formatMetric($this->run->requests_total), 'icon' => 'globe-alt', 'color' => 'bg-blue-500', 'hint' => 'requests sent during the run'],
+                ['label' => 'Requests / Second', 'value' => $this->formatMetric($this->run->requests_per_second), 'icon' => 'arrows-right-left', 'color' => 'bg-emerald-500', 'hint' => 'average throughput'],
+                ['label' => 'P95 Duration', 'value' => $this->formatMetric($this->run->req_duration_p95_ms, 'ms'), 'icon' => 'clock', 'color' => 'bg-sky-500', 'hint' => '95th percentile latency'],
+                ['label' => 'P99 Duration', 'value' => $this->formatMetric($this->run->req_duration_p99_ms, 'ms'), 'icon' => 'clock', 'color' => 'bg-rose-500', 'hint' => '99th percentile latency'],
+                ['label' => 'Error Rate', 'value' => $this->formatMetric($this->run->error_rate, '%'), 'icon' => 'exclamation-triangle', 'color' => 'bg-amber-500', 'hint' => 'failed request percentage'],
+            ];
+        @endphp
 
-        <div class="grid grid-cols-3 gap-4">
-            <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
-                <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">VUs Max</flux:text>
-                <flux:heading size="xl">{{ $this->formatMetric($this->run->vus_max) }}</flux:heading>
-            </div>
-            <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
-                <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">Total Requests</flux:text>
-                <flux:heading size="xl">{{ $this->formatMetric($this->run->requests_total) }}</flux:heading>
-            </div>
-            <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
-                <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">Requests / Second</flux:text>
-                <flux:heading size="xl">{{ $this->formatMetric($this->run->requests_per_second) }}</flux:heading>
-            </div>
-            <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
-                <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">P95 Duration</flux:text>
-                <flux:heading size="xl">{{ $this->formatMetric($this->run->req_duration_p95_ms, 'ms') }}</flux:heading>
-            </div>
-            <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
-                <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">P99 Duration</flux:text>
-                <flux:heading size="xl">{{ $this->formatMetric($this->run->req_duration_p99_ms, 'ms') }}</flux:heading>
-            </div>
-            <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
-                <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">Error Rate</flux:text>
-                <flux:heading size="xl">{{ $this->formatMetric($this->run->error_rate, '%') }}</flux:heading>
-            </div>
+        <div class="flex items-center justify-between">
+            <flux:text class="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Performance Metrics</flux:text>
+            <flux:text class="text-xs text-[#919191]">Aggregated run results</flux:text>
         </div>
 
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            @foreach ($metricCards as $card)
+                <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
+                    <div class="flex flex-col rounded-xl bg-white pb-3.5 dark:bg-zinc-900">
+                        <div class="flex items-center gap-3 px-4 py-3.5">
+                            <div class="flex size-8 shrink-0 items-center justify-center rounded-lg {{ $card['color'] }} text-white">
+                                <flux:icon :name="$card['icon']" class="size-4" />
+                            </div>
+                            <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">{{ $card['label'] }}</flux:text>
+                        </div>
+                        <div class="px-4">
+                            <p class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ $card['value'] }}</p>
+                        </div>
+                    </div>
+                    <div class="px-4 py-2.5">
+                        <p class="text-xs text-[#919191] dark:text-zinc-400">{{ $card['hint'] }}</p>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+
+        {{-- Response codes --}}
         @php $codeSummary = $this->responseCodeSummary; @endphp
         @if ($codeSummary && $codeSummary['total'] > 0)
-            <flux:heading size="lg">Response Codes</flux:heading>
-            <div class="grid grid-cols-4 gap-4">
-                @foreach (['2xx' => ['Success', '#16a34a'], '3xx' => ['Redirect', '#ca8a04'], '4xx' => ['Client Error', '#ea580c'], '5xx' => ['Server Error', '#dc2626']] as $group => [$label, $color])
-                    @php $g = $codeSummary['groups'][$group] ?? ['count' => 0, 'percent' => 0]; @endphp
-                    <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
-                        <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">{{ $group }} {{ $label }}</flux:text>
-                        <div class="flex items-baseline gap-x-2">
-                            <flux:heading size="xl" style="color: {{ $color }}">{{ number_format($g['count']) }}</flux:heading>
-                            <flux:text class="text-sm text-zinc-500">{{ $g['percent'] }}%</flux:text>
+            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
+                <div class="flex items-center justify-between px-3 py-2.5">
+                    <div>
+                        <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Response Codes</flux:text>
+                        <p class="text-xs text-[#919191] dark:text-zinc-400">Distribution of HTTP status codes</p>
+                    </div>
+                </div>
+                <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        @foreach (['2xx' => ['label' => '2xx Success', 'color' => '#16a34a'], '3xx' => ['label' => '3xx Redirect', 'color' => '#ca8a04'], '4xx' => ['label' => '4xx Client Error', 'color' => '#ea580c'], '5xx' => ['label' => '5xx Server Error', 'color' => '#dc2626']] as $group => $codeGroup)
+                            @php $g = $codeSummary['groups'][$group] ?? ['count' => 0, 'percent' => 0]; @endphp
+                            <div class="flex flex-col gap-y-1">
+                                <flux:text class="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">{{ $codeGroup['label'] }}</flux:text>
+                                <div class="flex items-baseline gap-x-2">
+                                    <span class="text-2xl font-semibold tabular-nums" style="color: {{ $codeGroup['color'] }}">{{ number_format($g['count']) }}</span>
+                                    <flux:text class="text-sm text-zinc-500">{{ $g['percent'] }}%</flux:text>
+                                </div>
+                                <div class="mt-1 h-1.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800">
+                                    <div class="h-1.5 rounded-full" style="width: {{ max($g['percent'], 2) }}%; background-color: {{ $codeGroup['color'] }}"></div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        {{-- Checks --}}
+        @if ($this->run->checks_total !== null)
+            @php
+                $checksCards = [
+                    ['label' => 'Total Checks', 'value' => $this->run->checks_total, 'icon' => 'document-text', 'color' => 'bg-blue-500', 'hint' => 'assertions evaluated'],
+                    ['label' => 'Failed', 'value' => $this->run->checks_failed ?? 0, 'icon' => 'x-mark', 'color' => 'bg-rose-500', 'hint' => 'assertions that failed'],
+                    ['label' => 'Passed', 'value' => $this->run->checks_total - ($this->run->checks_failed ?? 0), 'icon' => 'check', 'color' => 'bg-emerald-500', 'hint' => 'assertions that passed'],
+                ];
+            @endphp
+
+            <div class="flex items-center justify-between">
+                <flux:text class="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Checks</flux:text>
+                <flux:text class="text-xs text-[#919191]">Assertions evaluated during the run</flux:text>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                @foreach ($checksCards as $card)
+                    <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
+                        <div class="flex flex-col rounded-xl bg-white pb-3.5 dark:bg-zinc-900">
+                            <div class="flex items-center gap-3 px-4 py-3.5">
+                                <div class="flex size-8 shrink-0 items-center justify-center rounded-lg {{ $card['color'] }} text-white">
+                                    <flux:icon :name="$card['icon']" class="size-4" />
+                                </div>
+                                <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">{{ $card['label'] }}</flux:text>
+                            </div>
+                            <div class="px-4">
+                                <p class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ $card['value'] }}</p>
+                            </div>
                         </div>
-                        <div class="w-full bg-zinc-800 rounded-full h-1.5 mt-1">
-                            <div class="h-1.5 rounded-full" style="width: {{ max($g['percent'], 2) }}%; background-color: {{ $color }}"></div>
+                        <div class="px-4 py-2.5">
+                            <p class="text-xs text-[#919191] dark:text-zinc-400">{{ $card['hint'] }}</p>
                         </div>
                     </div>
                 @endforeach
             </div>
         @endif
 
-        @if ($this->run->checks_total !== null)
-            <flux:heading size="lg">Checks</flux:heading>
-            <div class="grid grid-cols-3 gap-4">
-                <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
-                    <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">Total Checks</flux:text>
-                    <flux:heading size="xl">{{ $this->run->checks_total }}</flux:heading>
+        {{-- Thresholds --}}
+        @if ($this->run->thresholds_summary !== null)
+            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
+                <div class="flex items-center justify-between px-3 py-2.5">
+                    <div>
+                        <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Thresholds</flux:text>
+                        <p class="text-xs text-[#919191] dark:text-zinc-400">Rate limiting and assertion thresholds</p>
+                    </div>
                 </div>
-                <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
-                    <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">Failed</flux:text>
-                    <flux:heading size="xl" class="{{ ($this->run->checks_failed ?? 0) > 0 ? 'text-red-400' : 'text-green-500' }}">
-                        {{ $this->run->checks_failed ?? 0 }}
-                    </flux:heading>
-                </div>
-                <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
-                    <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">Passed</flux:text>
-                    <flux:heading size="xl" class="text-green-500">
-                        {{ $this->run->checks_total - ($this->run->checks_failed ?? 0) }}
-                    </flux:heading>
+                <div class="rounded-xl bg-white dark:bg-zinc-900">
+                    <div class="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-800">
+                        @foreach ($this->run->thresholds_summary as $threshold)
+                            <div class="flex items-center justify-between px-4 py-3">
+                                <flux:text class="text-sm text-zinc-700 dark:text-zinc-300">{{ $threshold['name'] }}</flux:text>
+                                @if ($threshold['ok'])
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                        <flux:icon.check class="size-4" />
+                                        Passed
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-red-500">
+                                        <flux:icon.x-mark class="size-4" />
+                                        Failed
+                                    </span>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
             </div>
         @endif
 
-        @if ($this->run->thresholds_summary !== null)
-            <flux:heading size="lg">Thresholds</flux:heading>
-            <div class="flex flex-col border divide-y rounded-lg">
-                @foreach ($this->run->thresholds_summary as $threshold)
-                    <div class="flex items-center justify-between p-3">
-                        <flux:text>{{ $threshold['name'] }}</flux:text>
-                        @if ($threshold['ok'])
-                            <div class="flex items-center gap-x-1 text-green-500">
-                                <flux:icon.check class="size-4" />
-                                <flux:text class="text-sm">Passed</flux:text>
+        {{-- InfluxDB time-series charts --}}
+        @php $metrics = $this->influxMetrics; @endphp
+        @if ($metrics)
+            <div class="flex flex-col gap-y-4">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <flux:text class="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Time-Series Charts</flux:text>
+                        <p class="text-xs text-[#919191]">Performance metrics sampled every 5 seconds</p>
+                    </div>
+                    @if (! empty($this->endpoints))
+                        <flux:select wire:model.live="selectedEndpoint" class="w-72" label="Endpoint">
+                            <flux:select.option value="">All endpoints</flux:select.option>
+                            @foreach ($this->endpoints as $endpoint)
+                                <flux:select.option value="{{ $endpoint }}" title="{{ $endpoint }}">
+                                    {{ $this->endpointLabel($endpoint) }}
+                                </flux:select.option>
+                            @endforeach
+                        </flux:select>
+                    @endif
+                </div>
+
+                @if ($this->selectedEndpoint)
+                    @php $summary = $this->selectedEndpointSummary; @endphp
+                    @if ($summary)
+                        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
+                                <div class="flex flex-col rounded-xl bg-white pb-3.5 dark:bg-zinc-900">
+                                    <div class="flex items-center gap-3 px-4 py-3.5">
+                                        <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-500 text-white">
+                                            <flux:icon.globe-alt class="size-4" />
+                                        </div>
+                                        <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">Total Requests</flux:text>
+                                    </div>
+                                    <div class="px-4">
+                                        <p class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ $this->formatMetric($summary['total_requests']) }}</p>
+                                    </div>
+                                </div>
+                                <div class="px-4 py-2.5">
+                                    <p class="text-xs text-[#919191] dark:text-zinc-400">hits on this endpoint</p>
+                                </div>
                             </div>
-                        @else
-                            <div class="flex items-center gap-x-1 text-red-400">
-                                <flux:icon.x-mark class="size-4" />
-                                <flux:text class="text-sm">Failed</flux:text>
+                            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
+                                <div class="flex flex-col rounded-xl bg-white pb-3.5 dark:bg-zinc-900">
+                                    <div class="flex items-center gap-3 px-4 py-3.5">
+                                        <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sky-500 text-white">
+                                            <flux:icon.clock class="size-4" />
+                                        </div>
+                                        <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">P95 Duration</flux:text>
+                                    </div>
+                                    <div class="px-4">
+                                        <p class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ $this->formatMetric($summary['p95_ms'], 'ms') }}</p>
+                                    </div>
+                                </div>
+                                <div class="px-4 py-2.5">
+                                    <p class="text-xs text-[#919191] dark:text-zinc-400">95th percentile latency</p>
+                                </div>
+                            </div>
+                            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
+                                <div class="flex flex-col rounded-xl bg-white pb-3.5 dark:bg-zinc-900">
+                                    <div class="flex items-center gap-3 px-4 py-3.5">
+                                        <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-rose-500 text-white">
+                                            <flux:icon.clock class="size-4" />
+                                        </div>
+                                        <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">P99 Duration</flux:text>
+                                    </div>
+                                    <div class="px-4">
+                                        <p class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ $this->formatMetric($summary['p99_ms'], 'ms') }}</p>
+                                    </div>
+                                </div>
+                                <div class="px-4 py-2.5">
+                                    <p class="text-xs text-[#919191] dark:text-zinc-400">99th percentile latency</p>
+                                </div>
+                            </div>
+                            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
+                                <div class="flex flex-col rounded-xl bg-white pb-3.5 dark:bg-zinc-900">
+                                    <div class="flex items-center gap-3 px-4 py-3.5">
+                                        <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white">
+                                            <flux:icon.exclamation-triangle class="size-4" />
+                                        </div>
+                                        <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">Error Rate</flux:text>
+                                    </div>
+                                    <div class="px-4">
+                                        <p class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ $this->formatMetric($summary['error_rate_percent'], '%') }}</p>
+                                    </div>
+                                </div>
+                                <div class="px-4 py-2.5">
+                                    <p class="text-xs text-[#919191] dark:text-zinc-400">failed requests on this endpoint</p>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+                @endif
+
+                @php $hasChartData = ! empty($metrics['request_rate']['labels']); @endphp
+                @if ($hasChartData)
+                    <div
+                        class="grid grid-cols-1 gap-4 lg:grid-cols-2"
+                        @if ($this->isActive()) wire:poll.5s @endif
+                    >
+                        @if ($this->selectedEndpoint === null || $this->selectedEndpoint === '')
+                            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
+                                <div class="flex items-center justify-between px-3 py-2.5">
+                                    <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Active VUs</flux:text>
+                                </div>
+                                <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
+                                    <div
+                                        wire:key="vus-chart-{{ md5(json_encode($metrics['vus'] ?? [])) }}"
+                                        wire:ignore
+                                        x-data="runVusChart(@js($metrics['vus'] ?? ['labels' => [], 'values' => []]))"
+                                        class="relative h-56"
+                                    >
+                                        <canvas x-ref="canvas"></canvas>
+                                        <x-chart-tooltip />
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
+                        <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
+                            <div class="flex items-center justify-between px-3 py-2.5">
+                                <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Request Rate</flux:text>
+                            </div>
+                            <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
+                                <div
+                                    wire:key="request-rate-chart-{{ md5(json_encode($metrics['request_rate'] ?? [])) }}"
+                                    wire:ignore
+                                    x-data="runRequestRateChart(@js($metrics['request_rate'] ?? ['labels' => [], 'values' => []]))"
+                                    class="relative h-56"
+                                >
+                                    <canvas x-ref="canvas"></canvas>
+                                    <x-chart-tooltip />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
+                            <div class="flex items-center justify-between px-3 py-2.5">
+                                <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Response Time</flux:text>
+                            </div>
+                            <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
+                                <div
+                                    wire:key="response-time-chart-{{ md5(json_encode($metrics['response_time'] ?? [])) }}"
+                                    wire:ignore
+                                    x-data="runResponseTimeChart(@js($metrics['response_time'] ?? ['labels' => [], 'p95' => [], 'p99' => []]))"
+                                    class="relative h-56"
+                                >
+                                    <canvas x-ref="canvas"></canvas>
+                                    <x-chart-tooltip />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
+                            <div class="flex items-center justify-between px-3 py-2.5">
+                                <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Error Rate</flux:text>
+                            </div>
+                            <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
+                                <div
+                                    wire:key="error-rate-chart-{{ md5(json_encode($metrics['error_rate'] ?? [])) }}"
+                                    wire:ignore
+                                    x-data="runErrorRateChart(@js($metrics['error_rate'] ?? ['labels' => [], 'values' => []]))"
+                                    class="relative h-56"
+                                >
+                                    <canvas x-ref="canvas"></canvas>
+                                    <x-chart-tooltip />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
+                            <div class="flex items-center justify-between px-3 py-2.5">
+                                <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Response Codes</flux:text>
+                            </div>
+                            <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
+                                <div
+                                    wire:key="response-codes-chart-{{ md5(json_encode($metrics['response_codes'] ?? [])) }}"
+                                    wire:ignore
+                                    x-data="runResponseCodesChart(@js($metrics['response_codes'] ?? ['labels' => [], '2xx' => [], '3xx' => [], '4xx' => [], '5xx' => []]))"
+                                    class="relative h-56"
+                                >
+                                    <canvas x-ref="canvas"></canvas>
+                                    <x-chart-tooltip />
+                                </div>
+                            </div>
+                        </div>
+
+                        @if ($this->selectedEndpoint === null || $this->selectedEndpoint === '')
+                            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
+                                <div class="flex items-center justify-between px-3 py-2.5">
+                                    <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Checks</flux:text>
+                                </div>
+                                <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
+                                    <div
+                                        wire:key="checks-chart-{{ md5(json_encode($metrics['checks'] ?? [])) }}"
+                                        wire:ignore
+                                        x-data="runChecksChart(@js($metrics['checks'] ?? ['labels' => [], 'passed' => [], 'failed' => []]))"
+                                        class="relative h-56"
+                                    >
+                                        <canvas x-ref="canvas"></canvas>
+                                        <x-chart-tooltip />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
+                                <div class="flex items-center justify-between px-3 py-2.5">
+                                    <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Data Transfer</flux:text>
+                                </div>
+                                <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
+                                    <div
+                                        wire:key="data-transfer-chart-{{ md5(json_encode($metrics['data_transfer'] ?? [])) }}"
+                                        wire:ignore
+                                        x-data="runDataTransferChart(@js($metrics['data_transfer'] ?? ['labels' => [], 'sent' => [], 'received' => []]))"
+                                        class="relative h-56"
+                                    >
+                                        <canvas x-ref="canvas"></canvas>
+                                        <x-chart-tooltip />
+                                    </div>
+                                </div>
                             </div>
                         @endif
                     </div>
-                @endforeach
-            </div>
-        @endif
-
-        {{-- InfluxDB Time-Series Charts --}}
-        @php $metrics = $this->influxMetrics; @endphp
-        @if ($metrics)
-            <div class="flex items-start justify-between gap-x-4">
-                <flux:heading size="lg">Time-Series Charts</flux:heading>
-                @if (! empty($this->endpoints))
-                    <flux:select wire:model.live="selectedEndpoint" class="w-72" label="Endpoint">
-                        <flux:select.option value="">All endpoints</flux:select.option>
-                        @foreach ($this->endpoints as $endpoint)
-                            <flux:select.option value="{{ $endpoint }}" title="{{ $endpoint }}">
-                                {{ $this->endpointLabel($endpoint) }}
-                            </flux:select.option>
-                        @endforeach
-                    </flux:select>
-                @endif
-            </div>
-
-            @if ($this->selectedEndpoint)
-                @php $summary = $this->selectedEndpointSummary; @endphp
-                @if ($summary)
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
-                            <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">Total Requests</flux:text>
-                            <flux:heading size="xl">{{ $this->formatMetric($summary['total_requests']) }}</flux:heading>
+                @else
+                    <div class="flex flex-col items-center justify-center gap-y-3 rounded-xl border border-[#EDEDED] bg-[#F1F1F1] py-14 dark:border-zinc-800 dark:bg-zinc-800/80">
+                        <div class="flex size-12 items-center justify-center rounded-lg bg-blue-50 text-blue-500 dark:bg-zinc-800">
+                            <flux:icon.chart-bar class="size-6" />
                         </div>
-                        <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
-                            <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">P95 Duration</flux:text>
-                            <flux:heading size="xl">{{ $this->formatMetric($summary['p95_ms'], 'ms') }}</flux:heading>
-                        </div>
-                        <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
-                            <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">P99 Duration</flux:text>
-                            <flux:heading size="xl">{{ $this->formatMetric($summary['p99_ms'], 'ms') }}</flux:heading>
-                        </div>
-                        <div class="flex flex-col gap-y-1 p-4 border rounded-lg">
-                            <flux:text class="text-zinc-500 text-xs uppercase tracking-wider">Error Rate</flux:text>
-                            <flux:heading size="xl">{{ $this->formatMetric($summary['error_rate_percent'], '%') }}</flux:heading>
-                        </div>
-                    </div>
-                @endif
-            @endif
-
-            <div
-                class="grid grid-cols-1 lg:grid-cols-2 gap-6"
-                @if ($this->isActive()) wire:poll.5s @endif
-                x-data="{
-                    metrics: {{ Js::from($metrics) }},
-                    charts: {},
-
-                    init() {
-                        this.buildAllCharts();
-                    },
-
-                    updated() {
-                        this.buildAllCharts();
-                    },
-
-                    destroyAll() {
-                        Object.values(this.charts).forEach(c => c.destroy());
-                        this.charts = {};
-                    },
-
-                    getMetrics() {
-                        return this.metrics;
-                    },
-
-                    buildAllCharts() {
-                        this.destroyAll();
-                        const m = this.getMetrics();
-
-                        this.buildChart('vusChart', 'line', m.vus.labels, [{ label: 'VUs', data: m.vus.values, borderColor: '#a78bfa', backgroundColor: 'rgba(167, 139, 250, 0.1)', fill: true, tension: 0.3, pointRadius: 0 }], 'VUs');
-                        this.buildChart('requestRateChart', 'line', m.request_rate.labels, [{ label: 'req/s', data: m.request_rate.values, borderColor: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.1)', fill: true, tension: 0.3, pointRadius: 0 }], 'req/s');
-                        this.buildChart('responseTimeChart', 'line', m.response_time.labels, [{ label: 'p95', data: m.response_time.p95, borderColor: '#60a5fa', backgroundColor: 'rgba(96, 165, 250, 0.1)', fill: true, tension: 0.3, pointRadius: 0 }, { label: 'p99', data: m.response_time.p99, borderColor: '#f87171', backgroundColor: 'rgba(248, 113, 113, 0.05)', fill: true, tension: 0.3, pointRadius: 0 }], 'ms');
-                        this.buildChart('errorRateChart', 'line', m.error_rate.labels, [{ label: '%', data: m.error_rate.values, borderColor: '#fbbf24', backgroundColor: 'rgba(251, 191, 36, 0.1)', fill: true, tension: 0.3, pointRadius: 0 }], '%');
-                        this.buildChart('responseCodesChart', 'line', m.response_codes.labels, [
-                            { label: '2xx', data: m.response_codes['2xx'], borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.5)', fill: true, tension: 0.3, pointRadius: 0 },
-                            { label: '3xx', data: m.response_codes['3xx'], borderColor: '#ca8a04', backgroundColor: 'rgba(202, 138, 4, 0.5)', fill: true, tension: 0.3, pointRadius: 0 },
-                            { label: '4xx', data: m.response_codes['4xx'], borderColor: '#ea580c', backgroundColor: 'rgba(234, 88, 12, 0.5)', fill: true, tension: 0.3, pointRadius: 0 },
-                            { label: '5xx', data: m.response_codes['5xx'], borderColor: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.5)', fill: true, tension: 0.3, pointRadius: 0 },
-                        ], 'Requests', true);
-                        this.buildChart('checksChart', 'line', m.checks.labels, [{ label: 'Passed', data: m.checks.passed, borderColor: '#34d399', fill: false, tension: 0.3, pointRadius: 0 }, { label: 'Failed', data: m.checks.failed, borderColor: '#f87171', fill: false, tension: 0.3, pointRadius: 0 }], 'Count');
-                        this.buildChart('dataTransferChart', 'line', m.data_transfer.labels, [{ label: 'Sent', data: m.data_transfer.sent, borderColor: '#60a5fa', fill: false, tension: 0.3, pointRadius: 0 }, { label: 'Received', data: m.data_transfer.received, borderColor: '#a78bfa', fill: false, tension: 0.3, pointRadius: 0 }], 'Bytes');
-                    },
-
-                    buildChart(ref, type, labels, datasets, unit, stacked = false) {
-                        const canvas = this.$refs[ref];
-                        if (!canvas || !labels || labels.length === 0) return;
-
-                        this.charts[ref] = new Chart(canvas.getContext('2d'), {
-                            type: type,
-                            data: {
-                                labels: labels,
-                                datasets: datasets,
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                animation: false,
-                                interaction: {
-                                    intersect: false,
-                                    mode: 'index',
-                                },
-                                scales: {
-                                    y: {
-                                        stacked,
-                                        beginAtZero: true,
-                                        title: {
-                                            display: true,
-                                            text: unit,
-                                        },
-                                        grid: {
-                                            color: 'rgba(255,255,255,0.06)',
-                                        },
-                                    },
-                                    x: {
-                                        grid: {
-                                            display: false,
-                                        },
-                                    },
-                                },
-                                plugins: {
-                                    legend: {
-                                        display: datasets.length > 1,
-                                        position: 'bottom',
-                                        labels: {
-                                            padding: 12,
-                                            usePointStyle: true,
-                                            color: '#a1a1aa',
-                                        },
-                                    },
-                                },
-                            },
-                        });
-                    },
-                }"
-            >
-                @if ($this->selectedEndpoint === null || $this->selectedEndpoint === '')
-                    <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
-                        <flux:heading size="sm" class="mb-3">Active VUs</flux:heading>
-                        <div class="relative h-56">
-                            <canvas x-ref="vusChart"></canvas>
-                        </div>
-                    </div>
-                @endif
-
-                <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
-                    <flux:heading size="sm" class="mb-3">Request Rate</flux:heading>
-                    <div class="relative h-56">
-                        <canvas x-ref="requestRateChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
-                    <flux:heading size="sm" class="mb-3">Response Time</flux:heading>
-                    <div class="relative h-56">
-                        <canvas x-ref="responseTimeChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
-                    <flux:heading size="sm" class="mb-3">Error Rate</flux:heading>
-                    <div class="relative h-56">
-                        <canvas x-ref="errorRateChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
-                    <flux:heading size="sm" class="mb-3">Response Codes</flux:heading>
-                    <div class="relative h-56">
-                        <canvas x-ref="responseCodesChart"></canvas>
-                    </div>
-                </div>
-
-                @if ($this->selectedEndpoint === null || $this->selectedEndpoint === '')
-                    <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
-                        <flux:heading size="sm" class="mb-3">Checks</flux:heading>
-                        <div class="relative h-56">
-                            <canvas x-ref="checksChart"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
-                        <flux:heading size="sm" class="mb-3">Data Transfer</flux:heading>
-                        <div class="relative h-56">
-                            <canvas x-ref="dataTransferChart"></canvas>
-                        </div>
+                        <flux:text class="text-sm text-zinc-500 dark:text-zinc-400">No time-series data available for this run.</flux:text>
                     </div>
                 @endif
             </div>
         @endif
     @endif
 
+    {{-- Waiting for run --}}
     @if ($this->run->status === 'queued' || $this->run->status === 'running')
-        <div class="flex items-center justify-center p-10 text-zinc-500" wire:poll.5s>
-            <div class="flex flex-col items-center gap-y-3">
-                <flux:icon.clock class="size-10 animate-spin" />
-                <flux:text>Waiting for test run to complete...</flux:text>
-                <flux:button wire:click="cancelRun" variant="danger" size="sm">Cancel Run</flux:button>
+        <div class="flex flex-col items-center justify-center gap-y-3 rounded-xl border border-[#EDEDED] bg-[#F1F1F1] py-16 dark:border-zinc-800 dark:bg-zinc-800/80" wire:poll.5s>
+            <div class="flex size-12 items-center justify-center rounded-lg bg-amber-50 text-amber-500 dark:bg-zinc-800">
+                <flux:icon.clock class="size-6 animate-spin" />
             </div>
+            <flux:text class="text-zinc-500 dark:text-zinc-400">Waiting for test run to complete...</flux:text>
         </div>
     @endif
 
+    {{-- Footer actions --}}
     <div class="flex gap-x-2">
         <flux:button wire:navigate :href="route('projects.runs', ['project' => $this->project])">
             Back to Runs
@@ -530,6 +642,7 @@ class extends Component
         </flux:button>
     </div>
 
+    {{-- AI insights --}}
     <flux:modal name="run-insights" flyout class="md:w-2xl">
         <livewire:run-insight-panel :run="$run" />
     </flux:modal>

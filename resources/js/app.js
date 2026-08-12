@@ -119,6 +119,13 @@ import './charts/activity-chart.js';
 import './charts/project-doughnut.js';
 import './charts/status-doughnut.js';
 import './charts/performance-trend.js';
+import './charts/run-vus.js';
+import './charts/run-request-rate.js';
+import './charts/run-response-time.js';
+import './charts/run-error-rate.js';
+import './charts/run-response-codes.js';
+import './charts/run-checks.js';
+import './charts/run-data-transfer.js';
 
 /**
  * Echo exposes an expressive API for subscribing to channels and listening
