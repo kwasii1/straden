@@ -4,7 +4,7 @@
             if (! window.__notificationBellBound) {
                 window.__notificationBellBound = true;
 
-                Echo.private('App.Models.User.{{ auth()->id() }}').notification(() => {
+                Echo.private('App.Models.User.{{ auth()->id() }}').listen('.NotificationSent', () => {
                     window.dispatchEvent(new CustomEvent('notification-received'));
                 });
             }

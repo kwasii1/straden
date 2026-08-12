@@ -282,6 +282,7 @@ class AgentChat extends Component
             ->first()
             ?->messages()
             ->orderBy('created_at', 'asc')
+            ->orderBy('id', 'asc')
             ->get();
 
         if (! $messages) {

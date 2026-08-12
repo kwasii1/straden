@@ -112,8 +112,20 @@ class ChatAgentJob implements ShouldQueue
             return;
         }
 
-        User::find($this->notifyUserId)
-            ?->notify(new ScriptGenerationCompleted($this->notifyScriptId, $this->testId));
+        $user = User::find($this->notifyUserId);
+
+        $user?->notify(new ScriptGenerationCompleted($this->notifyScriptId, $this->testId));
+
+        // Broadcast a simple Bell event that requires zero model restoration,
+        // bypassing the serialization problems of BroadcastNotificationCreated.
+        try {
+            Broadcast::on(new PrivateChannel('App.Models.User.'.$this->notifyUserId))
+                ->as('NotificationSent')
+                ->with(['type' => 'notification_sent'])
+                ->sendNow();
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**

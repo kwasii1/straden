@@ -57,10 +57,11 @@
 
             @foreach ($displayMessages as $message)
                 @if ($message['role'] === 'user')
-                    <div class="flex justify-end">
+                    <div class="flex flex-col items-end gap-0.5">
                         <div class="max-w-[85%] rounded-2xl rounded-tr-xs px-4 py-2.5 text-xs sm:text-sm bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-sm">
                             <div class="whitespace-pre-wrap break-words leading-relaxed">{{ $message['content'] }}</div>
                         </div>
+                        <span class="text-[10px] text-zinc-400 dark:text-zinc-600 pr-1">{{ \Carbon\Carbon::parse($message['created_at'])->format('g:i A') }}</span>
                     </div>
                 @elseif ($message['role'] === 'assistant')
                     {{-- Approval Pause Card --}}
@@ -257,12 +258,13 @@
 
                     {{-- Markdown Response --}}
                     @if (! empty($message['content']))
-                        <div class="flex justify-start">
+                        <div class="flex flex-col items-start gap-0.5">
                             <div class="max-w-[85%] rounded-2xl rounded-tl-xs px-4 py-3 bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border border-zinc-200/60 dark:border-zinc-800/60 shadow-xs">
                                 <div class="prose prose-sm dark:prose-invert max-w-none text-xs sm:text-sm leading-relaxed prose-pre:my-2 prose-pre:p-3 prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-zinc-800 prose-code:text-indigo-400 prose-code:font-mono prose-code:text-[11px] break-words">
                                     {!! \Illuminate\Support\Str::markdown($message['content']) !!}
                                 </div>
                             </div>
+                            <span class="text-[10px] text-zinc-400 dark:text-zinc-600 pl-1">{{ \Carbon\Carbon::parse($message['created_at'])->format('g:i A') }}</span>
                         </div>
                     @endif
                 @endif

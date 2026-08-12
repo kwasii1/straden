@@ -27,13 +27,13 @@ function makeNotificationRun(User $user, string $status = 'failed'): Run
     ]);
 }
 
-test('notifications are delivered through database and broadcast channels', function () {
+test('notifications are delivered through database channel', function () {
     $user = User::factory()->create();
     $run = makeNotificationRun($user);
 
     $notification = new RunCompleted($run->id);
 
-    expect($notification->via($user))->toBe(['database', 'broadcast']);
+    expect($notification->via($user))->toBe(['database']);
 });
 
 test('queued notifications run on the notifications queue', function () {
