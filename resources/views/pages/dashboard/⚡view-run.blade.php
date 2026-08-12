@@ -44,7 +44,11 @@ class extends Component
     {
         try {
             return (new InfluxDbService(\App\Models\Connector::influxDb()))
-                ->metricsForRun($this->run->id, $this->endpointFilter());
+                ->metricsForRun(
+                    $this->run->id,
+                    $this->endpointFilter(),
+                    InfluxDbService::runTimeRange($this->run->started_at, $this->run->completed_at)
+                );
         } catch (\Throwable) {
             return null;
         }

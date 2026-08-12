@@ -22,7 +22,11 @@ class RunInfluxMetricsTool implements Tool
     {
         try {
             $service = InfluxDbService::fromInfluxDbConnector();
-            $metrics = $service->metricsForRun($this->run->id);
+            $metrics = $service->metricsForRun(
+                $this->run->id,
+                null,
+                InfluxDbService::runTimeRange($this->run->started_at, $this->run->completed_at)
+            );
         } catch (\Throwable $e) {
             return json_encode([
                 'available' => false,

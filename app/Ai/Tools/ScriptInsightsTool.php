@@ -114,7 +114,11 @@ class ScriptInsightsTool implements Tool
 
         foreach ($runs as $run) {
             try {
-                $metrics = $service->metricsForRun($run->id);
+                $metrics = $service->metricsForRun(
+                    $run->id,
+                    null,
+                    InfluxDbService::runTimeRange($run->started_at, $run->completed_at)
+                );
 
                 $perRun[] = [
                     'run_id' => $run->id,

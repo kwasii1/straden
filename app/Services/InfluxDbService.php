@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Connector;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Http;
 
 class InfluxDbService
@@ -86,18 +87,36 @@ class InfluxDbService
         return new self(Connector::influxDb());
     }
 
-    public function metricsForRun(string $runId, ?string $endpoint = null): array
+    /**
+     * Build a time-range clause for a run's execution window. Without explicit
+     * bounds, `GROUP BY time(...) fill(0)` queries extend to `now()`, returning
+     * thousands of empty buckets for old runs (huge payloads and stretched
+     * chart axes), so every time-series query is scoped to when the run ran.
+     */
+    public static function runTimeRange(?CarbonInterface $start, ?CarbonInterface $end): ?array
+    {
+        if ($start === null) {
+            return null;
+        }
+
+        return [
+            'start' => $start,
+            'end' => $end ?? now(),
+        ];
+    }
+
+    public function metricsForRun(string $runId, ?string $endpoint = null, ?array $timeRange = null): array
     {
         $perEndpoint = $endpoint !== null;
 
         return [
-            'vus' => $perEndpoint ? ['labels' => [], 'values' => []] : $this->vusOverTime($runId),
-            'request_rate' => $this->requestRateOverTime($runId, $endpoint),
-            'response_time' => $this->responseTimeOverTime($runId, $endpoint),
-            'error_rate' => $this->errorRateOverTime($runId, $endpoint),
-            'checks' => $perEndpoint ? ['labels' => [], 'passed' => [], 'failed' => []] : $this->checksOverTime($runId),
-            'data_transfer' => $perEndpoint ? ['labels' => [], 'sent' => [], 'received' => []] : $this->dataTransferOverTime($runId),
-            'response_codes' => $this->responseCodesOverTime($runId, $endpoint),
+            'vus' => $perEndpoint ? ['labels' => [], 'values' => []] : $this->vusOverTime($runId, $timeRange),
+            'request_rate' => $this->requestRateOverTime($runId, $endpoint, $timeRange),
+            'response_time' => $this->responseTimeOverTime($runId, $endpoint, $timeRange),
+            'error_rate' => $this->errorRateOverTime($runId, $endpoint, $timeRange),
+            'checks' => $perEndpoint ? ['labels' => [], 'passed' => [], 'failed' => []] : $this->checksOverTime($runId, $timeRange),
+            'data_transfer' => $perEndpoint ? ['labels' => [], 'sent' => [], 'received' => []] : $this->dataTransferOverTime($runId, $timeRange),
+            'response_codes' => $this->responseCodesOverTime($runId, $endpoint, $timeRange),
         ];
     }
 
@@ -138,46 +157,47 @@ class InfluxDbService
         ];
     }
 
-    public function vusOverTime(string $runId): array
+    public function vusOverTime(string $runId, ?array $timeRange = null): array
     {
         return $this->queryTimeSeries(
-            sprintf('SELECT max("value") FROM "vus" WHERE "run_id"=\'%s\' GROUP BY time(5s) fill(none)', $runId)
+            sprintf('SELECT max("value") FROM "vus" WHERE "run_id"=\'%s\'%s GROUP BY time(5s) fill(none)', $runId, $this->timeRangeClause($timeRange))
         );
     }
 
-    public function requestRateOverTime(string $runId, ?string $endpoint = null): array
+    public function requestRateOverTime(string $runId, ?string $endpoint = null, ?array $timeRange = null): array
     {
         return $this->queryTimeSeries(
-            sprintf('SELECT count("value") FROM "http_reqs" WHERE "run_id"=\'%s\'%s GROUP BY time(5s) fill(0)', $runId, $this->endpointClause($endpoint))
+            sprintf('SELECT count("value") FROM "http_reqs" WHERE "run_id"=\'%s\'%s%s GROUP BY time(5s) fill(0)', $runId, $this->endpointClause($endpoint), $this->timeRangeClause($timeRange))
         );
     }
 
-    public function responseTimeOverTime(string $runId, ?string $endpoint = null): array
+    public function responseTimeOverTime(string $runId, ?string $endpoint = null, ?array $timeRange = null): array
     {
         $q = sprintf(
-            'SELECT percentile("value", 95) AS "p95", percentile("value", 99) AS "p99" FROM "http_req_duration" WHERE "run_id"=\'%s\'%s GROUP BY time(5s) fill(none)',
+            'SELECT percentile("value", 95) AS "p95", percentile("value", 99) AS "p99" FROM "http_req_duration" WHERE "run_id"=\'%s\'%s%s GROUP BY time(5s) fill(none)',
             $runId,
-            $this->endpointClause($endpoint)
+            $this->endpointClause($endpoint),
+            $this->timeRangeClause($timeRange)
         );
 
         return $this->queryMultiSeries($q, ['p95', 'p99']);
     }
 
-    public function errorRateOverTime(string $runId, ?string $endpoint = null): array
+    public function errorRateOverTime(string $runId, ?string $endpoint = null, ?array $timeRange = null): array
     {
         return $this->queryTimeSeries(
-            sprintf('SELECT mean("value") * 100 FROM "http_req_failed" WHERE "run_id"=\'%s\'%s GROUP BY time(5s) fill(0)', $runId, $this->endpointClause($endpoint))
+            sprintf('SELECT mean("value") * 100 FROM "http_req_failed" WHERE "run_id"=\'%s\'%s%s GROUP BY time(5s) fill(0)', $runId, $this->endpointClause($endpoint), $this->timeRangeClause($timeRange))
         );
     }
 
-    public function checksOverTime(string $runId): array
+    public function checksOverTime(string $runId, ?array $timeRange = null): array
     {
         $total = $this->queryTimeSeries(
-            sprintf('SELECT count("value") FROM "checks" WHERE "run_id"=\'%s\' GROUP BY time(5s) fill(0)', $runId)
+            sprintf('SELECT count("value") FROM "checks" WHERE "run_id"=\'%s\'%s GROUP BY time(5s) fill(0)', $runId, $this->timeRangeClause($timeRange))
         );
 
         $passed = $this->queryTimeSeries(
-            sprintf('SELECT sum("value") FROM "checks" WHERE "run_id"=\'%s\' GROUP BY time(5s) fill(0)', $runId)
+            sprintf('SELECT sum("value") FROM "checks" WHERE "run_id"=\'%s\'%s GROUP BY time(5s) fill(0)', $runId, $this->timeRangeClause($timeRange))
         );
 
         $labels = $total['labels'] ?: $passed['labels'];
@@ -196,14 +216,14 @@ class InfluxDbService
         ];
     }
 
-    public function dataTransferOverTime(string $runId): array
+    public function dataTransferOverTime(string $runId, ?array $timeRange = null): array
     {
         $sent = $this->queryTimeSeries(
-            sprintf('SELECT sum("value") FROM "data_sent" WHERE "run_id"=\'%s\' GROUP BY time(5s) fill(0)', $runId)
+            sprintf('SELECT sum("value") FROM "data_sent" WHERE "run_id"=\'%s\'%s GROUP BY time(5s) fill(0)', $runId, $this->timeRangeClause($timeRange))
         );
 
         $received = $this->queryTimeSeries(
-            sprintf('SELECT sum("value") FROM "data_received" WHERE "run_id"=\'%s\' GROUP BY time(5s) fill(0)', $runId)
+            sprintf('SELECT sum("value") FROM "data_received" WHERE "run_id"=\'%s\'%s GROUP BY time(5s) fill(0)', $runId, $this->timeRangeClause($timeRange))
         );
 
         return [
@@ -250,7 +270,7 @@ class InfluxDbService
         ];
     }
 
-    public function responseCodesOverTime(string $runId, ?string $endpoint = null): array
+    public function responseCodesOverTime(string $runId, ?string $endpoint = null, ?array $timeRange = null): array
     {
         $prefixes = ['2', '3', '4', '5'];
         $datasets = [];
@@ -259,10 +279,11 @@ class InfluxDbService
         foreach ($prefixes as $prefix) {
             $result = $this->queryTimeSeries(
                 sprintf(
-                    'SELECT count("value") FROM "http_reqs" WHERE "run_id"=\'%s\' AND "status" =~ /^%s/%s GROUP BY time(5s) fill(0)',
+                    'SELECT count("value") FROM "http_reqs" WHERE "run_id"=\'%s\' AND "status" =~ /^%s/%s%s GROUP BY time(5s) fill(0)',
                     $runId,
                     $prefix,
-                    $this->endpointClause($endpoint)
+                    $this->endpointClause($endpoint),
+                    $this->timeRangeClause($timeRange)
                 )
             );
 
@@ -348,5 +369,20 @@ class InfluxDbService
         return $endpoint !== null
             ? " AND \"name\"='".$endpoint."'"
             : '';
+    }
+
+    private function timeRangeClause(?array $timeRange): string
+    {
+        $clauses = [];
+
+        if (isset($timeRange['start'])) {
+            $clauses[] = 'time >= \''.$timeRange['start']->copy()->utc()->format('Y-m-d\TH:i:s\Z').'\'';
+        }
+
+        if (isset($timeRange['end'])) {
+            $clauses[] = 'time <= \''.$timeRange['end']->copy()->utc()->format('Y-m-d\TH:i:s\Z').'\'';
+        }
+
+        return $clauses === [] ? '' : ' AND '.implode(' AND ', $clauses);
     }
 }
