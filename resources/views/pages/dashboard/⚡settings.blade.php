@@ -20,6 +20,7 @@ class extends Component
             'description' => 'Advanced language models for text generation, image creation, and audio processing.',
             'sort_order' => 1,
             'website_url' => 'https://platform.openai.com',
+            'logo' => 'openai',
             'fields' => [
                 ['env' => 'OPENAI_API_KEY', 'label' => 'API Key', 'type' => 'password', 'required' => true, 'placeholder' => 'sk-...'],
                 ['env' => 'OPENAI_URL', 'label' => 'Base URL', 'type' => 'url', 'required' => false, 'placeholder' => 'https://api.openai.com/v1'],
@@ -31,6 +32,7 @@ class extends Component
             'description' => 'Claude models focused on safety, reliability, and thoughtful reasoning.',
             'sort_order' => 2,
             'website_url' => 'https://console.anthropic.com',
+            'logo' => 'anthropic',
             'fields' => [
                 ['env' => 'ANTHROPIC_API_KEY', 'label' => 'API Key', 'type' => 'password', 'required' => true, 'placeholder' => 'sk-ant-...'],
                 ['env' => 'ANTHROPIC_URL', 'label' => 'Base URL', 'type' => 'url', 'required' => false, 'placeholder' => 'https://api.anthropic.com/v1'],
@@ -42,6 +44,7 @@ class extends Component
             'description' => 'High-performance, cost-effective language models with strong reasoning capabilities.',
             'sort_order' => 3,
             'website_url' => 'https://platform.deepseek.com',
+            'logo' => 'deepseek',
             'fields' => [
                 ['env' => 'DEEPSEEK_API_KEY', 'label' => 'API Key', 'type' => 'password', 'required' => true, 'placeholder' => 'sk-...'],
             ],
@@ -52,6 +55,7 @@ class extends Component
             'description' => 'Multimodal AI models with native image, audio, and video understanding.',
             'sort_order' => 4,
             'website_url' => 'https://aistudio.google.com',
+            'logo' => 'google-gemini',
             'fields' => [
                 ['env' => 'GEMINI_API_KEY', 'label' => 'API Key', 'type' => 'password', 'required' => true, 'placeholder' => 'AIza...'],
                 ['env' => 'GEMINI_URL', 'label' => 'Base URL', 'type' => 'url', 'required' => false, 'placeholder' => 'https://generativelanguage.googleapis.com/v1beta/'],
@@ -63,6 +67,7 @@ class extends Component
             'description' => 'Ultra-fast inference for open-source models with LPU acceleration.',
             'sort_order' => 5,
             'website_url' => 'https://console.groq.com',
+            'logo' => 'groq',
             'fields' => [
                 ['env' => 'GROQ_API_KEY', 'label' => 'API Key', 'type' => 'password', 'required' => true, 'placeholder' => 'gsk_...'],
             ],
@@ -73,6 +78,7 @@ class extends Component
             'description' => 'Grok models from xAI with real-time knowledge and reasoning.',
             'sort_order' => 6,
             'website_url' => 'https://console.x.ai',
+            'logo' => 'x-ai',
             'fields' => [
                 ['env' => 'XAI_API_KEY', 'label' => 'API Key', 'type' => 'password', 'required' => true, 'placeholder' => 'xai-...'],
             ],
@@ -83,6 +89,7 @@ class extends Component
             'description' => 'Open-weight and optimized models with top-tier performance.',
             'sort_order' => 7,
             'website_url' => 'https://console.mistral.ai',
+            'logo' => 'mistral-ai',
             'fields' => [
                 ['env' => 'MISTRAL_API_KEY', 'label' => 'API Key', 'type' => 'password', 'required' => true, 'placeholder' => '...'],
             ],
@@ -93,6 +100,7 @@ class extends Component
             'description' => 'Enterprise AI models for embeddings, reranking, and text generation.',
             'sort_order' => 8,
             'website_url' => 'https://dashboard.cohere.com',
+            'logo' => 'cohere',
             'fields' => [
                 ['env' => 'COHERE_API_KEY', 'label' => 'API Key', 'type' => 'password', 'required' => true, 'placeholder' => '...'],
             ],
@@ -103,6 +111,7 @@ class extends Component
             'description' => 'Unified API to access hundreds of models from various providers.',
             'sort_order' => 9,
             'website_url' => 'https://openrouter.ai',
+            'logo' => 'openrouter',
             'fields' => [
                 ['env' => 'OPENROUTER_API_KEY', 'label' => 'API Key', 'type' => 'password', 'required' => true, 'placeholder' => 'sk-or-...'],
             ],
@@ -113,6 +122,7 @@ class extends Component
             'description' => 'Run open-source LLMs locally on your own infrastructure.',
             'sort_order' => 10,
             'website_url' => 'https://ollama.com',
+            'logo' => 'ollama',
             'fields' => [
                 ['env' => 'OLLAMA_URL', 'label' => 'Server URL', 'type' => 'url', 'required' => true, 'placeholder' => 'http://localhost:11434'],
                 ['env' => 'OLLAMA_API_KEY', 'label' => 'API Key', 'type' => 'password', 'required' => false, 'placeholder' => 'Optional'],
@@ -124,6 +134,7 @@ class extends Component
             'description' => 'Microsoft Azure hosted OpenAI models with enterprise compliance.',
             'sort_order' => 11,
             'website_url' => 'https://azure.microsoft.com/products/ai-services/openai-service',
+            'logo' => 'azure',
             'fields' => [
                 ['env' => 'AZURE_OPENAI_API_KEY', 'label' => 'API Key', 'type' => 'password', 'required' => true, 'placeholder' => '...'],
                 ['env' => 'AZURE_OPENAI_URL', 'label' => 'Endpoint URL', 'type' => 'url', 'required' => true, 'placeholder' => 'https://your-resource.openai.azure.com/'],
@@ -137,6 +148,7 @@ class extends Component
             'description' => 'Amazon Web Services managed foundation models with enterprise security.',
             'sort_order' => 12,
             'website_url' => 'https://aws.amazon.com/bedrock/',
+            'logo' => 'aws',
             'fields' => [
                 ['env' => 'AWS_ACCESS_KEY_ID', 'label' => 'AWS Access Key ID', 'type' => 'text', 'required' => true, 'placeholder' => 'AKIA...'],
                 ['env' => 'AWS_SECRET_ACCESS_KEY', 'label' => 'AWS Secret Access Key', 'type' => 'password', 'required' => true, 'placeholder' => '...'],
@@ -150,6 +162,7 @@ class extends Component
             'description' => 'Connect to any OpenAI-compatible API endpoint (LM Studio, vLLM, etc.).',
             'sort_order' => 13,
             'website_url' => null,
+            'logo' => 'vllm',
             'fields' => [
                 ['env' => 'OPENAI_COMPATIBLE_URL', 'label' => 'Endpoint URL', 'type' => 'url', 'required' => true, 'placeholder' => 'http://localhost:1234/v1'],
                 ['env' => 'OPENAI_COMPATIBLE_API_KEY', 'label' => 'API Key', 'type' => 'password', 'required' => false, 'placeholder' => 'Optional'],
@@ -161,6 +174,7 @@ class extends Component
             'description' => 'Embeddings and reranking models for search and retrieval applications.',
             'sort_order' => 14,
             'website_url' => 'https://jina.ai',
+            'logo' => 'jina-ai',
             'fields' => [
                 ['env' => 'JINA_API_KEY', 'label' => 'API Key', 'type' => 'password', 'required' => true, 'placeholder' => 'jina_...'],
             ],
@@ -171,6 +185,7 @@ class extends Component
             'description' => 'Specialized embedding and reranking models for semantic search.',
             'sort_order' => 15,
             'website_url' => 'https://www.voyageai.com',
+            'logo' => 'voyage-ai',
             'fields' => [
                 ['env' => 'VOYAGEAI_API_KEY', 'label' => 'API Key', 'type' => 'password', 'required' => true, 'placeholder' => '...'],
             ],
@@ -181,6 +196,7 @@ class extends Component
             'description' => 'Industry-leading text-to-speech and speech-to-text AI models.',
             'sort_order' => 16,
             'website_url' => 'https://elevenlabs.io',
+            'logo' => 'eleven-labs',
             'fields' => [
                 ['env' => 'ELEVENLABS_API_KEY', 'label' => 'API Key', 'type' => 'password', 'required' => true, 'placeholder' => '...'],
             ],
@@ -205,6 +221,7 @@ class extends Component
                 'description' => $meta['description'],
                 'sort_order' => $meta['sort_order'],
                 'website_url' => $meta['website_url'],
+                'logo' => $meta['logo'],
                 'fields' => $meta['fields'],
                 'models' => $meta['models'],
                 'is_connected' => $this->isProviderConnected($slug),
@@ -236,52 +253,6 @@ class extends Component
         }
 
         return env($firstRequired['env']);
-    }
-
-    public function getProviderIconColor(string $slug): string
-    {
-        return match ($slug) {
-            'openai' => 'text-emerald-600 dark:text-emerald-400',
-            'anthropic' => 'text-orange-600 dark:text-orange-400',
-            'deepseek' => 'text-blue-600 dark:text-blue-400',
-            'gemini' => 'text-amber-600 dark:text-amber-400',
-            'groq' => 'text-rose-600 dark:text-rose-400',
-            'xai' => 'text-zinc-600 dark:text-zinc-400',
-            'mistral' => 'text-indigo-600 dark:text-indigo-400',
-            'cohere' => 'text-teal-600 dark:text-teal-400',
-            'openrouter' => 'text-sky-600 dark:text-sky-400',
-            'ollama' => 'text-purple-600 dark:text-purple-400',
-            'azure' => 'text-cyan-600 dark:text-cyan-400',
-            'bedrock' => 'text-orange-700 dark:text-orange-500',
-            'openai-compatible' => 'text-slate-600 dark:text-slate-400',
-            'jina' => 'text-pink-600 dark:text-pink-400',
-            'voyageai' => 'text-violet-600 dark:text-violet-400',
-            'eleven' => 'text-lime-600 dark:text-lime-400',
-            default => 'text-zinc-500 dark:text-zinc-400',
-        };
-    }
-
-    public function getProviderIconBg(string $slug): string
-    {
-        return match ($slug) {
-            'openai' => 'bg-emerald-100 dark:bg-emerald-900/30',
-            'anthropic' => 'bg-orange-100 dark:bg-orange-900/30',
-            'deepseek' => 'bg-blue-100 dark:bg-blue-900/30',
-            'gemini' => 'bg-amber-100 dark:bg-amber-900/30',
-            'groq' => 'bg-rose-100 dark:bg-rose-900/30',
-            'xai' => 'bg-zinc-100 dark:bg-zinc-700',
-            'mistral' => 'bg-indigo-100 dark:bg-indigo-900/30',
-            'cohere' => 'bg-teal-100 dark:bg-teal-900/30',
-            'openrouter' => 'bg-sky-100 dark:bg-sky-900/30',
-            'ollama' => 'bg-purple-100 dark:bg-purple-900/30',
-            'azure' => 'bg-cyan-100 dark:bg-cyan-900/30',
-            'bedrock' => 'bg-orange-100 dark:bg-orange-900/30',
-            'openai-compatible' => 'bg-slate-100 dark:bg-slate-800',
-            'jina' => 'bg-pink-100 dark:bg-pink-900/30',
-            'voyageai' => 'bg-violet-100 dark:bg-violet-900/30',
-            'eleven' => 'bg-lime-100 dark:bg-lime-900/30',
-            default => 'bg-zinc-100 dark:bg-zinc-700',
-        };
     }
 
     public function startConnect(string $slug): void
@@ -404,72 +375,153 @@ class extends Component
 };
 ?>
 
-<div class="flex flex-col gap-y-10">
-    <div class="flex flex-col">
-        <flux:heading size="xl">AI Providers</flux:heading>
-        <flux:text>Connect AI providers by adding their API keys. These connections are available across all projects.</flux:text>
+<div class="flex flex-col gap-y-8">
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div class="flex flex-col">
+            <flux:heading size="xl">AI Providers</flux:heading>
+            <flux:text>Connect AI providers by adding their API keys. These connections are available across all projects.</flux:text>
+        </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        @foreach ($this->providers as $provider)
-            <div
-                wire:key="provider-{{ $provider['slug'] }}"
-                class="flex flex-col rounded-xl border dark:border-zinc-700 overflow-hidden"
+    <div
+        x-data="{
+            query: '',
+            get filtered() {
+                const q = this.query.trim().toLowerCase();
+                if (! q) return this.$refs.grid.children.length;
+                return null; // filtering is handled via x-show per-card below
+            },
+            matches(name, description) {
+                const q = this.query.trim().toLowerCase();
+                if (! q) return true;
+                return name.toLowerCase().includes(q) || (description ?? '').toLowerCase().includes(q);
+            }
+        }"
+        class="flex flex-col gap-y-5"
+    >
+        {{-- Client-side search — filters the already-rendered cards, no server round trip --}}
+        <div class="relative max-w-sm">
+            <flux:icon.magnifying-glass class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-400" />
+            <input
+                x-model="query"
+                type="text"
+                placeholder="Search providers..."
+                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 pl-9 pr-8 py-2 text-sm text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-300 dark:focus:ring-zinc-700"
+            />
+            <button
+                type="button"
+                x-show="query"
+                x-cloak
+                @click="query = ''"
+                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
             >
-                <div class="flex items-start gap-x-4 p-4">
-                    <div class="flex size-10 shrink-0 items-center justify-center rounded-lg {{ $this->getProviderIconBg($provider['slug']) }}">
-                        <flux:icon.sparkles class="size-5 {{ $this->getProviderIconColor($provider['slug']) }}" />
-                    </div>
+                <flux:icon.x-mark class="size-3.5" />
+            </button>
+        </div>
 
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-x-2">
-                            <flux:heading class="font-medium">{{ $provider['name'] }}</flux:heading>
+        <div x-ref="grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            @foreach ($this->providers as $provider)
+                <div
+                    wire:key="provider-{{ $provider['slug'] }}"
+                    x-show="matches('{{ addslashes($provider['name']) }}', '{{ addslashes($provider['description'] ?? '') }}')"
+                    x-cloak
+                    class="flex flex-col rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden bg-white dark:bg-zinc-900"
+                >
+                    <div class="flex items-start gap-x-4 p-4">
+                        {{-- Real brand logo, with graceful fallback to a generic icon if the SVG fails to load --}}
+                        <div @class([
+                            'flex size-10 shrink-0 items-center justify-center rounded-lg border p-2',
+                            $provider['logo'] === 'eleven-labs'
+                                ? 'bg-black border-zinc-700'
+                                : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-100 dark:border-zinc-700',
+                        ])>
+                            <img
+                                src="/storage/images/providers/{{ $provider['logo'] }}.svg"
+                                alt="{{ $provider['name'] }} logo"
+                                loading="lazy"
+                                class="size-full object-contain dark:invert-0"
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                            />
+                            <div class="hidden size-full items-center justify-center text-zinc-400 dark:text-zinc-500">
+                                <flux:icon.sparkles class="size-5" />
+                            </div>
+                        </div>
+
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-x-2">
+                                <flux:heading class="font-medium">{{ $provider['name'] }}</flux:heading>
+                                @if ($provider['is_connected'])
+                                    <flux:badge size="sm" variant="subtle" color="emerald">Connected</flux:badge>
+                                @endif
+                            </div>
+                            @if ($provider['description'])
+                                <flux:text class="text-xs mt-1">
+                                    {{ $provider['description'] }}
+                                </flux:text>
+                            @endif
+                            <flux:text class="text-xs text-zinc-400 mt-1">
+                                {{ count($provider['models']) }} {{ Str::plural('model', count($provider['models'])) }}
+                            </flux:text>
+                        </div>
+
+                        <div class="flex shrink-0">
                             @if ($provider['is_connected'])
-                                <flux:badge size="sm" variant="subtle" color="emerald">Connected</flux:badge>
+                                <flux:button
+                                    x-on:click="$wire.startConfigure('{{ $provider['slug'] }}'); $flux.modal('configure-provider').show()"
+                                    variant="ghost"
+                                    size="sm"
+                                    icon="cog-6-tooth"
+                                >
+                                    Configure
+                                </flux:button>
+                            @else
+                                <flux:button
+                                    x-on:click="$wire.startConnect('{{ $provider['slug'] }}'); $flux.modal('connect-provider').show()"
+                                    variant="primary"
+                                    size="sm"
+                                >
+                                    Connect
+                                </flux:button>
                             @endif
                         </div>
-                        @if ($provider['description'])
-                            <flux:text class="text-xs mt-1">
-                                {{ $provider['description'] }}
-                            </flux:text>
-                        @endif
-                        <flux:text class="text-xs text-zinc-400 mt-1">
-                            {{ count($provider['models']) }} {{ Str::plural('model', count($provider['models'])) }}
-                        </flux:text>
-                    </div>
-
-                    <div class="flex shrink-0">
-                        @if ($provider['is_connected'])
-                            <flux:button
-                                x-on:click="$wire.startConfigure('{{ $provider['slug'] }}'); $flux.modal('configure-provider').show()"
-                                variant="ghost"
-                                size="sm"
-                                icon="cog-6-tooth"
-                            >
-                                Configure
-                            </flux:button>
-                        @else
-                            <flux:button
-                                x-on:click="$wire.startConnect('{{ $provider['slug'] }}'); $flux.modal('connect-provider').show()"
-                                variant="primary"
-                                size="sm"
-                            >
-                                Connect
-                            </flux:button>
-                        @endif
                     </div>
                 </div>
-            </div>
-        @endforeach
+            @endforeach
+        </div>
+
+        {{-- Empty search state --}}
+        <div
+            x-show="query && ! Array.from($refs.grid.children).some(el => el.style.display !== 'none')"
+            x-cloak
+            class="flex flex-col items-center justify-center py-12 text-center"
+        >
+            <flux:icon.magnifying-glass class="size-6 text-zinc-300 dark:text-zinc-600 mb-2" />
+            <flux:text class="text-sm text-zinc-500">No providers match "<span x-text="query"></span>".</flux:text>
+        </div>
     </div>
 
     <flux:modal name="connect-provider" class="md:w-1/3">
         <div class="space-y-6">
-            <div>
-                <flux:heading size="lg">Connect {{ $this->getActiveMeta()['name'] ?? '' }}</flux:heading>
-                @if ($this->getActiveMeta()['description'] ?? null)
-                    <flux:text class="mt-2">{{ $this->getActiveMeta()['description'] }}</flux:text>
-                @endif
+            <div class="flex items-center gap-x-3">
+                <div @class([
+                    'flex size-9 shrink-0 items-center justify-center rounded-lg border p-1.5',
+                    ($this->getActiveMeta()['logo'] ?? null) === 'eleven-labs'
+                        ? 'bg-black border-zinc-700'
+                        : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-100 dark:border-zinc-700',
+                ])>
+                    <img
+                        src="/storage/images/providers/{{ $this->getActiveMeta()['logo'] ?? 'sparkles' }}.svg"
+                        alt=""
+                        class="size-full object-contain"
+                        onerror="this.style.display='none';"
+                    />
+                </div>
+                <div>
+                    <flux:heading size="lg">Connect {{ $this->getActiveMeta()['name'] ?? '' }}</flux:heading>
+                    @if ($this->getActiveMeta()['description'] ?? null)
+                        <flux:text class="mt-0.5 text-xs">{{ $this->getActiveMeta()['description'] }}</flux:text>
+                    @endif
+                </div>
             </div>
 
             <form wire:submit="connectProvider" class="space-y-6">
@@ -502,8 +554,18 @@ class extends Component
     <flux:modal name="configure-provider" class="md:w-1/3">
         <div class="space-y-6">
             <div class="flex items-center gap-x-3">
-                <div class="flex size-8 shrink-0 items-center justify-center rounded-lg {{ $this->getProviderIconBg($this->activeProvider) }}">
-                    <flux:icon.sparkles class="size-4 {{ $this->getProviderIconColor($this->activeProvider) }}" />
+                <div @class([
+                    'flex size-9 shrink-0 items-center justify-center rounded-lg border p-1.5',
+                    ($this->getActiveMeta()['logo'] ?? null) === 'eleven-labs'
+                        ? 'bg-black border-zinc-700'
+                        : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-100 dark:border-zinc-700',
+                ])>
+                    <img
+                        src="/storage/images/providers/{{ $this->getActiveMeta()['logo'] ?? 'sparkles' }}.svg"
+                        alt=""
+                        class="size-full object-contain"
+                        onerror="this.style.display='none';"
+                    />
                 </div>
                 <div>
                     <flux:heading size="lg">{{ $this->getActiveMeta()['name'] ?? '' }}</flux:heading>
