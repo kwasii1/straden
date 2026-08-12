@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Project;
+use App\Models\Run;
 use App\Models\Script;
 use App\Models\Test;
 use App\Models\User;
@@ -644,4 +645,72 @@ test('editor page renders save toolbar and dirty dot markup', function () {
         ->assertOk()
         ->assertSee('Ctrl+S to save', false)
         ->assertSee("Alpine.store('editor')", false);
+});
+
+test('script editor shows a view current run button when a run is active', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $test = Test::factory()->create(['project_id' => $project->id]);
+    $script = Script::factory()->create(['test_id' => $test->id]);
+
+    $basePath = 'scripts/'.$test->id.'/'.$script->id;
+    Storage::disk('local')->makeDirectory($basePath);
+    Storage::disk('local')->put($basePath.'/script.js', '// entry');
+
+    $run = Run::factory()->for($script)->running()->create();
+
+    $this->actingAs($user)
+        ->get(route('projects.view-test-script', [
+            'project' => $project,
+            'test' => $test,
+            'script' => $script,
+        ]))
+        ->assertOk()
+        ->assertSee('View Current Run')
+        ->assertSee(route('projects.runs.view', ['project' => $project, 'run' => $run]));
+});
+
+test('script editor shows a view current run button for queued runs', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $test = Test::factory()->create(['project_id' => $project->id]);
+    $script = Script::factory()->create(['test_id' => $test->id]);
+
+    $basePath = 'scripts/'.$test->id.'/'.$script->id;
+    Storage::disk('local')->makeDirectory($basePath);
+    Storage::disk('local')->put($basePath.'/script.js', '// entry');
+
+    $run = Run::factory()->for($script)->queued()->create();
+
+    $this->actingAs($user)
+        ->get(route('projects.view-test-script', [
+            'project' => $project,
+            'test' => $test,
+            'script' => $script,
+        ]))
+        ->assertOk()
+        ->assertSee('View Current Run')
+        ->assertSee(route('projects.runs.view', ['project' => $project, 'run' => $run]));
+});
+
+test('script editor hides the view current run button without an active run', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $test = Test::factory()->create(['project_id' => $project->id]);
+    $script = Script::factory()->create(['test_id' => $test->id]);
+
+    $basePath = 'scripts/'.$test->id.'/'.$script->id;
+    Storage::disk('local')->makeDirectory($basePath);
+    Storage::disk('local')->put($basePath.'/script.js', '// entry');
+
+    Run::factory()->for($script)->passed()->create();
+
+    $this->actingAs($user)
+        ->get(route('projects.view-test-script', [
+            'project' => $project,
+            'test' => $test,
+            'script' => $script,
+        ]))
+        ->assertOk()
+        ->assertDontSee('View Current Run');
 });

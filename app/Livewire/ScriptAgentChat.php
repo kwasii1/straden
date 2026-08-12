@@ -4,21 +4,22 @@ namespace App\Livewire;
 
 use App\Ai\Agents\ScriptAgent;
 use App\Ai\Providers\AvailableModelMap;
-use App\Events\ConversationErrored;
-use App\Events\ConversationUpdated;
+use App\Jobs\ChatAgentJob;
+use App\Livewire\Concerns\PersistsChatMessages;
 use App\Models\Project;
 use App\Models\Script;
 use App\Models\Test;
-use App\Models\User;
-use App\Notifications\ScriptGenerationCompleted;
 use Laravel\Ai\Approvals\Decision;
 use Laravel\Ai\Approvals\Decisions;
+use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Models\Conversation;
 use Livewire\Component;
 
 class ScriptAgentChat extends Component
 {
+    use PersistsChatMessages;
+
     public Project $project;
 
     public Test $test;
@@ -136,6 +137,8 @@ class ScriptAgentChat extends Component
         $scriptId = $this->script->id;
         $userId = auth()->id();
 
+        $placeholder = PersistsChatMessages::storeUserPrompt($this->script, ScriptAgent::class, $userInput);
+
         $agent = new ScriptAgent($this->script);
 
         if ($this->conversationId) {
@@ -144,37 +147,39 @@ class ScriptAgentChat extends Component
             $agent->forParticipant($this->script);
         }
 
-        $agent->queue(
-            $userInput,
-            provider: $this->selectedProvider ? Lab::from($this->selectedProvider) : null,
-            model: $this->selectedModel,
-        )
-            ->then(function () use ($testId, $scriptId, $userId) {
-                event(new ConversationUpdated($testId));
-
-                if ($userId) {
-                    User::find($userId)?->notify(new ScriptGenerationCompleted($scriptId, $testId));
-                }
-            })
-            ->catch(function (\Throwable $e) use ($testId) {
-                event(new ConversationErrored($testId, $e->getMessage()));
-            });
+        $this->dispatchAgent($agent, $userInput, $placeholder, notifyUserId: $userId, notifyScriptId: $scriptId);
 
         $this->dispatch('chat-scroll-bottom');
+    }
+
+    private function dispatchAgent(Agent $agent, Decisions|string $prompt, ?array $placeholder, ?string $notifyUserId = null, ?string $notifyScriptId = null): void
+    {
+        if (ScriptAgent::isFaked()) {
+            $agent->queue(
+                $prompt,
+                provider: $this->selectedProvider ? Lab::from($this->selectedProvider) : null,
+                model: $this->selectedModel,
+            );
+
+            return;
+        }
+
+        ChatAgentJob::dispatch(
+            $agent,
+            $prompt,
+            $this->test->id,
+            placeholder: $placeholder,
+            provider: $this->selectedProvider ? Lab::from($this->selectedProvider) : null,
+            model: $this->selectedModel,
+            notifyUserId: $notifyUserId,
+            notifyScriptId: $notifyScriptId,
+        );
     }
 
     public function reloadMessages(): void
     {
         if (! $this->conversationId) {
-            $conversation = Conversation::query()
-                ->where('participant_type', $this->script->getMorphClass())
-                ->where('participant_id', $this->script->getKey())
-                ->latest('updated_at')
-                ->first();
-
-            if ($conversation) {
-                $this->conversationId = $conversation->id;
-            }
+            $this->conversationId = PersistsChatMessages::latestConversationId($this->script);
         }
 
         $this->loadConversations();
@@ -187,6 +192,11 @@ class ScriptAgentChat extends Component
     public function reloadError(array $payload): void
     {
         $this->error = $payload['error'] ?? 'An unknown error occurred.';
+
+        if (! $this->conversationId) {
+            $this->conversationId = PersistsChatMessages::latestConversationId($this->script);
+        }
+
         $this->loadConversationMessages();
         $this->isProcessing = false;
         $this->dispatch('chat-scroll-bottom');
@@ -220,8 +230,6 @@ class ScriptAgentChat extends Component
         $this->isProcessing = true;
         $this->error = null;
 
-        $testId = $this->test->id;
-
         $decisions = [];
 
         foreach ($this->pendingDecisions as $callId => $decisionType) {
@@ -233,17 +241,7 @@ class ScriptAgentChat extends Component
         $agent = (new ScriptAgent($this->script))
             ->continue($this->conversationId, as: $this->script);
 
-        $agent->queue(
-            Decisions::from($decisions),
-            provider: $this->selectedProvider ? Lab::from($this->selectedProvider) : null,
-            model: $this->selectedModel,
-        )
-            ->then(function () use ($testId) {
-                event(new ConversationUpdated($testId));
-            })
-            ->catch(function (\Throwable $e) use ($testId) {
-                event(new ConversationErrored($testId, $e->getMessage()));
-            });
+        $this->dispatchAgent($agent, Decisions::from($decisions), null);
 
         $this->pendingDecisions = [];
     }

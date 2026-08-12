@@ -7,6 +7,7 @@ use App\Models\Script;
 use App\Models\Test;
 use App\Services\ScriptFileManager;
 use Flux\Flux;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -177,6 +178,15 @@ class extends Component
         Flux::toast(variant: 'success', text: 'Test run queued.');
     }
 
+    #[Computed]
+    public function currentRun(): ?Run
+    {
+        return $this->script->runs()
+            ->whereIn('status', ['queued', 'running'])
+            ->latest()
+            ->first();
+    }
+
     public function detectLanguage(string $path): string
     {
         return $this->fm()->detectLanguage($path);
@@ -329,7 +339,19 @@ class extends Component
             </button>
         </div>
 
-        <div class="shrink-0">
+        <div class="flex items-center gap-2 shrink-0">
+            @if ($this->currentRun)
+                <flux:button
+                    wire:navigate
+                    :href="route('projects.runs.view', ['project' => $this->project, 'run' => $this->currentRun])"
+                    size="sm"
+                    variant="subtle"
+                    icon="clock"
+                >
+                    View Current Run
+                </flux:button>
+            @endif
+
             <flux:button wire:click="runTest" wire:loading.attr="disabled" icon="play" variant="primary" size="sm">
                 Run Test
             </flux:button>

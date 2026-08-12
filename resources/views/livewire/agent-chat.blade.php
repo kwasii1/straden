@@ -305,15 +305,47 @@
             @endif
         @endforeach
 
-        {{-- Loading / Thinking --}}
-        @if ($isProcessing)
-            <div class="flex justify-start">
-                @include('components.loading-state', [
-                    'label' => $awaitingApproval ? 'Awaiting action approval' : 'Agent analyzing context & executing steps',
-                    'variant' => 'Drive'
-                ])
-            </div>
-        @endif
+        {{-- Live stream + loading / thinking --}}
+        <div
+            x-data="chatStream(@js('test.'.$test->id))"
+            @agent-approval-requested.window="reset(); $wire.reloadMessages()"
+            @agent-done.window="reset(); $wire.reloadMessages()"
+            @agent-error.window="reset(); $wire.reloadError($event.detail)"
+        >
+            {{-- Live agent bubble (streamed reasoning / text / tool activity) --}}
+            <template x-if="streaming || thinking || liveText || toolCount > 0">
+                <div class="flex justify-start">
+                    <div class="max-w-[85%] rounded-2xl rounded-tl-xs px-4 py-3 bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border border-zinc-200/60 dark:border-zinc-800/60 shadow-xs">
+                        <div x-show="thinking && !liveText && toolCount === 0" class="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                            <span class="size-2 rounded-full bg-indigo-400 animate-pulse"></span>
+                            <span>Thinking…</span>
+                        </div>
+
+                        <div x-show="liveText" x-text="liveText" class="whitespace-pre-wrap break-words leading-relaxed text-xs sm:text-sm"></div>
+
+                        <div x-show="toolCount > 0" class="mt-2 inline-flex items-center gap-2 rounded-lg bg-zinc-200/60 dark:bg-zinc-800 px-2.5 py-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
+                            <span class="size-3 animate-spin rounded-full border-2 border-zinc-400 border-t-transparent"></span>
+                            <span x-text="toolCount + ' tool call' + (toolCount === 1 ? '' : 's')"></span>
+                        </div>
+
+                        <div x-show="!thinking && !liveText && toolCount === 0" class="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                            <span class="size-3 animate-spin rounded-full border-2 border-zinc-400 border-t-transparent"></span>
+                            <span>Working…</span>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            {{-- Fallback loading state shown before the first stream event --}}
+            @if ($isProcessing)
+                <div class="flex justify-start" x-show="!streaming && !liveText && !toolCount && !thinking">
+                    @include('components.loading-state', [
+                        'label' => $awaitingApproval ? 'Awaiting action approval' : 'Agent analyzing context & executing steps',
+                        'variant' => 'Drive'
+                    ])
+                </div>
+            @endif
+        </div>
 
         {{-- Error Banner --}}
         @if ($error)
@@ -385,7 +417,6 @@
 
 @script
 <script>
-    const testId = '{{ $test->id }}';
     const container = document.getElementById('chat-messages');
 
     let stickToBottom = true;
@@ -444,14 +475,6 @@
             modalObserver.observe(modal, { attributes: true, attributeFilter: ['class', 'style', 'open'] });
         }
     }
-
-    window.Echo.private('test.' + testId)
-        .listen('.ConversationUpdated', () => {
-            $wire.reloadMessages();
-        })
-        .listen('.ConversationErrored', (e) => {
-            $wire.reloadError(e);
-        });
 
     $wire.on('chat-scroll-bottom', () => {
         stickToBottom = true;

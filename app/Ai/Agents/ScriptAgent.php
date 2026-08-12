@@ -15,12 +15,14 @@ use Laravel\Ai\Attributes\Model;
 use Laravel\Ai\Attributes\Provider;
 use Laravel\Ai\Attributes\Temperature;
 use Laravel\Ai\Attributes\Timeout;
+use Laravel\Ai\Attributes\WithoutBroadcasting;
 use Laravel\Ai\Concerns\RemembersConversations;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
 use Laravel\Ai\Contracts\HasTools;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Promptable;
+use Laravel\Ai\Streaming\Events\ToolResult;
 use Stringable;
 
 #[Provider(Lab::DeepSeek)]
@@ -28,6 +30,7 @@ use Stringable;
 #[MaxSteps(35)]
 #[Temperature(0.2)]
 #[Timeout(240)]
+#[WithoutBroadcasting(ToolResult::class)]
 class ScriptAgent implements Agent, Conversational, HasTools
 {
     use Promptable, RemembersConversations;

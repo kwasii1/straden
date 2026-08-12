@@ -4,18 +4,21 @@ namespace App\Livewire;
 
 use App\Ai\Agents\TestAgent;
 use App\Ai\Providers\AvailableModelMap;
-use App\Events\ConversationErrored;
-use App\Events\ConversationUpdated;
+use App\Jobs\ChatAgentJob;
+use App\Livewire\Concerns\PersistsChatMessages;
 use App\Models\Project;
 use App\Models\Test;
 use Laravel\Ai\Approvals\Decision;
 use Laravel\Ai\Approvals\Decisions;
+use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Models\Conversation;
 use Livewire\Component;
 
 class AgentChat extends Component
 {
+    use PersistsChatMessages;
+
     public Project $project;
 
     public Test $test;
@@ -126,7 +129,7 @@ class AgentChat extends Component
         $userInput = trim($this->input);
         $this->input = '';
 
-        $testId = $this->test->id;
+        $placeholder = PersistsChatMessages::storeUserPrompt($this->test, TestAgent::class, $userInput);
 
         $agent = new TestAgent($this->test);
 
@@ -136,33 +139,37 @@ class AgentChat extends Component
             $agent->forParticipant($this->test);
         }
 
-        $agent->queue(
-            $userInput,
-            provider: $this->selectedProvider ? Lab::from($this->selectedProvider) : null,
-            model: $this->selectedModel,
-        )
-            ->then(function () use ($testId) {
-                event(new ConversationUpdated($testId));
-            })
-            ->catch(function (\Throwable $e) use ($testId) {
-                event(new ConversationErrored($testId, $e->getMessage()));
-            });
+        $this->dispatchAgent($agent, $userInput, $placeholder);
 
         $this->dispatch('chat-scroll-bottom');
+    }
+
+    private function dispatchAgent(Agent $agent, Decisions|string $prompt, ?array $placeholder): void
+    {
+        if (TestAgent::isFaked()) {
+            $agent->queue(
+                $prompt,
+                provider: $this->selectedProvider ? Lab::from($this->selectedProvider) : null,
+                model: $this->selectedModel,
+            );
+
+            return;
+        }
+
+        ChatAgentJob::dispatch(
+            $agent,
+            $prompt,
+            $this->test->id,
+            placeholder: $placeholder,
+            provider: $this->selectedProvider ? Lab::from($this->selectedProvider) : null,
+            model: $this->selectedModel,
+        );
     }
 
     public function reloadMessages(): void
     {
         if (! $this->conversationId) {
-            $conversation = Conversation::query()
-                ->where('participant_type', $this->test->getMorphClass())
-                ->where('participant_id', $this->test->getKey())
-                ->latest('updated_at')
-                ->first();
-
-            if ($conversation) {
-                $this->conversationId = $conversation->id;
-            }
+            $this->conversationId = PersistsChatMessages::latestConversationId($this->test);
         }
 
         $this->loadConversations();
@@ -175,6 +182,11 @@ class AgentChat extends Component
     public function reloadError(array $payload): void
     {
         $this->error = $payload['error'] ?? 'An unknown error occurred.';
+
+        if (! $this->conversationId) {
+            $this->conversationId = PersistsChatMessages::latestConversationId($this->test);
+        }
+
         $this->loadConversationMessages();
         $this->isProcessing = false;
         $this->dispatch('chat-scroll-bottom');
@@ -208,8 +220,6 @@ class AgentChat extends Component
         $this->isProcessing = true;
         $this->error = null;
 
-        $testId = $this->test->id;
-
         $decisions = [];
 
         foreach ($this->pendingDecisions as $callId => $decisionType) {
@@ -221,17 +231,7 @@ class AgentChat extends Component
         $agent = (new TestAgent($this->test))
             ->continue($this->conversationId, as: $this->test);
 
-        $agent->queue(
-            Decisions::from($decisions),
-            provider: $this->selectedProvider ? Lab::from($this->selectedProvider) : null,
-            model: $this->selectedModel,
-        )
-            ->then(function () use ($testId) {
-                event(new ConversationUpdated($testId));
-            })
-            ->catch(function (\Throwable $e) use ($testId) {
-                event(new ConversationErrored($testId, $e->getMessage()));
-            });
+        $this->dispatchAgent($agent, Decisions::from($decisions), null);
 
         $this->pendingDecisions = [];
     }
