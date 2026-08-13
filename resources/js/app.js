@@ -126,6 +126,9 @@ import './charts/run-error-rate.js';
 import './charts/run-response-codes.js';
 import './charts/run-checks.js';
 import './charts/run-data-transfer.js';
+import './charts/run-http-timing.js';
+import './charts/run-iteration-duration.js';
+import './charts/run-iterations.js';
 import './chat-stream.js';
 
 /**

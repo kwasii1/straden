@@ -18,6 +18,13 @@ class extends Component
 
     public ?string $selectedEndpoint = null;
 
+    /**
+     * Extra time-series charts the user has opted into viewing.
+     *
+     * @var array<int, string>
+     */
+    public array $extraCharts = [];
+
     public function mount(): void
     {
         $this->run->load('script.test');
@@ -26,6 +33,20 @@ class extends Component
     public function isActive(): bool
     {
         return in_array($this->run->status, ['queued', 'running'], true);
+    }
+
+    public function toggleExtraChart(string $key): void
+    {
+        if ($this->hasExtraChart($key)) {
+            $this->extraCharts = array_values(array_diff($this->extraCharts, [$key]));
+        } else {
+            $this->extraCharts[] = $key;
+        }
+    }
+
+    public function hasExtraChart(string $key): bool
+    {
+        return in_array($key, $this->extraCharts, true);
     }
 
     #[Computed]
@@ -85,6 +106,49 @@ class extends Component
         return $this->selectedEndpoint !== '' && $this->selectedEndpoint !== null
             ? $this->selectedEndpoint
             : null;
+    }
+
+    #[Computed]
+    public function httpTiming(): ?array
+    {
+        try {
+            return (new InfluxDbService(\App\Models\Connector::influxDb()))
+                ->httpTimingOverTime(
+                    $this->run->id,
+                    $this->endpointFilter(),
+                    InfluxDbService::runTimeRange($this->run->started_at, $this->run->completed_at)
+                );
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    #[Computed]
+    public function iterationDuration(): ?array
+    {
+        try {
+            return (new InfluxDbService(\App\Models\Connector::influxDb()))
+                ->iterationDurationOverTime(
+                    $this->run->id,
+                    InfluxDbService::runTimeRange($this->run->started_at, $this->run->completed_at)
+                );
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    #[Computed]
+    public function iterations(): ?array
+    {
+        try {
+            return (new InfluxDbService(\App\Models\Connector::influxDb()))
+                ->iterationsOverTime(
+                    $this->run->id,
+                    InfluxDbService::runTimeRange($this->run->started_at, $this->run->completed_at)
+                );
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function endpointLabel(string $endpoint): string
@@ -420,22 +484,50 @@ class extends Component
         @php $metrics = $this->influxMetrics; @endphp
         @if ($metrics)
             <div class="flex flex-col gap-y-4">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <flux:text class="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Time-Series Charts</flux:text>
-                        <p class="text-xs text-[#919191]">Performance metrics sampled every 5 seconds</p>
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <flux:text class="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Time-Series Charts</flux:text>
+                            <p class="text-xs text-[#919191]">Performance metrics sampled every 5 seconds</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <flux:dropdown>
+                                <flux:button variant="subtle" size="sm" icon-trailing="chevron-down">
+                                    Charts
+                                </flux:button>
+                                <flux:menu>
+                                    <flux:menu.item wire:click="toggleExtraChart('timing')">
+                                        <div class="flex items-center gap-2">
+                                            <flux:icon :icon="$this->hasExtraChart('timing') ? 'check' : 'plus'" class="size-4" />
+                                            HTTP Timing
+                                        </div>
+                                    </flux:menu.item>
+                                    <flux:menu.item wire:click="toggleExtraChart('iteration-duration')">
+                                        <div class="flex items-center gap-2">
+                                            <flux:icon :icon="$this->hasExtraChart('iteration-duration') ? 'check' : 'plus'" class="size-4" />
+                                            Iteration Duration
+                                        </div>
+                                    </flux:menu.item>
+                                    <flux:menu.item wire:click="toggleExtraChart('iterations')">
+                                        <div class="flex items-center gap-2">
+                                            <flux:icon :icon="$this->hasExtraChart('iterations') ? 'check' : 'plus'" class="size-4" />
+                                            Iterations
+                                        </div>
+                                    </flux:menu.item>
+                                </flux:menu>
+                            </flux:dropdown>
+
+                            @if (! empty($this->endpoints))
+                                <flux:select wire:model.live="selectedEndpoint" class="w-72" label="Endpoint">
+                                    <flux:select.option value="">All endpoints</flux:select.option>
+                                    @foreach ($this->endpoints as $endpoint)
+                                        <flux:select.option value="{{ $endpoint }}" title="{{ $endpoint }}">
+                                            {{ $this->endpointLabel($endpoint) }}
+                                        </flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                            @endif
+                        </div>
                     </div>
-                    @if (! empty($this->endpoints))
-                        <flux:select wire:model.live="selectedEndpoint" class="w-72" label="Endpoint">
-                            <flux:select.option value="">All endpoints</flux:select.option>
-                            @foreach ($this->endpoints as $endpoint)
-                                <flux:select.option value="{{ $endpoint }}" title="{{ $endpoint }}">
-                                    {{ $this->endpointLabel($endpoint) }}
-                                </flux:select.option>
-                            @endforeach
-                        </flux:select>
-                    @endif
-                </div>
 
                 @if ($this->selectedEndpoint)
                     @php $summary = $this->selectedEndpointSummary; @endphp
@@ -602,6 +694,28 @@ class extends Component
                             </div>
                         </div>
 
+                        @if ($this->hasExtraChart('timing'))
+                            @php $timing = $this->httpTiming; @endphp
+                            @if ($timing && ! empty($timing['labels']))
+                                <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
+                                    <div class="flex items-center justify-between px-3 py-2.5">
+                                        <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">HTTP Timing</flux:text>
+                                    </div>
+                                    <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
+                                        <div
+                                            wire:key="http-timing-chart-{{ md5(json_encode($timing)) }}"
+                                            wire:ignore
+                                            x-data="runHttpTimingChart(@js($timing))"
+                                            class="relative h-56"
+                                        >
+                                            <canvas x-ref="canvas"></canvas>
+                                            <x-chart-tooltip />
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+                        @endif
+
                         @if ($this->selectedEndpoint === null || $this->selectedEndpoint === '')
                             <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
                                 <div class="flex items-center justify-between px-3 py-2.5">
@@ -636,6 +750,50 @@ class extends Component
                                     </div>
                                 </div>
                             </div>
+
+                            @if ($this->hasExtraChart('iteration-duration'))
+                                @php $iterationDuration = $this->iterationDuration; @endphp
+                                @if ($iterationDuration && ! empty($iterationDuration['labels']))
+                                    <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
+                                        <div class="flex items-center justify-between px-3 py-2.5">
+                                            <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Iteration Duration</flux:text>
+                                        </div>
+                                        <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
+                                            <div
+                                                wire:key="iteration-duration-chart-{{ md5(json_encode($iterationDuration)) }}"
+                                                wire:ignore
+                                                x-data="runIterationDurationChart(@js($iterationDuration))"
+                                                class="relative h-56"
+                                            >
+                                                <canvas x-ref="canvas"></canvas>
+                                                <x-chart-tooltip />
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
+                            @endif
+
+                            @if ($this->hasExtraChart('iterations'))
+                                @php $iterations = $this->iterations; @endphp
+                                @if ($iterations && ! empty($iterations['labels']))
+                                    <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
+                                        <div class="flex items-center justify-between px-3 py-2.5">
+                                            <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Iterations</flux:text>
+                                        </div>
+                                        <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
+                                            <div
+                                                wire:key="iterations-chart-{{ md5(json_encode($iterations)) }}"
+                                                wire:ignore
+                                                x-data="runIterationsChart(@js($iterations))"
+                                                class="relative h-56"
+                                            >
+                                                <canvas x-ref="canvas"></canvas>
+                                                <x-chart-tooltip />
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
+                            @endif
                         @endif
                     </div>
                 @else

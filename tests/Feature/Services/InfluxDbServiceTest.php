@@ -75,3 +75,42 @@ test('running runs bound the end of the query to now', function () {
         ->toContain("time >= '".$run->started_at->utc()->format('Y-m-d\TH:i:s\Z')."'")
         ->toContain("time <= '".$range['end']->utc()->format('Y-m-d\TH:i:s\Z')."'");
 });
+
+test('http timing breakdown queries each timing component', function () {
+    Connector::factory()->influxDb()->create();
+
+    $run = Run::factory()->passed()->create();
+
+    fakeInfluxQueryResponses();
+
+    $service = new InfluxDbService(Connector::influxDb());
+    $timing = $service->httpTimingOverTime($run->id);
+
+    $queries = capturedInfluxQueries();
+
+    expect($queries)->toContain('"http_req_blocked"')
+        ->toContain('"http_req_connecting"')
+        ->toContain('"http_req_tls_handshaking"')
+        ->toContain('"http_req_sending"')
+        ->toContain('"http_req_waiting"')
+        ->toContain('"http_req_receiving"');
+
+    expect(array_keys($timing))->toBe(['labels', 'blocked', 'connecting', 'tls', 'sending', 'waiting', 'receiving']);
+});
+
+test('iteration duration and iterations queries hit the right measurements', function () {
+    Connector::factory()->influxDb()->create();
+
+    $run = Run::factory()->passed()->create();
+
+    fakeInfluxQueryResponses();
+
+    $service = new InfluxDbService(Connector::influxDb());
+    $service->iterationDurationOverTime($run->id);
+    $service->iterationsOverTime($run->id);
+
+    $queries = capturedInfluxQueries();
+
+    expect($queries)->toContain('"iteration_duration"')
+        ->toContain('"iterations"');
+});

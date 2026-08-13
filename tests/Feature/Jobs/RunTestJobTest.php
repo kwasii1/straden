@@ -19,7 +19,8 @@ test('run process manager includes p99 in the k6 summary trend stats', function 
 
     expect($command)
         ->toContain('--summary-export=')
-        ->toContain('--summary-trend-stats=avg,min,med,max,p(90),p(95),p(99)');
+        ->toContain('--summary-trend-stats=avg,min,med,max,p(90),p(95),p(99)')
+        ->toContain('--summary-mode=full');
 });
 
 test('run test job starts k6 in the background and records the pid', function () {

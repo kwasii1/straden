@@ -66,3 +66,22 @@ test('run page renders the AI insights trigger and flyout', function () {
         ->assertSee('AI Insights')
         ->assertSee('run-insights');
 });
+
+test('extra charts can be toggled on and off', function () {
+    $user = User::factory()->create();
+    $run = makeRun('passed');
+
+    $component = Livewire::actingAs($user)
+        ->test('pages::dashboard.view-run', ['project' => $run->script->test->project, 'run' => $run]);
+
+    expect($component->instance()->extraCharts)->toBe([]);
+
+    $component->call('toggleExtraChart', 'timing')
+        ->assertSet('extraCharts', ['timing']);
+
+    $component->call('toggleExtraChart', 'iterations')
+        ->assertSet('extraCharts', ['timing', 'iterations']);
+
+    $component->call('toggleExtraChart', 'timing')
+        ->assertSet('extraCharts', ['iterations']);
+});

@@ -1,150 +1,339 @@
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-full gap-y-5 font-sans">
     @php
         $insight = $this->insight;
         $isActive = $this->isActive();
     @endphp
 
+    {{-- State 1: Generating / Queued --}}
     @if ($insight && in_array($insight->status, ['queued', 'generating'], true))
-        <div class="flex flex-col gap-y-4" wire:poll.2s="refresh">
-            <flux:heading size="lg">Generating AI Insights</flux:heading>
-            <flux:text class="text-zinc-400">
-                Analyzing run metrics from InfluxDB and the linked repository. This usually takes less than a minute.
-            </flux:text>
+        <div class="flex flex-col gap-y-5" wire:poll.2s="refresh">
+            {{-- Top Banner --}}
+            <div class="flex items-center justify-between p-5 rounded-xl border border-[#EDEDED] bg-white">
+                <div class="flex items-center gap-x-4">
+                    <div class="flex size-10 items-center justify-center rounded-lg bg-[#1A1A1A] text-white">
+                        <flux:icon.sparkles class="size-4 animate-spin" />
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <flux:heading size="md" class="font-semibold text-zinc-900">Generating AI Insights</flux:heading>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#F1F1F1] text-[#4A4A4A]">
+                                In Progress
+                            </span>
+                        </div>
+                        <flux:text class="text-xs text-[#919191] mt-0.5">Analyzing load test metrics from InfluxDB and linked source code repository...</flux:text>
+                    </div>
+                </div>
+            </div>
 
-            <div class="flex flex-col gap-y-3">
+            {{-- Skeleton Placeholders --}}
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                @for ($i = 0; $i < 3; $i++)
+                    <div class="p-5 rounded-xl border border-[#EDEDED] bg-white space-y-3">
+                        <flux:skeleton.group animate="shimmer">
+                            <flux:skeleton.line class="w-1/2 h-3" />
+                            <flux:skeleton.line class="w-3/4 h-6" />
+                        </flux:skeleton.group>
+                    </div>
+                @endfor
+            </div>
+
+            <div class="p-5 rounded-xl border border-[#EDEDED] bg-white space-y-4">
                 <flux:skeleton.group animate="shimmer">
-                    <flux:skeleton.line class="w-full" />
-                    <flux:skeleton.line class="w-3/4" />
-                    <flux:skeleton.line class="w-5/6" />
+                    <flux:skeleton.line class="w-full h-4" />
+                    <flux:skeleton.line class="w-5/6 h-4" />
+                    <flux:skeleton.line class="w-2/3 h-4" />
                 </flux:skeleton.group>
             </div>
-
-            <div class="flex flex-col gap-y-3">
-                <flux:skeleton class="h-24 w-full" />
-                <flux:skeleton class="h-24 w-full" />
-            </div>
         </div>
+
+    {{-- State 2: Completed Report --}}
     @elseif ($insight && $insight->status === 'completed' && $insight->report)
         @php $report = $insight->report; @endphp
 
-        <div class="flex items-start justify-between gap-x-4">
-            <div class="flex flex-col gap-y-1">
-                <flux:heading size="lg">AI Insights</flux:heading>
-                <flux:text class="text-sm text-zinc-500">Generated {{ $insight->updated_at->diffForHumans() }}</flux:text>
-            </div>
-            <flux:button wire:click="generate" variant="subtle" size="sm" icon="arrow-path">
-                Regenerate
-            </flux:button>
-        </div>
-
-        <flux:separator class="my-4" />
-
-        <div class="flex flex-col gap-y-5">
-            <div class="flex items-center gap-x-3">
-                <flux:badge size="sm" color="{{ match ($report['overall_health'] ?? 'acceptable') {
-                    'healthy' => 'green',
-                    'acceptable' => 'amber',
-                    'poor' => 'red',
-                    default => 'zinc',
-                } }}">
-                    {{ ucfirst($report['overall_health'] ?? 'acceptable') }}
-                </flux:badge>
-                <flux:text class="text-sm">{{ $report['summary'] ?? '' }}</flux:text>
-            </div>
-
-            @if (! empty($report['what_is_slow']))
-                <div class="flex flex-col gap-y-1">
-                    <flux:heading size="sm">What's Slow</flux:heading>
-                    <flux:text class="text-zinc-300">{{ $report['what_is_slow'] }}</flux:text>
-                </div>
-            @endif
-
-            @if (! empty($report['script_observations']))
-                <div class="flex flex-col gap-y-1">
-                    <flux:heading size="sm">Script Observations</flux:heading>
-                    <flux:text class="text-zinc-300">{{ $report['script_observations'] }}</flux:text>
-                </div>
-            @endif
-
-            @if (! empty($report['key_findings']))
-                <div class="flex flex-col gap-y-2">
-                    <flux:heading size="sm">Key Findings</flux:heading>
-                    @foreach ($report['key_findings'] as $finding)
-                        <div class="flex gap-x-3 p-3 border rounded-lg">
-                            <flux:badge
-                                size="sm"
-                                class="shrink-0 mt-0.5"
-                                color="{{ match ($finding['severity'] ?? 'medium') {
-                                    'critical' => 'red',
-                                    'high' => 'orange',
-                                    'medium' => 'amber',
-                                    'low' => 'zinc',
-                                    default => 'zinc',
-                                } }}"
-                            >
-                                {{ ucfirst($finding['severity'] ?? 'medium') }}
-                            </flux:badge>
-                            <div class="flex flex-col gap-y-1">
-                                <flux:heading size="sm">{{ $finding['title'] ?? '' }}</flux:heading>
-                                <flux:text class="text-sm text-zinc-400">{{ $finding['detail'] ?? '' }}</flux:text>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-
-            @if (! empty($report['recommendations']))
-                <div class="flex flex-col gap-y-2">
-                    <flux:heading size="sm">Recommendations</flux:heading>
-                    @foreach ($report['recommendations'] as $recommendation)
-                        <div class="flex flex-col gap-y-1 p-3 border rounded-lg">
-                            <div class="flex items-center justify-between gap-x-3">
-                                <flux:heading size="sm">{{ $recommendation['title'] ?? '' }}</flux:heading>
-                            </div>
-                            <flux:text class="text-sm text-zinc-400">{{ $recommendation['detail'] ?? '' }}</flux:text>
-                            @if (! empty($recommendation['impact']))
-                                <flux:text class="text-xs text-emerald-400">Impact: {{ $recommendation['impact'] }}</flux:text>
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-        </div>
-    @elseif ($insight && $insight->status === 'failed')
-        <div class="flex flex-col gap-y-4">
-            <flux:heading size="lg">AI Insights</flux:heading>
-            <div class="flex flex-col gap-y-2 p-4 border border-red-800 bg-red-950/30 rounded-lg">
-                <flux:heading size="sm" class="text-red-400">Generation failed</flux:heading>
-                <flux:text class="text-sm text-red-300">{{ $insight->error ?: 'An unknown error occurred.' }}</flux:text>
-            </div>
+        {{-- Section Header (Atlas-style: greeting + context line + actions row) --}}
+        <div class="flex items-center justify-between pb-1">
             <div>
-                <flux:button wire:click="generate" variant="primary" icon="arrow-path">Retry</flux:button>
-            </div>
-        </div>
-    @else
-        <div class="flex flex-col gap-y-4">
-            <flux:heading size="lg">AI Insights</flux:heading>
-
-            @if ($isActive)
-                <flux:callout variant="warning" icon="clock" heading="Run still in progress">
-                    This run has not finished yet, so there are no metrics to analyze. Check back after the run completes.
-                </flux:callout>
-            @else
-                <flux:text class="text-zinc-400">
-                    Generate an AI-powered report that explains what was slow in this load test, why it happened, and how to improve performance. The agent reads the run's InfluxDB metrics and the linked repository as context.
+                <flux:heading size="xl" class="font-bold text-zinc-900 tracking-tight">AI Insights & Diagnostics</flux:heading>
+                <flux:text class="text-xs text-[#919191] mt-0.5">
+                    Synthesized from InfluxDB telemetry &bull; Updated {{ $insight->updated_at->diffForHumans() }}
                 </flux:text>
-            @endif
+            </div>
 
-            <div>
+            <div class="flex items-center gap-2">
+                <flux:button
+                    variant="subtle"
+                    size="sm"
+                    icon="arrow-down-tray"
+                    class="rounded-lg border border-[#EDEDED] bg-white text-xs font-medium text-[#4A4A4A]"
+                >
+                    Export
+                </flux:button>
+
                 <flux:button
                     wire:click="generate"
+                    wire:loading.attr="disabled"
                     variant="primary"
-                    icon="sparkles"
-                    :disabled="$isActive"
+                    size="sm"
+                    icon="arrow-path"
+                    class="rounded-lg bg-[#1A1A1A] hover:bg-black text-xs font-medium"
                 >
-                    {{ $isActive ? 'Run in progress' : 'Generate AI Insights' }}
+                    <span wire:loading.remove wire:target="generate">Regenerate Analysis</span>
+                    <span wire:loading wire:target="generate">Analyzing...</span>
                 </flux:button>
             </div>
+        </div>
+
+        {{-- KPI Cards Row (Atlas-style: icon chip top-right, big number, trend row) --}}
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {{-- System Health --}}
+            <div class="p-4 rounded-xl border border-[#EDEDED] bg-white flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-[#919191]">System Health</span>
+                    <div class="flex size-7 items-center justify-center rounded-lg bg-[#F1F1F1] text-[#4A4A4A]">
+                        <flux:icon.heart class="size-4" />
+                    </div>
+                </div>
+
+                <div class="mt-4 flex items-baseline justify-between">
+                    <span class="text-2xl font-bold text-zinc-900 capitalize">
+                        {{ $report['overall_health'] ?? 'Acceptable' }}
+                    </span>
+                    <span class="inline-flex items-center gap-x-1 text-xs font-semibold {{ match ($report['overall_health'] ?? 'acceptable') {
+                        'healthy' => 'text-emerald-600',
+                        'acceptable' => 'text-amber-600',
+                        'poor' => 'text-red-600',
+                        default => 'text-[#919191]',
+                    } }}">
+                        <span class="size-1.5 rounded-full {{ match ($report['overall_health'] ?? 'acceptable') {
+                            'healthy' => 'bg-emerald-500',
+                            'acceptable' => 'bg-amber-500',
+                            'poor' => 'bg-red-500',
+                            default => 'bg-zinc-400',
+                        } }}"></span>
+                        Status
+                    </span>
+                </div>
+            </div>
+
+            {{-- Key Findings --}}
+            <div class="p-4 rounded-xl border border-[#EDEDED] bg-white flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-[#919191]">Key Findings</span>
+                    <div class="flex size-7 items-center justify-center rounded-lg bg-[#F1F1F1] text-[#4A4A4A]">
+                        <flux:icon.exclamation-triangle class="size-4" />
+                    </div>
+                </div>
+
+                <div class="mt-4 flex items-baseline justify-between">
+                    <span class="text-2xl font-bold text-zinc-900 font-mono">
+                        {{ count($report['key_findings'] ?? []) }}
+                    </span>
+                    <span class="text-xs text-[#919191] font-medium">Issues detected</span>
+                </div>
+            </div>
+
+            {{-- Recommendations --}}
+            <div class="p-4 rounded-xl border border-[#EDEDED] bg-white flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-[#919191]">Recommendations</span>
+                    <div class="flex size-7 items-center justify-center rounded-lg bg-[#F1F1F1] text-[#4A4A4A]">
+                        <flux:icon.light-bulb class="size-4" />
+                    </div>
+                </div>
+
+                <div class="mt-4 flex items-baseline justify-between">
+                    <span class="text-2xl font-bold text-zinc-900 font-mono">
+                        {{ count($report['recommendations'] ?? []) }}
+                    </span>
+                    <span class="text-xs text-[#919191] font-medium">Optimizations</span>
+                </div>
+            </div>
+        </div>
+
+        {{-- Executive Summary --}}
+        @if (! empty($report['summary']))
+            <div class="p-5 rounded-xl border border-[#EDEDED] bg-white space-y-2">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-[#919191]">Executive Summary</span>
+                <p class="text-sm text-zinc-700 leading-relaxed">
+                    {{ $report['summary'] }}
+                </p>
+            </div>
+        @endif
+
+        {{-- Bottleneck & Script Observations (stacked, single panel) --}}
+        @if (! empty($report['what_is_slow']) || ! empty($report['script_observations']))
+            <div class="rounded-xl border border-[#EDEDED] bg-white divide-y divide-[#EDEDED]">
+                @if (! empty($report['what_is_slow']))
+                    <div class="p-5 space-y-2.5">
+                        <div class="flex items-center gap-x-2.5">
+                            <div class="flex size-7 items-center justify-center rounded-lg bg-[#F1F1F1] text-[#4A4A4A]">
+                                <flux:icon.clock class="size-4" />
+                            </div>
+                            <flux:heading size="sm" class="font-semibold text-zinc-900">Performance Bottlenecks</flux:heading>
+                        </div>
+                        <p class="text-xs text-[#4A4A4A] leading-relaxed">
+                            {{ $report['what_is_slow'] }}
+                        </p>
+                    </div>
+                @endif
+
+                @if (! empty($report['script_observations']))
+                    <div class="p-5 space-y-2.5">
+                        <div class="flex items-center gap-x-2.5">
+                            <div class="flex size-7 items-center justify-center rounded-lg bg-[#F1F1F1] text-[#4A4A4A]">
+                                <flux:icon.code-bracket class="size-4" />
+                            </div>
+                            <flux:heading size="sm" class="font-semibold text-zinc-900">Script Observations</flux:heading>
+                        </div>
+                        <p class="text-xs text-[#4A4A4A] leading-relaxed">
+                            {{ $report['script_observations'] }}
+                        </p>
+                    </div>
+                @endif
+            </div>
+        @endif
+
+        {{-- Key Findings Section (Atlas-style: table-like rows, status pill on the left) --}}
+        @if (! empty($report['key_findings']))
+            <div class="rounded-xl border border-[#EDEDED] bg-white overflow-hidden">
+                <div class="flex items-center justify-between px-5 py-4 bg-[#F1F1F1]/60 border-b border-[#EDEDED]">
+                    <div class="flex items-center gap-x-2">
+                        <flux:icon.magnifying-glass class="size-3.5 text-[#4A4A4A]" />
+                        <flux:heading size="sm" class="font-semibold text-zinc-900">Key Diagnostic Findings</flux:heading>
+                    </div>
+                    <span class="text-xs text-[#919191] font-mono">{{ count($report['key_findings']) }} items</span>
+                </div>
+
+                <div class="divide-y divide-[#EDEDED]">
+                    @foreach ($report['key_findings'] as $finding)
+                        @php
+                            $severity = $finding['severity'] ?? 'medium';
+                            $dotColor = match($severity) {
+                                'critical' => 'bg-red-500',
+                                'high' => 'bg-orange-500',
+                                'medium' => 'bg-amber-500',
+                                'low' => 'bg-zinc-400',
+                                default => 'bg-zinc-400',
+                            };
+                            $textColor = match($severity) {
+                                'critical' => 'text-red-600',
+                                'high' => 'text-orange-600',
+                                'medium' => 'text-amber-600',
+                                'low' => 'text-[#919191]',
+                                default => 'text-[#919191]',
+                            };
+                        @endphp
+                        <div class="px-5 py-3.5 flex items-start gap-3">
+                            <span class="mt-1.5 size-1.5 rounded-full shrink-0 {{ $dotColor }}"></span>
+                            <div class="space-y-1 flex-1 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] font-bold uppercase tracking-wider {{ $textColor }}">
+                                        {{ $severity }}
+                                    </span>
+                                    <flux:heading size="sm" class="font-medium text-zinc-900">
+                                        {{ $finding['title'] ?? '' }}
+                                    </flux:heading>
+                                </div>
+                                <p class="text-xs text-[#919191] leading-relaxed">
+                                    {{ $finding['detail'] ?? '' }}
+                                </p>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
+        {{-- Recommendations Section --}}
+        @if (! empty($report['recommendations']))
+            <div class="rounded-xl border border-[#EDEDED] bg-white overflow-hidden">
+                <div class="flex items-center gap-x-2 px-5 py-4 bg-[#F1F1F1]/60 border-b border-[#EDEDED]">
+                    <flux:icon.wrench-screwdriver class="size-3.5 text-[#4A4A4A]" />
+                    <flux:heading size="sm" class="font-semibold text-zinc-900">Recommended Actions</flux:heading>
+                </div>
+
+                <div class="divide-y divide-[#EDEDED]">
+                    @foreach ($report['recommendations'] as $recommendation)
+                        <div class="px-5 py-4 hover:bg-[#F1F1F1]/40 transition space-y-2">
+                            <div class="flex flex-col items-start justify-between gap-4">
+                                <flux:heading size="sm" class="font-semibold text-zinc-900">
+                                    {{ $recommendation['title'] ?? '' }}
+                                </flux:heading>
+
+                                @if (! empty($recommendation['impact']))
+                                    <span class="shrink-0 inline-flex items-center gap-x-1 text-xs font-semibold text-emerald-600">
+                                        <flux:icon.arrow-trending-up class="size-3" />
+                                        {{ $recommendation['impact'] }}
+                                    </span>
+                                @endif
+                            </div>
+
+                            <p class="text-xs text-[#919191] leading-relaxed">
+                                {{ $recommendation['detail'] ?? '' }}
+                            </p>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
+    {{-- State 3: Failed Generation --}}
+    @elseif ($insight && $insight->status === 'failed')
+        <div class="p-6 rounded-xl border border-[#EDEDED] bg-white space-y-4">
+            <div class="flex items-center gap-x-3">
+                <div class="flex size-9 items-center justify-center rounded-lg bg-red-50 text-red-600">
+                    <flux:icon.exclamation-circle class="size-4" />
+                </div>
+                <div>
+                    <flux:heading size="md" class="font-semibold text-zinc-900">Analysis Failed</flux:heading>
+                    <flux:text class="text-xs text-[#919191]">An error occurred while compiling the performance report.</flux:text>
+                </div>
+            </div>
+
+            <div class="p-3 rounded-lg bg-[#F1F1F1] border border-[#EDEDED] font-mono text-xs text-[#4A4A4A]">
+                {{ $insight->error ?: 'An unknown error occurred.' }}
+            </div>
+
+            <div>
+                <flux:button wire:click="generate" variant="primary" size="sm" icon="arrow-path" class="bg-[#1A1A1A] hover:bg-black text-white rounded-lg">
+                    Retry Analysis
+                </flux:button>
+            </div>
+        </div>
+
+    {{-- State 4: Initial / Idle State --}}
+    @else
+        <div class="p-10 rounded-xl border border-[#EDEDED] bg-white text-center flex flex-col items-center justify-center space-y-4">
+            <div class="flex size-12 items-center justify-center rounded-xl bg-[#F1F1F1] text-[#4A4A4A]">
+                <flux:icon.sparkles class="size-6" />
+            </div>
+
+            <div class="max-w-md space-y-1">
+                <flux:heading size="lg" class="font-bold text-zinc-900">AI Load Test Diagnostics</flux:heading>
+                <flux:text class="text-xs text-[#919191] leading-relaxed">
+                    Generate an automated diagnostic report that identifies latency spikes, memory bottlenecks, and script issues using InfluxDB metrics and source code context.
+                </flux:text>
+            </div>
+
+            @if ($isActive)
+                <div class="inline-flex items-center gap-x-2 px-3 py-1.5 rounded-full bg-[#F1F1F1] text-xs font-medium text-[#4A4A4A]">
+                    <flux:icon.clock class="size-3.5 animate-spin" />
+                    Load test run in progress. Diagnostics available upon completion.
+                </div>
+            @endif
+
+            <flux:button
+                wire:click="generate"
+                wire:loading.attr="disabled"
+                variant="primary"
+                size="md"
+                icon="sparkles"
+                :disabled="$isActive"
+                class="rounded-lg bg-[#1A1A1A] hover:bg-black px-5"
+            >
+                <span wire:loading.remove wire:target="generate">{{ $isActive ? 'Run In Progress' : 'Generate AI Insights' }}</span>
+                <span wire:loading wire:target="generate">Initializing Agent...</span>
+            </flux:button>
         </div>
     @endif
 </div>

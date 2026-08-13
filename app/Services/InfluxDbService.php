@@ -302,6 +302,74 @@ class InfluxDbService
         );
     }
 
+    /**
+     * Time-series breakdown of where HTTP request time is spent (p95 per 5s).
+     *
+     * @return array{labels: array, blocked: array, connecting: array, tls: array, sending: array, waiting: array, receiving: array}
+     */
+    public function httpTimingOverTime(string $runId, ?string $endpoint = null, ?array $timeRange = null): array
+    {
+        $components = [
+            'blocked' => 'http_req_blocked',
+            'connecting' => 'http_req_connecting',
+            'tls' => 'http_req_tls_handshaking',
+            'sending' => 'http_req_sending',
+            'waiting' => 'http_req_waiting',
+            'receiving' => 'http_req_receiving',
+        ];
+
+        $datasets = [];
+        $allLabels = [];
+
+        foreach ($components as $key => $measurement) {
+            $result = $this->queryTimeSeries(
+                sprintf(
+                    'SELECT percentile("value", 95) AS "p95" FROM "%s" WHERE "run_id"=\'%s\'%s%s GROUP BY time(5s) fill(none)',
+                    $measurement,
+                    $runId,
+                    $this->endpointClause($endpoint),
+                    $this->timeRangeClause($timeRange)
+                )
+            );
+
+            if (! empty($result['labels'])) {
+                $allLabels = $result['labels'];
+            }
+
+            $datasets[$key] = $result['values'];
+        }
+
+        return array_merge(['labels' => $allLabels], $datasets);
+    }
+
+    /**
+     * Time-series of iteration duration (avg and p95, in ms, per 5s).
+     *
+     * @return array{labels: array, avg: array, p95: array}
+     */
+    public function iterationDurationOverTime(string $runId, ?array $timeRange = null): array
+    {
+        $q = sprintf(
+            'SELECT mean("value") AS "avg", percentile("value", 95) AS "p95" FROM "iteration_duration" WHERE "run_id"=\'%s\'%s GROUP BY time(5s) fill(none)',
+            $runId,
+            $this->timeRangeClause($timeRange)
+        );
+
+        return $this->queryMultiSeries($q, ['avg', 'p95']);
+    }
+
+    /**
+     * Time-series of the number of completed iterations per 5s bucket.
+     *
+     * @return array{labels: array, values: array}
+     */
+    public function iterationsOverTime(string $runId, ?array $timeRange = null): array
+    {
+        return $this->queryTimeSeries(
+            sprintf('SELECT count("value") FROM "iterations" WHERE "run_id"=\'%s\'%s GROUP BY time(5s) fill(0)', $runId, $this->timeRangeClause($timeRange))
+        );
+    }
+
     private function statusGroup(int $code): string
     {
         $prefix = (int) floor($code / 100);

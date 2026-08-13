@@ -47,13 +47,18 @@ class RunProcessManager
      *
      * Includes p(99) in the summary trend stats — k6's defaults omit it, which
      * leaves the p99 duration metric and any p(99) thresholds empty.
+     *
+     * `--summary-mode=full` only affects k6's console output (which this app
+     * discards) and is kept for completeness; the summary export already
+     * contains every metric regardless of this flag.
      */
     public function buildK6Command(Run $run): string
     {
         $runId = $run->id;
 
         $k6Command = 'k6 run script.js --summary-export='.RunResultService::summaryFilePath($runId)
-            .' --summary-trend-stats=avg,min,med,max,p(90),p(95),p(99)';
+            .' --summary-trend-stats=avg,min,med,max,p(90),p(95),p(99)'
+            .' --summary-mode=full';
 
         $influxOutput = $this->buildInfluxOutput($run);
         if ($influxOutput !== null) {
