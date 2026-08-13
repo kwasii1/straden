@@ -72,7 +72,7 @@ class ChatAgentJob implements ShouldQueue
                     // conversation messages before this callback runs, so the
                     // UI only reloads once the final content is actually stored.
                     PersistsChatMessages::forgetPlaceholder($this->placeholder);
-                    $this->notifyCompletion();
+                    // $this->notifyCompletion();
 
                     $this->broadcastSignal(
                         $response->hasPendingApprovals()

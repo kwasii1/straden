@@ -375,8 +375,10 @@ class extends Component
                                 @php
                                     $statusMap = [
                                         'completed' => ['label' => 'Completed', 'icon' => 'check-circle', 'variant' => 'text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10'],
+                                        'passed' => ['label' => 'Passed', 'icon' => 'check-circle', 'variant' => 'text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10'],
                                         'running' => ['label' => 'Running', 'icon' => 'arrow-path', 'variant' => 'text-blue-700 bg-blue-50 dark:text-blue-400 dark:bg-blue-500/10'],
                                         'queued' => ['label' => 'Queued', 'icon' => 'clock', 'variant' => 'text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/10'],
+                                        'error' => ['label' => 'Error', 'icon' => 'exclamation-triangle', 'variant' => 'text-red-700 bg-red-50 dark:text-red-400 dark:bg-red-500/10'],
                                         'failed' => ['label' => 'Failed', 'icon' => 'exclamation-triangle', 'variant' => 'text-red-700 bg-red-50 dark:text-red-400 dark:bg-red-500/10'],
                                     ];
                                     $status = $statusMap[$run->status] ?? ['label' => ucfirst($run->status), 'icon' => 'minus-circle', 'variant' => 'text-zinc-600 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800'];

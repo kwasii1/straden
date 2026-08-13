@@ -12,8 +12,6 @@ class RunTerminal extends Component
 
     public int $offset = 0;
 
-    public string $content = '';
-
     public bool $finished = false;
 
     public function mount(Run $run): void
@@ -21,7 +19,8 @@ class RunTerminal extends Component
         $this->run = $run;
 
         $chunk = RunResultService::readLogChunk($run->id, 0, 262144);
-        $this->content = $chunk['content'];
+
+        $this->streamChunk($chunk);
         $this->offset = $chunk['nextOffset'];
 
         $this->finished = ! $this->isActive() && $chunk['eof'];
@@ -36,13 +35,21 @@ class RunTerminal extends Component
     {
         $chunk = RunResultService::readLogChunk($this->run->id, $this->offset);
 
-        if ($chunk['content'] !== '') {
-            $this->content .= $chunk['content'];
-        }
-
+        $this->streamChunk($chunk);
         $this->offset = $chunk['nextOffset'];
 
         $this->finished = ! $this->isActive() && $chunk['eof'];
+    }
+
+    /**
+     * Emit newly read log content to the browser instead of accumulating it in
+     * component state, keeping the Livewire payload small as logs grow.
+     */
+    private function streamChunk(array $chunk): void
+    {
+        if ($chunk['content'] !== '') {
+            $this->dispatch('log-chunk', content: $chunk['content']);
+        }
     }
 
     public function render()

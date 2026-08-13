@@ -1,5 +1,6 @@
 <div
     x-data="{
+        output: '',
         timer: null,
         tick() {
             if ($wire.finished) {
@@ -39,12 +40,11 @@
             this.startPolling();
         },
     }"
+    @log-chunk.window="output += $event.detail.content; $nextTick(() => scrollToBottom())"
     @modal-show.window="if ($event.detail.name === 'run-logs') startPolling()"
     @modal-close.window="if ($event.detail.name === 'run-logs') stopPolling()"
     class="flex flex-col"
 >
-    
-
     <div class="overflow-hidden rounded-none border border-zinc-800 bg-[#0B0B0B] dark:border-zinc-800">
         {{-- Terminal title bar --}}
         <div class="flex items-center gap-2 border-b border-zinc-800 bg-[#141414] px-4 py-2.5">
@@ -59,11 +59,8 @@
             x-ref="log"
             class="h-80 overflow-y-auto px-4 py-3 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words text-green-400/90 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         >
-            @if ($content === '')
-                <span class="text-zinc-600">Waiting for k6 output…</span>
-            @else
-                {{ $content }}
-            @endif
+            <span x-show="output === ''" class="text-zinc-600">Waiting for k6 output…</span>
+            <span x-show="output !== ''" x-text="output"></span>
         </div>
     </div>
 </div>

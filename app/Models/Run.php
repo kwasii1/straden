@@ -65,6 +65,10 @@ class Run extends Model
             $scriptName = Script::find($run->script_id)?->name ?? 'run';
             $run->slug = SlugGenerator::unique($scriptName.' '.now()->format('YmdHis'), self::class);
         });
+
+        static::created(function (Run $run) {
+            Script::query()->where('id', $run->script_id)->update(['last_run_at' => now()]);
+        });
     }
 
     public function getRouteKeyName(): string

@@ -145,3 +145,13 @@ test('run page renders the log modal for active runs with logs', function () {
         ->assertOk()
         ->assertSee('run-logs');
 });
+
+test('creating a run stamps the script last run timestamp', function () {
+    $script = Script::factory()->create();
+
+    expect($script->last_run_at)->toBeNull();
+
+    Run::factory()->for($script)->create();
+
+    expect($script->fresh()->last_run_at)->not->toBeNull();
+});

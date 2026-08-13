@@ -14,7 +14,7 @@ test('mount backfills the existing log content', function () {
 
     $component = Livewire::test(RunTerminal::class, ['run' => $run]);
 
-    $component->assertSet('content', "starting k6...\n");
+    $component->assertDispatched('log-chunk', content: "starting k6...\n");
 });
 
 test('poll appends new log lines', function () {
@@ -23,13 +23,13 @@ test('poll appends new log lines', function () {
 
     $component = Livewire::test(RunTerminal::class, ['run' => $run]);
 
-    expect($component->instance()->content)->toBe("first\n");
+    $component->assertDispatched('log-chunk', content: "first\n");
 
     file_put_contents(RunResultService::logFilePath($run->id), "first\nsecond\n");
 
     $component->call('poll');
 
-    expect($component->instance()->content)->toBe("first\nsecond\n");
+    $component->assertDispatched('log-chunk', content: "second\n");
 });
 
 test('poll marks the terminal finished once the run ends', function () {
