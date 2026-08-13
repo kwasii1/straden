@@ -5,6 +5,7 @@ use App\Models\Run;
 use App\Models\Script;
 use App\Models\Test;
 use App\Models\User;
+use App\Services\RunResultService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -84,4 +85,63 @@ test('extra charts can be toggled on and off', function () {
 
     $component->call('toggleExtraChart', 'timing')
         ->assertSet('extraCharts', ['iterations']);
+});
+
+test('progress percent is computed from the run duration', function () {
+    $this->travelTo(now()->startOfDay());
+
+    $user = User::factory()->create();
+    $run = makeRun('running');
+    $run->update([
+        'run_config' => ['duration_seconds' => 100],
+        'started_at' => now()->subSeconds(40),
+    ]);
+
+    $component = Livewire::actingAs($user)
+        ->test('pages::dashboard.view-run', ['project' => $run->script->test->project, 'run' => $run]);
+
+    expect($component->instance()->progressPercent())->toBe(40);
+});
+
+test('progress percent caps at 99 while running', function () {
+    $this->travelTo(now()->startOfDay());
+
+    $user = User::factory()->create();
+    $run = makeRun('running');
+    $run->update([
+        'run_config' => ['duration_seconds' => 10],
+        'started_at' => now()->subSeconds(120),
+    ]);
+
+    $component = Livewire::actingAs($user)
+        ->test('pages::dashboard.view-run', ['project' => $run->script->test->project, 'run' => $run]);
+
+    expect($component->instance()->progressPercent())->toBe(99);
+});
+
+test('progress percent is null for queued and completed runs', function () {
+    $user = User::factory()->create();
+
+    $queued = makeRun('queued');
+    $component = Livewire::actingAs($user)
+        ->test('pages::dashboard.view-run', ['project' => $queued->script->test->project, 'run' => $queued]);
+
+    expect($component->instance()->progressPercent())->toBeNull();
+
+    $passed = makeRun('passed');
+    $component = Livewire::actingAs($user)
+        ->test('pages::dashboard.view-run', ['project' => $passed->script->test->project, 'run' => $passed]);
+
+    expect($component->instance()->progressPercent())->toBeNull();
+});
+
+test('run page renders the log modal for active runs with logs', function () {
+    $user = User::factory()->create();
+    $run = makeRun('running');
+    file_put_contents(RunResultService::logFilePath($run->id), 'log');
+
+    $this->actingAs($user)
+        ->get(route('projects.runs.view', ['project' => $run->script->test->project, 'run' => $run]))
+        ->assertOk()
+        ->assertSee('run-logs');
 });

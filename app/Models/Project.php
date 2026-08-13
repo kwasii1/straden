@@ -35,7 +35,15 @@ class Project extends Model
         'name',
         'slug',
         'description',
+        'persist_run_logs',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'persist_run_logs' => 'boolean',
+        ];
+    }
 
     public function tests(): HasMany
     {

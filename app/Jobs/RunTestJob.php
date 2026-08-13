@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Run;
 use App\Services\RunProcessManager;
 use App\Services\RunResultService;
+use App\Services\ScriptOptionsResolver;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
@@ -34,6 +35,12 @@ class RunTestJob implements ShouldQueue
         $scriptDir = Storage::disk('local')->path('scripts/'.$script->test_id.'/'.$script->id);
 
         try {
+            $this->run->update([
+                'run_config' => ScriptOptionsResolver::fromStorage(
+                    'scripts/'.$script->test_id.'/'.$script->id.'/script.js'
+                )?->toRunConfig() ?? null,
+            ]);
+
             $result = app(RunProcessManager::class)->start($this->run, $scriptDir, $script->test->target_url);
 
             $this->run->update([

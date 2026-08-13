@@ -29,13 +29,26 @@ class extends Component
 
     public string $mode = 'script';
 
+    public bool $persistLogs = false;
+
     public function mount(): void
     {
+        $this->persistLogs = (bool) $this->project->persist_run_logs;
+
         $this->fileTree = $this->fm()->fileTree();
 
         if (! empty($this->fileTree)) {
             $this->selectFile('script.js');
         }
+    }
+
+    public function updatedPersistLogs(bool $value): void
+    {
+        $this->project->update(['persist_run_logs' => $value]);
+
+        Flux::toast(variant: 'success', text: $value
+            ? 'Run logs will be persisted after each run.'
+            : 'Run logs will be discarded after each run.');
     }
 
     public function selectFile(string $path): void
@@ -340,6 +353,11 @@ class extends Component
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
+            <label class="flex shrink-0 cursor-pointer select-none items-center gap-2" title="Persist k6 logs after the run completes">
+                <flux:switch wire:model.live="persistLogs" />
+                <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Persist logs</span>
+            </label>
+
             @if ($this->currentRun)
                 <flux:button
                     wire:navigate

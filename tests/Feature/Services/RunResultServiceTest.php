@@ -1,12 +1,16 @@
 <?php
 
+use App\Models\Project;
 use App\Models\Run;
+use App\Models\Script;
+use App\Models\Test;
 use App\Models\User;
 use App\Notifications\RunCompleted;
 use App\Services\RunResultService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -264,4 +268,82 @@ test('cancel notifies the triggering user when a queued run is aborted', functio
     RunResultService::cancel($run);
 
     Notification::assertSentTo($user, RunCompleted::class);
+});
+
+function makeRunnableRun(bool $persistRunLogs): Run
+{
+    $project = Project::factory()->create(['persist_run_logs' => $persistRunLogs]);
+    $test = Test::factory()->create(['project_id' => $project->id]);
+    $script = Script::factory()->create(['test_id' => $test->id]);
+
+    return Run::factory()->running()->create(['script_id' => $script->id]);
+}
+
+test('finalize persists the log when the project enables log persistence', function () {
+    Storage::fake('local');
+
+    $run = makeRunnableRun(true);
+    writeRunArtifacts($run, 0, null);
+    file_put_contents(RunResultService::logFilePath($run->id), "hello k6\n");
+
+    RunResultService::finalize($run);
+
+    expect(Storage::disk('local')->exists('run-logs/'.$run->id.'.log'))->toBeTrue();
+    expect(Storage::disk('local')->get('run-logs/'.$run->id.'.log'))->toBe("hello k6\n");
+    expect(file_exists(RunResultService::logFilePath($run->id)))->toBeFalse();
+});
+
+test('finalize discards the log when the project disables log persistence', function () {
+    Storage::fake('local');
+
+    $run = makeRunnableRun(false);
+    writeRunArtifacts($run, 0, null);
+    file_put_contents(RunResultService::logFilePath($run->id), "hello k6\n");
+
+    RunResultService::finalize($run);
+
+    expect(Storage::disk('local')->exists('run-logs/'.$run->id.'.log'))->toBeFalse();
+    expect(file_exists(RunResultService::logFilePath($run->id)))->toBeFalse();
+});
+
+test('readLogChunk returns new bytes and advances the offset', function () {
+    $run = Run::factory()->running()->create();
+    file_put_contents(RunResultService::logFilePath($run->id), "line1\nline2\n");
+
+    $chunk = RunResultService::readLogChunk($run->id, 0);
+
+    expect($chunk['content'])->toBe("line1\nline2\n");
+    expect($chunk['nextOffset'])->toBe(12);
+    expect($chunk['eof'])->toBeTrue();
+
+    $next = RunResultService::readLogChunk($run->id, $chunk['nextOffset']);
+
+    expect($next['content'])->toBe('');
+    expect($next['eof'])->toBeTrue();
+});
+
+test('readLogChunk falls back to the persisted log after finalize', function () {
+    Storage::fake('local');
+
+    $run = Run::factory()->running()->create();
+    Storage::disk('local')->put('run-logs/'.$run->id.'.log', "persisted\n");
+
+    $chunk = RunResultService::readLogChunk($run->id, 0);
+
+    expect($chunk['content'])->toBe("persisted\n");
+});
+
+test('hasLog detects live and persisted logs', function () {
+    Storage::fake('local');
+
+    $run = Run::factory()->running()->create();
+
+    expect(RunResultService::hasLog($run->id))->toBeFalse();
+
+    file_put_contents(RunResultService::logFilePath($run->id), 'live');
+    expect(RunResultService::hasLog($run->id))->toBeTrue();
+    @unlink(RunResultService::logFilePath($run->id));
+
+    Storage::disk('local')->put('run-logs/'.$run->id.'.log', 'persisted');
+    expect(RunResultService::hasLog($run->id))->toBeTrue();
 });

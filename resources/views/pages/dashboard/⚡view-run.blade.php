@@ -35,6 +35,32 @@ class extends Component
         return in_array($this->run->status, ['queued', 'running'], true);
     }
 
+    public function hasLog(): bool
+    {
+        return RunResultService::hasLog($this->run->id);
+    }
+
+    public function progressPercent(): ?int
+    {
+        if ($this->run->status === 'queued') {
+            return null;
+        }
+
+        if ($this->run->status !== 'running') {
+            return null;
+        }
+
+        $duration = $this->run->run_config['duration_seconds'] ?? null;
+
+        if (! is_int($duration) || $duration <= 0 || $this->run->started_at === null) {
+            return null;
+        }
+
+        $elapsed = (int) abs(now()->diffInSeconds($this->run->started_at));
+
+        return (int) min(99, floor(($elapsed / $duration) * 100));
+    }
+
     public function toggleExtraChart(string $key): void
     {
         if ($this->hasExtraChart($key)) {
@@ -277,9 +303,22 @@ class extends Component
                     </flux:text>
                 </div>
 
-                @if ($this->isActive())
-                    <flux:button wire:click="cancelRun" variant="danger" size="sm">Cancel Run</flux:button>
-                @endif
+                <div class="flex items-center gap-3">
+                    @if ($this->isActive())
+                        @php $progress = $this->progressPercent(); @endphp
+                        <x-run-progress :percent="$progress" />
+                    @endif
+
+                    @if ($this->hasLog())
+                        <flux:modal.trigger name="run-logs">
+                            <flux:button size="sm" icon="command-line" title="View run logs" aria-label="View run logs" />
+                        </flux:modal.trigger>
+                    @endif
+
+                    @if ($this->isActive())
+                        <flux:button wire:click="cancelRun" variant="danger" size="sm">Cancel Run</flux:button>
+                    @endif
+                </div>
             </div>
 
             <div class="grid grid-cols-1 divide-y divide-zinc-100 border-t border-zinc-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0 dark:divide-zinc-800 dark:border-zinc-800">
@@ -831,5 +870,10 @@ class extends Component
     {{-- AI insights --}}
     <flux:modal name="run-insights" flyout class="md:w-2xl">
         <livewire:run-insight-panel :run="$run" />
+    </flux:modal>
+
+    {{-- Live run logs --}}
+    <flux:modal class="p-0!" name="run-logs" variant="flyout" position="bottom" :closable="false">
+        <livewire:run-terminal :run="$run" />
     </flux:modal>
 </div>

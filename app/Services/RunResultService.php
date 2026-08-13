@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Run;
 use App\Notifications\RunCompleted;
+use Illuminate\Support\Facades\Storage;
 
 class RunResultService
 {
@@ -25,6 +26,73 @@ class RunResultService
     public static function logFilePath(string $runId): string
     {
         return sys_get_temp_dir().'/k6-log-'.$runId.'.log';
+    }
+
+    public static function persistedLogPath(string $runId): string
+    {
+        return Storage::disk('local')->path('run-logs/'.$runId.'.log');
+    }
+
+    public static function hasLog(string $runId): bool
+    {
+        return file_exists(self::logFilePath($runId))
+            || Storage::disk('local')->exists('run-logs/'.$runId.'.log');
+    }
+
+    /**
+     * Read the next chunk of the run log starting at the given byte offset.
+     *
+     * Prefers the live temp log while the run is active, falling back to the
+     * persisted log once the run has finished.
+     *
+     * @return array{content: string, nextOffset: int, eof: bool}
+     */
+    public static function readLogChunk(string $runId, int $offset, int $maxBytes = 262144): array
+    {
+        $path = self::currentLogPath($runId);
+
+        if ($path === null) {
+            return ['content' => '', 'nextOffset' => $offset, 'eof' => true];
+        }
+
+        $size = (int) filesize($path);
+
+        if ($offset >= $size) {
+            return ['content' => '', 'nextOffset' => $offset, 'eof' => true];
+        }
+
+        $offset = max(0, $offset);
+
+        $handle = fopen($path, 'r');
+
+        if ($handle === false) {
+            return ['content' => '', 'nextOffset' => $offset, 'eof' => true];
+        }
+
+        fseek($handle, $offset);
+        $content = (string) fread($handle, min($size - $offset, $maxBytes));
+        fclose($handle);
+
+        $nextOffset = $offset + strlen($content);
+
+        return [
+            'content' => $content,
+            'nextOffset' => $nextOffset,
+            'eof' => $nextOffset >= $size,
+        ];
+    }
+
+    private static function currentLogPath(string $runId): ?string
+    {
+        $tempPath = self::logFilePath($runId);
+
+        if (file_exists($tempPath)) {
+            return $tempPath;
+        }
+
+        $persistedPath = self::persistedLogPath($runId);
+
+        return file_exists($persistedPath) ? $persistedPath : null;
     }
 
     public static function isProcessAlive(int $pid): bool
@@ -138,7 +206,25 @@ class RunResultService
         @unlink(self::summaryFilePath($runId));
         @unlink(self::exitCodeFilePath($runId));
         @unlink(self::k6PidFilePath($runId));
-        @unlink(self::logFilePath($runId));
+
+        self::persistOrDiscardLog($run);
+    }
+
+    private static function persistOrDiscardLog(Run $run): void
+    {
+        $tempPath = self::logFilePath($run->id);
+
+        if (! file_exists($tempPath)) {
+            return;
+        }
+
+        $run->loadMissing('script.test.project');
+
+        if ((bool) $run->script?->test?->project?->persist_run_logs) {
+            Storage::disk('local')->put('run-logs/'.$run->id.'.log', (string) file_get_contents($tempPath));
+        }
+
+        @unlink($tempPath);
     }
 
     private static function notifyCompletion(Run $run): void

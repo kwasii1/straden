@@ -83,3 +83,24 @@ test('run test job skips starting when the run was cancelled while queued', func
     expect($run->status)->toBe('aborted');
     expect($run->pid)->toBeNull();
 });
+
+test('run test job snapshots the script options into run_config', function () {
+    $this->mock(RunProcessManager::class, function ($mock) {
+        $mock->shouldReceive('start')->once()->andReturn(['pid' => 4242, 'running' => true]);
+    });
+
+    $run = Run::factory()->queued()->create();
+    $run->load('script');
+
+    $path = 'scripts/'.$run->script->test_id.'/'.$run->script->id.'/script.js';
+    Storage::disk('local')->put($path, "export const options = { vus: 25, duration: '1m30s' };\n");
+
+    (new RunTestJob($run))->handle();
+
+    $run->refresh();
+
+    expect($run->run_config)->toBe([
+        'vus' => 25,
+        'duration_seconds' => 90,
+    ]);
+});
