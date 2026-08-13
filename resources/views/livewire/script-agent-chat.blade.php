@@ -5,7 +5,7 @@
             <div class="flex size-6 items-center justify-center rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900">
                 <flux:icon.sparkles class="size-3.5" />
             </div>
-            <span class="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Script Assistant</span>
+            <span class="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Straden Agent</span>
         </div>
 
         <div class="flex items-center gap-1.5">

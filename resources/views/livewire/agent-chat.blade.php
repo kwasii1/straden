@@ -6,8 +6,7 @@
                 <flux:icon.sparkles class="size-4" />
             </div>
             <div>
-                <flux:heading size="sm" class="font-semibold leading-tight">AI Test Assistant</flux:heading>
-                <p class="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">Agent Environment Active</p>
+                <flux:heading size="sm" class="font-semibold leading-tight">Straden Agent</flux:heading>
             </div>
         </div>
 

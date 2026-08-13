@@ -149,7 +149,7 @@ JS);
         <div class="flex items-center gap-2 shrink-0">
             <flux:modal.trigger name="generate-with-ai">
                 <flux:button variant="subtle" icon="sparkles" size="sm" class="rounded-lg border border-zinc-200 dark:border-zinc-700">
-                    Generate Script
+                    Straden Agent
                 </flux:button>
             </flux:modal.trigger>
 
