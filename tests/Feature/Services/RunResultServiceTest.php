@@ -158,6 +158,31 @@ test('finalize marks an error when the exit code file is missing', function () {
     expect($run->exit_code)->toBeNull();
 });
 
+test('finalize surfaces the k6 log tail when the exit code file is missing', function () {
+    $run = Run::factory()->running()->create();
+    file_put_contents(RunResultService::logFilePath($run->id), "syntax error near unexpected token\n");
+
+    RunResultService::finalize($run);
+    $run->refresh();
+
+    expect($run->status)->toBe('error');
+    expect($run->error_message)->toContain('syntax error near unexpected token');
+    expect(file_exists(RunResultService::logFilePath($run->id)))->toBeFalse();
+});
+
+test('finalize appends the k6 log tail to a script error message', function () {
+    $run = Run::factory()->running()->create();
+    writeRunArtifacts($run, 108, null);
+    file_put_contents(RunResultService::logFilePath($run->id), "level=error msg=\"bad script\"\n");
+
+    RunResultService::finalize($run);
+    $run->refresh();
+
+    expect($run->status)->toBe('error');
+    expect($run->error_message)->toContain('108');
+    expect($run->error_message)->toContain('bad script');
+});
+
 test('finalize ignores runs that are not running', function () {
     $run = Run::factory()->queued()->create();
     writeRunArtifacts($run, 0, k6Summary());

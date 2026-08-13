@@ -326,7 +326,7 @@
                 wire:click="generate"
                 wire:loading.attr="disabled"
                 variant="primary"
-                size="md"
+                size="base"
                 icon="sparkles"
                 :disabled="$isActive"
                 class="rounded-lg bg-[#1A1A1A] hover:bg-black px-5"

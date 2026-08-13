@@ -22,6 +22,11 @@ class RunResultService
         return sys_get_temp_dir().'/k6-pid-'.$runId.'.txt';
     }
 
+    public static function logFilePath(string $runId): string
+    {
+        return sys_get_temp_dir().'/k6-log-'.$runId.'.log';
+    }
+
     public static function isProcessAlive(int $pid): bool
     {
         if ($pid <= 0) {
@@ -113,8 +118,17 @@ class RunResultService
             default => null,
         };
 
-        if ($update['status'] === 'error' && $exitCode !== null) {
-            $update['error_message'] = 'k6 exited with code '.$exitCode;
+        if ($update['status'] === 'error') {
+            $message = $exitCode !== null
+                ? 'k6 exited with code '.$exitCode
+                : 'k6 process ended without recording an exit code';
+
+            $logTail = self::readLogTail($runId);
+            if ($logTail !== null) {
+                $message .= "\n\n".$logTail;
+            }
+
+            $update['error_message'] = mb_substr($message, 0, 65535);
         }
 
         $run->update($update);
@@ -124,6 +138,7 @@ class RunResultService
         @unlink(self::summaryFilePath($runId));
         @unlink(self::exitCodeFilePath($runId));
         @unlink(self::k6PidFilePath($runId));
+        @unlink(self::logFilePath($runId));
     }
 
     private static function notifyCompletion(Run $run): void
@@ -172,6 +187,27 @@ class RunResultService
         $decoded = json_decode((string) file_get_contents($path), true);
 
         return is_array($decoded) ? $decoded : null;
+    }
+
+    private static function readLogTail(string $runId): ?string
+    {
+        $path = self::logFilePath($runId);
+
+        if (! file_exists($path)) {
+            return null;
+        }
+
+        $content = trim((string) file_get_contents($path));
+
+        if ($content === '') {
+            return null;
+        }
+
+        if (strlen($content) > 4000) {
+            $content = '...'.substr($content, -4000);
+        }
+
+        return $content;
     }
 
     private static function parseSummary(array $summary): array

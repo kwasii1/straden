@@ -89,3 +89,7 @@ select:focus[data-flux-control] {
 .animate-shimmer {
     animation: shimmer-text 1.4s linear infinite;
 }
+
+html {
+    scrollbar-gutter: stable;
+}
