@@ -65,7 +65,7 @@ new class extends Component
     class="relative"
 >
     <div x-ref="trigger">
-        <flux:button @click="togglePanel()" variant="ghost" icon:trailing="chevron-down">
+        <flux:button icon="folder" @click="togglePanel()" variant="ghost" icon:trailing="chevron-down">
             {{ $this->currentProject?->name ?? 'Switch project' }}
         </flux:button>
     </div>
