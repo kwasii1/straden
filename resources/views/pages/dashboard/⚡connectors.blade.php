@@ -3,7 +3,11 @@
 use App\Enums\ConnectorType;
 use App\Models\Connector;
 use App\Models\Project;
+use App\Services\DatabaseMetricsService;
+use App\Services\GrafanaService;
 use App\Services\InfluxDbService;
+use App\Services\PrometheusService;
+use App\Services\RedisMetricsService;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -23,7 +27,7 @@ class extends Component
 
     public ?int $port = null;
 
-    public string $database = '';
+    public ?string $database = null;
 
     public bool $ssl_enabled = false;
 
@@ -43,6 +47,9 @@ class extends Component
     public function connectors()
     {
         return Connector::query()
+            ->where(fn ($query) => $query
+                ->where('project_id', $this->project->id)
+                ->orWhere('is_system', true))
             ->orderBy('is_system', 'desc')
             ->orderBy('created_at', 'desc')
             ->get();
@@ -58,7 +65,7 @@ class extends Component
             'type' => ConnectorType::from($this->type),
             'host' => $this->host ?: null,
             'port' => $this->port,
-            'database' => $this->database ?: null,
+            'database' => $this->database !== '' && $this->database !== null ? $this->database : null,
             'ssl_enabled' => $this->ssl_enabled,
             'verify_ssl' => $this->verify_ssl,
             'timeout' => $this->timeout,
@@ -92,9 +99,24 @@ class extends Component
 
     public function testConnection(Connector $connector): void
     {
-        $service = new InfluxDbService($connector);
+        try {
+            $success = match ($connector->type) {
+                ConnectorType::InfluxDb => (new InfluxDbService($connector))->testConnection(),
+                ConnectorType::Prometheus => (new PrometheusService($connector))->testConnection(),
+                ConnectorType::MySQL, ConnectorType::Postgres, ConnectorType::MongoDB => (new DatabaseMetricsService($connector))->testConnection(),
+                ConnectorType::Redis => (new RedisMetricsService($connector))->testConnection(),
+                ConnectorType::Grafana => (new GrafanaService($connector))->testConnection(),
+                default => null,
+            };
+        } catch (\Throwable) {
+            $success = false;
+        }
 
-        $success = $service->testConnection();
+        if ($success === null) {
+            Flux::toast(variant: 'warning', text: 'No connection test available for this connector.');
+
+            return;
+        }
 
         $connector->update([
             'last_tested_at' => now(),
@@ -111,16 +133,40 @@ class extends Component
 
     public function updatedType(): void
     {
-        $this->reset(['host', 'port', 'database', 'ssl_enabled', 'verify_ssl', 'timeout', 'username', 'password', 'token', 'settings']);
+        $this->reset(['host', 'port', 'database', 'ssl_enabled', 'verify_ssl', 'username', 'password', 'token', 'settings']);
         $this->timeout = 5;
+
+        $type = ConnectorType::tryFrom($this->type);
+
+        if ($type?->defaultPort() !== null) {
+            $this->port = $type->defaultPort();
+        }
+    }
+
+    public function portPlaceholder(): string
+    {
+        return (string) (ConnectorType::tryFrom($this->type)?->defaultPort() ?? 5432);
+    }
+
+    public function connectorIcon(Connector $connector): string
+    {
+        return match ($connector->type) {
+            ConnectorType::InfluxDb => 'chart-bar',
+            ConnectorType::Prometheus => 'chart-bar-square',
+            ConnectorType::MySQL, ConnectorType::Postgres, ConnectorType::Database => 'circle-stack',
+            ConnectorType::MongoDB => 'cube',
+            ConnectorType::Redis => 'bolt',
+            ConnectorType::Repository => 'folder-git-2',
+            ConnectorType::Grafana => 'presentation-chart-bar',
+            default => 'link',
+        };
     }
 
     private function connectorRules(): array
     {
-        return [
+        $rules = [
             'name' => 'required|string|max:255',
-            'type' => 'required|in:database,repository,grafana',
-            'host' => 'nullable|string|max:255',
+            'type' => 'required|in:prometheus,mysql,postgres,mongodb,redis,repository,grafana',
             'port' => 'nullable|integer|min:1|max:65535',
             'database' => 'nullable|string|max:255',
             'ssl_enabled' => 'boolean',
@@ -130,6 +176,22 @@ class extends Component
             'password' => 'nullable|string|max:255',
             'token' => 'nullable|string|max:1024',
         ];
+
+        return match ($this->type) {
+            'repository' => $rules,
+            'redis' => [
+                ...$rules,
+                'host' => 'required|string|max:255',
+                'port' => 'required|integer|min:1|max:65535',
+                'database' => 'nullable|integer|min:0|max:15',
+            ],
+            'mysql', 'postgres', 'mongodb', 'prometheus', 'grafana' => [
+                ...$rules,
+                'host' => 'required|string|max:255',
+                'port' => 'required|integer|min:1|max:65535',
+            ],
+            default => [...$rules, 'host' => 'nullable|string|max:255'],
+        };
     }
 
     private function resetConnectorForm(): void
@@ -157,17 +219,7 @@ class extends Component
             <div wire:key="connector-{{ $connector->id }}" class="flex items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition">
                 <div class="flex items-center gap-x-4">
                     <div class="flex items-center gap-x-3">
-                        @if ($connector->type === App\Enums\ConnectorType::InfluxDb)
-                            <flux:icon.chart-bar class="size-5 text-zinc-400" />
-                        @elseif ($connector->type === App\Enums\ConnectorType::Database)
-                            <flux:icon.circle-stack class="size-5 text-zinc-400" />
-                        @elseif ($connector->type === App\Enums\ConnectorType::Repository)
-                            <flux:icon.folder-git-2 class="size-5 text-zinc-400" />
-                        @elseif ($connector->type === App\Enums\ConnectorType::Grafana)
-                            <flux:icon.presentation-chart-bar class="size-5 text-zinc-400" />
-                        @else
-                            <flux:icon.link class="size-5 text-zinc-400" />
-                        @endif
+                        <flux:icon :name="$this->connectorIcon($connector)" class="size-5 text-zinc-400" />
 
                         <div>
                             <div class="flex items-center gap-x-2">
@@ -234,7 +286,7 @@ class extends Component
         @endforelse
     </div>
 
-    <flux:modal name="create-connector" class="md:w-1/2">
+    <flux:modal name="create-connector" class="md:w-lg" flyout>
         <div class="space-y-6">
             <div>
                 <flux:heading size="lg">Add Connector</flux:heading>
@@ -247,36 +299,30 @@ class extends Component
 
                     <flux:select wire:model.live="type" label="Connector Type">
                         <flux:select.option value="">Select a type...</flux:select.option>
-                        <flux:select.option value="database">Database</flux:select.option>
+                        <flux:select.option value="prometheus">Prometheus</flux:select.option>
+                        <flux:select.option value="mysql">MySQL</flux:select.option>
+                        <flux:select.option value="postgres">PostgreSQL</flux:select.option>
+                        <flux:select.option value="mongodb">MongoDB</flux:select.option>
+                        <flux:select.option value="redis">Redis</flux:select.option>
                         <flux:select.option value="repository">Repository</flux:select.option>
                         <flux:select.option value="grafana">Grafana</flux:select.option>
                     </flux:select>
                 </div>
 
-                @if ($type)
-                    <flux:input wire:model="host" label="Host" placeholder="localhost" />
-
-                    <flux:input wire:model="port" label="Port" type="number" placeholder="5432" />
-
-                    <flux:input wire:model="database" label="Database" placeholder="my_database" />
-
-                    <flux:input wire:model="username" label="Username" placeholder="username" />
-
-                    <flux:input wire:model="password" label="Password" type="password" placeholder="Password" />
-
-                    <flux:input wire:model="token" label="Token" placeholder="Optional API token" />
-
-                    <flux:switch wire:model="ssl_enabled" label="SSL Enabled" />
-
-                    @if ($ssl_enabled)
-                        <flux:switch wire:model="verify_ssl" label="Verify SSL Certificate" />
-                    @endif
-
-                    <flux:field>
-                        <flux:label>Timeout (seconds)</flux:label>
-                        <flux:input wire:model="timeout" type="number" min="1" max="60" />
-                        <flux:description>Maximum time to wait for a connection response.</flux:description>
-                    </flux:field>
+                @if ($type === 'prometheus')
+                    @include('partials.connector-fields.prometheus')
+                    @include('partials.connector-fields.connection-options')
+                @elseif (in_array($type, ['mysql', 'postgres', 'mongodb'], true))
+                    @include('partials.connector-fields.database')
+                    @include('partials.connector-fields.connection-options')
+                @elseif ($type === 'redis')
+                    @include('partials.connector-fields.redis')
+                    @include('partials.connector-fields.connection-options')
+                @elseif ($type === 'grafana')
+                    @include('partials.connector-fields.grafana')
+                    @include('partials.connector-fields.connection-options')
+                @elseif ($type === 'repository')
+                    @include('partials.connector-fields.repository')
                 @endif
 
                 <div class="flex">

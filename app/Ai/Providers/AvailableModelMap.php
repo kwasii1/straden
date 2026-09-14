@@ -94,6 +94,7 @@ class AvailableModelMap
                 'deepseek-reasoner',
                 'deepseek-v4-flash',
                 'deepseek-v4-pro',
+                'deepseek-flash'
             ],
             'openai' => [
                 'gpt-5.4',

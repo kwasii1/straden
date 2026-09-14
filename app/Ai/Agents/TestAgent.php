@@ -3,10 +3,17 @@
 namespace App\Ai\Agents;
 
 use App\Ai\Tools\CreateScriptTool;
+use App\Ai\Tools\DatabaseMetricsTool;
 use App\Ai\Tools\NamedTool;
+use App\Ai\Tools\PrometheusListMetricsTool;
+use App\Ai\Tools\PrometheusMetadataTool;
+use App\Ai\Tools\PrometheusQueryRangeTool;
+use App\Ai\Tools\PrometheusQueryTool;
+use App\Ai\Tools\RedisMetricsTool;
 use App\Ai\Tools\ScanContextTool;
 use App\Ai\Tools\UpdateScriptTool;
 use App\Ai\Tools\ValidateScriptTool;
+use App\Enums\ConnectorType;
 use App\Models\Test;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Attributes\MaxSteps;
@@ -49,7 +56,7 @@ Follow this process strictly:
 
 0. **Read the room first**: If the user sends a greeting, thanks you, or makes a casual remark that does not ask you to do anything (e.g. "hello", "thanks", "good morning"), just reply conversationally and stop. Do NOT scan context, propose a plan, or create anything unless the user explicitly asks you to build or modify a load test.
 
-1. **Scan Context**: Use the ScanContextTool to understand the test environment — what connectors are available, what repositories exist, what previous scripts and runs look like.
+1. **Scan Context**: Use the ScanContextTool to understand the test environment — what connectors are available, what repositories exist, what previous scripts and runs look like. If observability connectors (Prometheus, MySQL, PostgreSQL, Redis) are configured, you can use their metrics tools to ground recommendations in live infrastructure data.
 
 2. **Propose a Plan**: After scanning, describe a test plan in plain text. Include:
    - Which endpoints or services to test
@@ -103,6 +110,21 @@ INSTRUCTIONS;
             new ValidateScriptTool,
             ...FileStorage::all($scriptsDisk),
         ];
+
+        $project = $this->test->project;
+
+        $prometheus = $project->connectors()
+            ->where('type', ConnectorType::Prometheus->value)
+            ->first();
+
+        array_push($tools,
+            new PrometheusMetadataTool($prometheus),
+            new PrometheusQueryTool($prometheus),
+            new PrometheusQueryRangeTool($prometheus),
+            new PrometheusListMetricsTool($prometheus),
+            new DatabaseMetricsTool($project),
+            new RedisMetricsTool($project),
+        );
 
         foreach ($this->test->project->repositories as $repo) {
             $repoDisk = 'repo_'.$repo->id;

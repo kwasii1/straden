@@ -1,0 +1,1 @@
+<flux:input wire:model="token" label="Token" placeholder="Repository access token" />

@@ -52,6 +52,54 @@ class ConnectorFactory extends Factory
         ]);
     }
 
+    public function prometheus(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => ConnectorType::Prometheus,
+            'host' => fake()->domainName(),
+            'port' => 9090,
+            'database' => null,
+        ]);
+    }
+
+    public function mysql(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => ConnectorType::MySQL,
+            'host' => fake()->ipv4(),
+            'port' => 3306,
+        ]);
+    }
+
+    public function postgres(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => ConnectorType::Postgres,
+            'host' => fake()->ipv4(),
+            'port' => 5432,
+        ]);
+    }
+
+    public function mongodb(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => ConnectorType::MongoDB,
+            'host' => fake()->ipv4(),
+            'port' => 27017,
+        ]);
+    }
+
+    public function redis(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => ConnectorType::Redis,
+            'host' => fake()->ipv4(),
+            'port' => 6379,
+            'database' => null,
+            'username' => null,
+        ]);
+    }
+
     public function repository(): static
     {
         return $this->state(fn (array $attributes) => [

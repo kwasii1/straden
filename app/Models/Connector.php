@@ -86,6 +86,26 @@ class Connector extends Model
         return $this->type === ConnectorType::InfluxDb;
     }
 
+    public function isPrometheus(): bool
+    {
+        return $this->type === ConnectorType::Prometheus;
+    }
+
+    public function isObservability(): bool
+    {
+        return $this->type->isObservability();
+    }
+
+    public function isDatabase(): bool
+    {
+        return $this->type->isDatabase();
+    }
+
+    public function defaultPort(): ?int
+    {
+        return $this->type->defaultPort();
+    }
+
     public function isGitProvider(): bool
     {
         return $this->type->isGitProvider();

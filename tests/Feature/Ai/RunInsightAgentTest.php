@@ -2,6 +2,7 @@
 
 use App\Ai\Agents\RunInsightAgent;
 use App\Ai\Tools\NamedTool;
+use App\Ai\Tools\ReadRunLogTool;
 use App\Ai\Tools\RunContextTool;
 use App\Ai\Tools\RunInfluxMetricsTool;
 use App\Models\Project;
@@ -50,6 +51,7 @@ test('run insight agent instructions include run, test, and tool context', funct
         ->toContain('checkout-load')
         ->toContain('RunContextTool')
         ->toContain('RunInfluxMetricsTool')
+        ->toContain('ReadRunLogTool')
         ->toContain('per-endpoint breakdown')
         ->toContain('read_script_')
         ->toContain('repo_')
@@ -63,6 +65,7 @@ test('run insight agent provides context, influx, and script tools', function ()
 
     expect($tools->filter(fn ($tool) => $tool instanceof RunContextTool))->toHaveCount(1);
     expect($tools->filter(fn ($tool) => $tool instanceof RunInfluxMetricsTool))->toHaveCount(1);
+    expect($tools->filter(fn ($tool) => $tool instanceof ReadRunLogTool))->toHaveCount(1);
     expect($tools->filter(fn ($tool) => $tool instanceof NamedTool && str_starts_with($tool->name(), 'read_script_'))->count())->toBeGreaterThan(0);
 });
 

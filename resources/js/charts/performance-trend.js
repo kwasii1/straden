@@ -123,6 +123,29 @@ document.addEventListener("alpine:init", () => {
                                     font: {
                                         size: 11,
                                     },
+                                    autoSkip: false,
+                                    maxRotation: 0,
+                                    minRotation: 0,
+
+                                    callback: function (value, index) {
+                                        const label =
+                                            this.getLabelForValue(value);
+
+                                        // Hide consecutive duplicate dates
+                                        if (index > 0) {
+                                            const previous =
+                                                this.getLabelForValue(
+                                                    this.getTicks()[index - 1]
+                                                        .value,
+                                                );
+
+                                            if (label === previous) {
+                                                return "";
+                                            }
+                                        }
+
+                                        return label;
+                                    },
                                 },
                             },
                         },

@@ -50,7 +50,7 @@ test('user can add a database connector', function () {
     Livewire::actingAs($user)
         ->test('pages::dashboard.connectors', ['project' => $project])
         ->set('name', 'My Database')
-        ->set('type', 'database')
+        ->set('type', 'postgres')
         ->set('host', 'localhost')
         ->set('port', 5432)
         ->set('database', 'my_db')
@@ -60,6 +60,79 @@ test('user can add a database connector', function () {
         ->assertHasNoErrors();
 
     expect(Connector::where('name', 'My Database')->exists())->toBeTrue();
+});
+
+test('user can add each observability connector type', function (string $type, int $port) {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test('pages::dashboard.connectors', ['project' => $project])
+        ->set('name', "My {$type}")
+        ->set('type', $type)
+        ->set('host', 'localhost')
+        ->set('port', $port)
+        ->set('database', $type === 'redis' ? '0' : 'my_db')
+        ->call('addConnector')
+        ->assertHasNoErrors();
+
+    expect(Connector::where('name', "My {$type}")->exists())->toBeTrue();
+})->with([
+    ['prometheus', 9090],
+    ['mysql', 3306],
+    ['postgres', 5432],
+    ['mongodb', 27017],
+    ['redis', 6379],
+]);
+
+test('host is required for connection-based connectors', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test('pages::dashboard.connectors', ['project' => $project])
+        ->set('name', 'Missing Host')
+        ->set('type', 'prometheus')
+        ->call('addConnector')
+        ->assertHasErrors(['host']);
+});
+
+test('selecting a type pre-fills its default port', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+
+    $component = Livewire::actingAs($user)
+        ->test('pages::dashboard.connectors', ['project' => $project])
+        ->set('type', 'redis');
+
+    $component->assertSet('port', 6379);
+});
+
+test('redis database index must be an integer', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+
+    Livewire::actingAs($user)
+        ->test('pages::dashboard.connectors', ['project' => $project])
+        ->set('name', 'Bad Redis')
+        ->set('type', 'redis')
+        ->set('host', 'localhost')
+        ->set('port', 6379)
+        ->set('database', 'not-an-index')
+        ->call('addConnector')
+        ->assertHasErrors(['database']);
+});
+
+test('observability connector types appear in the form', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('projects.connectors', ['project' => $project]))
+        ->assertOk()
+        ->assertSee('Prometheus')
+        ->assertSee('MongoDB')
+        ->assertSee('Redis');
 });
 
 test('connector type must be valid', function () {
@@ -124,7 +197,7 @@ test('git providers list shows empty state', function () {
 
     Livewire::actingAs($user)
         ->test('pages::dashboard.git-providers', ['project' => $project])
-        ->assertSee('No git providers');
+        ->assertSee('No Git Providers Connected');
 });
 
 test('git providers list shows connected providers', function () {
