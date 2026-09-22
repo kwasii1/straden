@@ -4,11 +4,12 @@ use App\Ai\Agents\TestAgent;
 use App\Ai\Tools\UpdateScriptTool;
 use App\Models\Script;
 use App\Models\Test;
-use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\JsonSchema\JsonSchemaTypeFactory;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Contracts\Approvable;
+use Laravel\Ai\ObjectSchema;
 use Laravel\Ai\Tools\Request;
 
 uses(RefreshDatabase::class);
@@ -178,16 +179,16 @@ test('update script tool validates input schema', function () {
 
     $tool = new UpdateScriptTool($test);
 
-    $mockSchema = Mockery::mock(JsonSchema::class);
-    $mockSchema->shouldReceive('string')->andReturn(Mockery::mock()->shouldReceive('description', 'required')->andReturnSelf()->getMock());
-    $mockSchema->shouldReceive('array')->andReturn(Mockery::mock()->shouldReceive('description', 'required')->andReturnSelf()->getMock());
+    $schema = (new ObjectSchema($tool->schema(new JsonSchemaTypeFactory)))->toSchema();
 
-    $schema = $tool->schema($mockSchema);
+    expect($schema['properties'])->toHaveKeys(['script_id', 'name', 'description', 'files']);
 
-    expect($schema)->toHaveKey('script_id');
-    expect($schema)->toHaveKey('name');
-    expect($schema)->toHaveKey('description');
-    expect($schema)->toHaveKey('files');
+    // Gemini rejects array schemas without an explicit items definition.
+    $items = $schema['properties']['files']['items'] ?? null;
+
+    expect($items)->not->toBeNull()
+        ->and($items['type'])->toBe('object')
+        ->and($items['properties'])->toHaveKeys(['path', 'content']);
 });
 
 test('update script tool is registered in test agent', function () {

@@ -8,6 +8,7 @@ use App\Notifications\ScriptGenerationCompleted;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Str;
 use Laravel\Ai\Approvals\Decisions;
@@ -65,7 +66,20 @@ class ChatAgentJob implements ShouldQueue
                         return;
                     }
 
-                    $event->withInvocationId($this->invocationId)->broadcastNow($channels);
+                    try {
+                        $event->withInvocationId($this->invocationId)->broadcastNow($channels);
+                    } catch (Throwable $broadcastError) {
+                        // Tool calls can carry full script contents that exceed
+                        // the broadcaster's payload limit. Skipping the live
+                        // event is harmless: the persisted conversation (which
+                        // the UI reloads from on completion) still holds the
+                        // full content. Never let one oversized event kill the
+                        // whole run — the tiny completion/approval signals sent
+                        // afterwards must still go out.
+                        if (! str_contains($broadcastError->getMessage(), 'too large')) {
+                            report($broadcastError);
+                        }
+                    }
                 })
                 ->then(function (StreamedAgentResponse $response): void {
                     // The SDK's RememberConversation middleware persists the
@@ -133,10 +147,20 @@ class ChatAgentJob implements ShouldQueue
      */
     protected function broadcastError(Throwable $e): void
     {
+        $message = $e->getMessage();
+
+        if ($e instanceof RequestException && $e->response) {
+            $body = mb_substr(trim((string) $e->response->body()), 0, 500);
+
+            if ($body !== '') {
+                $message .= ' Response: '.$body;
+            }
+        }
+
         (new Error(
             id: (string) Str::uuid7(),
             type: 'request_error',
-            message: mb_substr($e->getMessage(), 0, 1000),
+            message: mb_substr($message, 0, 1000),
             recoverable: false,
             timestamp: time(),
         ))->withInvocationId($this->invocationId)

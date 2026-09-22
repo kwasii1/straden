@@ -76,7 +76,9 @@ class AgentChat extends Component
         $this->buildAvailableProviders();
         $this->selectedProvider = 'deepseek';
         $this->buildAvailableModels();
-        $this->selectedModel = 'deepseek-v4-flash';
+        $this->selectedModel = in_array('deepseek-flash', $this->availableModels, true)
+            ? 'deepseek-flash'
+            : ($this->availableModels[0] ?? null);
         $this->loadConversations();
 
         $existingConversation = Conversation::query()
@@ -94,23 +96,32 @@ class AgentChat extends Component
 
     public function updatedSelectedProvider(?string $value): void
     {
+        $this->selectedProvider = $value !== '' ? $value : null;
         $this->buildAvailableModels();
 
-        if (! in_array($this->selectedModel, $this->availableModels, true)) {
+        if ($this->selectedProvider === null) {
+            $this->selectedModel = null;
+        } elseif (! in_array($this->selectedModel, $this->availableModels, true)) {
             $this->selectedModel = $this->availableModels[0] ?? null;
         }
 
-        $this->dispatch('agent-provider-changed', provider: $value);
+        $this->dispatch('agent-provider-changed', provider: $this->selectedProvider);
+        $this->dispatch('agent-model-changed', model: $this->selectedModel);
     }
 
     public function updatedSelectedModel(?string $value): void
     {
-        $this->dispatch('agent-model-changed', model: $value);
+        $this->selectedModel = $value !== '' ? $value : null;
+        $this->dispatch('agent-model-changed', model: $this->selectedModel);
     }
 
     public function restoreSelection(?string $provider, ?string $model): void
     {
-        if ($provider !== null && isset($this->availableProviders[$provider])) {
+        if ($provider === '') {
+            $this->selectedProvider = null;
+            $this->availableModels = [];
+            $this->selectedModel = null;
+        } elseif ($provider !== null && isset($this->availableProviders[$provider])) {
             $this->selectedProvider = $provider;
             $this->buildAvailableModels();
 
@@ -119,8 +130,35 @@ class AgentChat extends Component
             }
         }
 
-        if ($model !== null && in_array($model, $this->availableModels, true)) {
+        if ($model !== null && $model !== '' && in_array($model, $this->availableModels, true)) {
             $this->selectedModel = $model;
+        } elseif ($model === '') {
+            $this->selectedModel = null;
+        }
+    }
+
+    /**
+     * Guard against stale provider/model combinations (e.g. restored from
+     * localStorage, or left over from a provider switch) so a run never
+     * sends a model that does not belong to the selected provider.
+     */
+    private function ensureValidSelection(): void
+    {
+        if (! $this->selectedProvider) {
+            $this->selectedModel = null;
+
+            return;
+        }
+
+        if ($this->selectedModel === null) {
+            return;
+        }
+
+        $models = AvailableModelMap::modelsFor($this->selectedProvider);
+
+        if (! in_array($this->selectedModel, $models, true)) {
+            $this->selectedModel = $models[0] ?? null;
+            $this->dispatch('agent-model-changed', model: $this->selectedModel);
         }
     }
 
@@ -144,6 +182,7 @@ class AgentChat extends Component
             'input' => ['required', 'string', 'max:2000'],
         ]);
 
+        $this->ensureValidSelection();
         $this->isProcessing = true;
         $this->error = null;
         $this->awaitingApproval = false;
@@ -169,11 +208,13 @@ class AgentChat extends Component
 
     private function dispatchAgent(Agent $agent, Decisions|string $prompt, ?array $placeholder): void
     {
+        $model = $this->selectedModel !== '' ? $this->selectedModel : null;
+
         if (TestAgent::isFaked()) {
             $agent->queue(
                 $prompt,
                 provider: $this->selectedProvider ? Lab::from($this->selectedProvider) : null,
-                model: $this->selectedModel,
+                model: $model,
             );
 
             return;
@@ -185,7 +226,7 @@ class AgentChat extends Component
             $this->test->id,
             placeholder: $placeholder,
             provider: $this->selectedProvider ? Lab::from($this->selectedProvider) : null,
-            model: $this->selectedModel,
+            model: $model,
         );
     }
 
@@ -227,9 +268,31 @@ class AgentChat extends Component
         $this->attemptSubmitDecisions();
     }
 
+    public function approveAllToolCalls(): void
+    {
+        foreach ($this->getAllPendingCallIds() as $callId) {
+            $this->pendingDecisions[$callId] = 'approve';
+        }
+
+        $this->attemptSubmitDecisions();
+    }
+
+    public function rejectAllToolCalls(): void
+    {
+        foreach ($this->getAllPendingCallIds() as $callId) {
+            $this->pendingDecisions[$callId] = 'reject';
+        }
+
+        $this->attemptSubmitDecisions();
+    }
+
     private function attemptSubmitDecisions(): void
     {
-        $pendingIds = $this->getPendingCallIds();
+        $pendingIds = $this->getAllPendingCallIds();
+
+        if ($pendingIds === []) {
+            return;
+        }
 
         if (count(array_intersect($pendingIds, array_keys($this->pendingDecisions))) !== count($pendingIds)) {
             return;
@@ -240,12 +303,26 @@ class AgentChat extends Component
 
     private function sendDecisions(): void
     {
+        $pendingIds = $this->getAllPendingCallIds();
+
+        if ($pendingIds === []) {
+            return;
+        }
+
+        $this->ensureValidSelection();
         $this->isProcessing = true;
+        $this->awaitingApproval = false;
         $this->error = null;
 
         $decisions = [];
 
-        foreach ($this->pendingDecisions as $callId => $decisionType) {
+        foreach ($pendingIds as $callId) {
+            $decisionType = $this->pendingDecisions[$callId] ?? null;
+
+            if ($decisionType === null) {
+                return;
+            }
+
             $decisions[$callId] = $decisionType === 'approve'
                 ? Decision::approve()
                 : Decision::reject('Rejected by user.');
@@ -257,6 +334,7 @@ class AgentChat extends Component
         $this->dispatchAgent($agent, Decisions::from($decisions), null);
 
         $this->pendingDecisions = [];
+        $this->dispatch('chat-scroll-bottom');
     }
 
     public function newConversation(): void
@@ -281,15 +359,24 @@ class AgentChat extends Component
         $this->awaitingApproval = false;
     }
 
-    private function getPendingCallIds(): array
+    private function getAllPendingCallIds(): array
     {
+        $ids = [];
+
         foreach ($this->displayMessages as $message) {
-            if ($message['is_approval_pause']) {
-                return $message['pending_call_ids'];
+            if (! empty($message['is_approval_pause'])) {
+                foreach ($message['pending_call_ids'] ?? [] as $callId) {
+                    $ids[] = $callId;
+                }
             }
         }
 
-        return [];
+        return array_values(array_unique($ids));
+    }
+
+    private function getPendingCallIds(): array
+    {
+        return $this->getAllPendingCallIds();
     }
 
     private function loadConversationMessages(): void

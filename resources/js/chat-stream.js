@@ -6,6 +6,7 @@ document.addEventListener('alpine:init', () => {
         currentMessageId: null,
         toolCount: 0,
         thinking: false,
+        approvalPending: false,
 
         container: null,
 
@@ -101,6 +102,7 @@ document.addEventListener('alpine:init', () => {
                 // the conversation is stored, which is what triggers a reload.
                 case 'tool_approval_request':
                     this.streaming = false;
+                    this.approvalPending = true;
                     break;
 
                 case 'stream_end':
@@ -109,11 +111,13 @@ document.addEventListener('alpine:init', () => {
 
                 case 'agent_completed':
                     this.streaming = false;
+                    this.approvalPending = false;
                     window.dispatchEvent(new CustomEvent('agent-done'));
                     break;
 
                 case 'agent_approval_request':
                     this.streaming = false;
+                    this.approvalPending = false;
                     window.dispatchEvent(new CustomEvent('agent-approval-requested'));
                     break;
             }
@@ -152,6 +156,7 @@ document.addEventListener('alpine:init', () => {
             this.currentMessageId = null;
             this.toolCount = 0;
             this.thinking = false;
+            this.approvalPending = false;
         },
 
         scrollToBottom(behavior = 'auto') {

@@ -55,6 +55,7 @@ class AppServiceProvider extends ServiceProvider
     {
         DevCommands::artisan('serve --port=8001', 'server');
         DevCommands::artisan('schedule:work', 'scheduler');
+        DevCommands::artisan('horizon:listen', 'horizon');
 
         if (App::environment('local')) {
             DevCommands::register(

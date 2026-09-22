@@ -90,11 +90,9 @@ class AvailableModelMap
     {
         return [
             'deepseek' => [
-                'deepseek-chat',
-                'deepseek-reasoner',
-                'deepseek-v4-flash',
+                'deepseek-flash',
                 'deepseek-v4-pro',
-                'deepseek-flash'
+                'deepseek-v4-flash',
             ],
             'openai' => [
                 'gpt-5.4',
@@ -115,11 +113,14 @@ class AvailableModelMap
                 'claude-haiku-4',
             ],
             'gemini' => [
-                'gemini-3-flash',
-                'gemini-3-pro',
+                'gemini-3.8-flash',
+                'gemini-3.7-flash',
+                'gemini-3.6-flash',
+                'gemini-3.5-flash',
+                'gemini-3.5-flash-lite',
                 'gemini-2.5-flash',
                 'gemini-2.5-pro',
-                'gemini-3.1-flash-lite'
+                'gemini-2.5-flash-lite',
             ],
             'groq' => [
                 'llama-3.3-70b-versatile',
@@ -148,7 +149,7 @@ class AvailableModelMap
             'openrouter' => [
                 'openai/gpt-4o',
                 'anthropic/claude-sonnet-5',
-                'google/gemini-3-flash',
+                'google/gemini-3.5-flash',
                 'meta-llama/llama-3.3-70b-instruct',
             ],
             'azure' => [

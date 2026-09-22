@@ -78,6 +78,14 @@ class UpdateScriptTool implements Approvable, Tool
             'description' => $schema->string()
                 ->description('Optional new description for the script.'),
             'files' => $schema->array()
+                ->items($schema->object([
+                    'path' => $schema->string()
+                        ->description('Path of the file relative to the script root, e.g. "config.js" or "lib/helpers.js".')
+                        ->required(),
+                    'content' => $schema->string()
+                        ->description('The full file content as a string.')
+                        ->required(),
+                ]))
                 ->description('Array of files to create or overwrite. Each entry must have "path" (relative to script root, e.g. "config.js" or "lib/helpers.js") and "content" (the full file content as a string).')
                 ->required(),
         ];

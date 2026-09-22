@@ -33,6 +33,14 @@ class Script extends Model
         'last_run_at',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'is_default' => 'boolean',
+            'last_run_at' => 'datetime',
+        ];
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Script $script) {

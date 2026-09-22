@@ -76,6 +76,14 @@ class CreateScriptTool implements Approvable, Tool
                 ->description('The full k6 JavaScript content for the script.js entry point file. Must include imports from k6/http and k6 packages, an export default function, and proper checks/assertions.')
                 ->required(),
             'additional_files' => $schema->array()
+                ->items($schema->object([
+                    'path' => $schema->string()
+                        ->description('Path of the file relative to the script root, e.g. "config.js" or "lib/helpers.js".')
+                        ->required(),
+                    'content' => $schema->string()
+                        ->description('The full content of the file as a string.')
+                        ->required(),
+                ]))
                 ->description('Optional array of additional files to create alongside the entry point.'),
         ];
     }

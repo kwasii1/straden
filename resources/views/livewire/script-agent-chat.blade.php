@@ -64,85 +64,174 @@
                         <span class="text-[10px] text-zinc-400 dark:text-zinc-600 pr-1">{{ \Carbon\Carbon::parse($message['created_at'])->format('g:i A') }}</span>
                     </div>
                 @elseif ($message['role'] === 'assistant')
-                    {{-- Approval Pause Card --}}
+                    {{-- Approval Pause Carousel --}}
                     @if ($message['is_approval_pause'])
-                        <div class="flex justify-start">
-                            <div class="w-full max-w-80">
+                        @php
+                            $pendingTools = collect($message['tool_calls'] ?? [])
+                                ->filter(fn ($c) => in_array($c['id'] ?? '', $message['pending_call_ids'] ?? []))
+                                ->values()
+                                ->all();
+                            $pendingTotal = count($pendingTools);
+                            $sessionPendingTotal = collect($displayMessages)
+                                ->where('is_approval_pause', true)
+                                ->flatMap(fn ($m) => $m['pending_call_ids'] ?? [])
+                                ->unique()
+                                ->count();
+                            $decidedCount = count(array_intersect(
+                                $message['pending_call_ids'] ?? [],
+                                array_keys($pendingDecisions)
+                            ));
+                        @endphp
+                        <div class="flex justify-start" wire:key="approval-{{ md5(json_encode($message['pending_call_ids'] ?? [])) }}">
+                            <div
+                                class="w-full max-w-md"
+                                x-data="{ idx: 0, total: {{ $pendingTotal }} }"
+                                x-effect="$refs.track?.scrollTo({ left: idx * $refs.track.clientWidth, behavior: 'smooth' })"
+                            >
                                 <div class="overflow-hidden rounded-2xl bg-white dark:bg-zinc-900 shadow-lg shadow-zinc-900/5 border border-zinc-200/70 dark:border-zinc-800/70">
-                                    @foreach ($message['tool_calls'] as $call)
-                                        @php
-                                            $callId = $call['id'] ?? '';
-                                            if (! in_array($callId, $message['pending_call_ids'])) continue;
-
-                                            $toolName = $call['name'] ?? $call['function']['name'] ?? 'Unknown Tool';
-                                            $args = $call['arguments'] ?? [];
-                                            if (is_string($args)) $args = json_decode($args, true) ?? [];
-
-                                            $decision = $pendingDecisions[$callId] ?? null;
-                                        @endphp
-
-                                        <div class="p-3.5">
-                                            <div class="flex items-center gap-2">
+                                    <div class="px-3.5 pt-3.5 pb-3 border-b border-zinc-100 dark:border-zinc-800/70">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <div class="flex items-center gap-2 min-w-0">
                                                 <span class="flex size-6 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
                                                     <flux:icon.exclamation-triangle class="size-3.5" />
                                                 </span>
-                                                <span class="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
-                                                    {{ $this->toolLabel($toolName) }}
+                                                <span class="text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                                                    {{ $pendingTotal }} action{{ $pendingTotal === 1 ? '' : 's' }} need review
                                                 </span>
                                             </div>
+                                            <span class="shrink-0 text-[11px] tabular-nums text-zinc-400 dark:text-zinc-500" x-text="(idx + 1) + ' / ' + total"></span>
+                                        </div>
+                                        <p class="mt-1 text-[11.5px] text-zinc-500 dark:text-zinc-400">
+                                            Decide each one, or apply to all {{ $sessionPendingTotal }} pending across this chat. The agent resumes once every pending call is decided.
+                                            <span class="tabular-nums">({{ $decidedCount }}/{{ $pendingTotal }} decided here)</span>
+                                        </p>
+                                        @if ($awaitingApproval)
+                                            <div class="mt-2.5 flex items-center gap-2">
+                                                <flux:button
+                                                    wire:click="approveAllToolCalls"
+                                                    variant="primary"
+                                                    size="sm"
+                                                    class="rounded-lg text-xs flex-1"
+                                                    wire:loading.attr="disabled"
+                                                >
+                                                    Approve All
+                                                </flux:button>
+                                                <flux:button
+                                                    wire:click="rejectAllToolCalls"
+                                                    variant="subtle"
+                                                    size="sm"
+                                                    class="rounded-lg text-xs flex-1 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                                                    wire:loading.attr="disabled"
+                                                >
+                                                    Reject All
+                                                </flux:button>
+                                            </div>
+                                        @endif
+                                    </div>
 
-                                            <div class="mt-2.5 flex flex-col gap-1">
-                                                @foreach ($args as $key => $value)
-                                                    <div class="rounded-lg bg-zinc-50 dark:bg-zinc-800/60 px-2.5 py-1.5">
-                                                        <span class="block text-[10.5px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
-                                                            {{ $key }}
-                                                        </span>
-                                                        @if (in_array($key, ['content', 'entry_point_content']))
-                                                            <pre class="mt-0.5 text-[11px] font-mono text-zinc-600 dark:text-zinc-300 leading-relaxed line-clamp-6 whitespace-pre-wrap break-words">{{ $value }}</pre>
-                                                        @else
-                                                            <span class="text-[11.5px] font-mono text-zinc-700 dark:text-zinc-300 break-words">
-                                                                {{ is_string($value) ? $value : json_encode($value) }}
+                                    <div
+                                        x-ref="track"
+                                        @scroll.throttle.50ms="idx = Math.round($event.target.scrollLeft / $event.target.clientWidth)"
+                                        class="flex overflow-x-auto snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                                    >
+                                        @foreach ($pendingTools as $slideIndex => $call)
+                                            @php
+                                                $callId = $call['id'] ?? '';
+                                                $toolName = $call['name'] ?? $call['function']['name'] ?? 'Unknown Tool';
+                                                $args = $call['arguments'] ?? [];
+                                                if (is_string($args)) $args = json_decode($args, true) ?? [];
+                                                $decision = $pendingDecisions[$callId] ?? null;
+                                            @endphp
+                                            <div class="min-w-full snap-center p-3.5" wire:key="approval-slide-{{ $callId }}">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
+                                                        {{ $this->toolLabel($toolName) }}
+                                                    </span>
+                                                </div>
+
+                                                <div class="mt-2.5 flex flex-col gap-1">
+                                                    @foreach ($args as $key => $value)
+                                                        <div class="rounded-lg bg-zinc-50 dark:bg-zinc-800/60 px-2.5 py-1.5">
+                                                            <span class="block text-[10.5px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                                                                {{ $key }}
                                                             </span>
-                                                        @endif
-                                                    </div>
+                                                            @if (in_array($key, ['content', 'entry_point_content']))
+                                                                <pre class="mt-0.5 text-[11px] font-mono text-zinc-600 dark:text-zinc-300 leading-relaxed line-clamp-6 whitespace-pre-wrap break-words">{{ $value }}</pre>
+                                                            @else
+                                                                <span class="text-[11.5px] font-mono text-zinc-700 dark:text-zinc-300 break-words">
+                                                                    {{ is_string($value) ? $value : json_encode($value) }}
+                                                                </span>
+                                                            @endif
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+
+                                                @if ($awaitingApproval)
+                                                    @if ($decision)
+                                                        <div class="mt-3">
+                                                            <span class="inline-flex items-center gap-1.5 text-[11.5px] font-medium px-2.5 py-1 rounded-full {{ $decision === 'approve' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400' }}">
+                                                                <span class="size-1.5 rounded-full {{ $decision === 'approve' ? 'bg-emerald-500' : 'bg-rose-500' }}"></span>
+                                                                {{ $decision === 'approve' ? 'Approved' : 'Rejected' }} — waiting for the rest
+                                                            </span>
+                                                        </div>
+                                                    @else
+                                                        <div class="flex items-center gap-2 mt-3">
+                                                            <flux:button
+                                                                wire:click="approveToolCall('{{ $callId }}')"
+                                                                variant="primary"
+                                                                size="sm"
+                                                                class="rounded-lg text-xs flex-1"
+                                                                wire:loading.attr="disabled"
+                                                            >
+                                                                Approve
+                                                            </flux:button>
+                                                            <flux:button
+                                                                wire:click="rejectToolCall('{{ $callId }}')"
+                                                                variant="subtle"
+                                                                size="sm"
+                                                                class="rounded-lg text-xs flex-1 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                                                                wire:loading.attr="disabled"
+                                                            >
+                                                                Reject
+                                                            </flux:button>
+                                                        </div>
+                                                    @endif
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    </div>
+
+                                    @if ($pendingTotal > 1)
+                                        <div class="flex items-center justify-between px-3.5 pb-3.5">
+                                            <button
+                                                type="button"
+                                                x-on:click="idx = (idx - 1 + total) % total"
+                                                class="inline-flex size-7 items-center justify-center rounded-lg border border-zinc-200/70 dark:border-zinc-800/70 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition"
+                                                aria-label="Previous approval"
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+                                            </button>
+                                            <div class="flex items-center gap-1.5">
+                                                @foreach ($pendingTools as $slideIndex => $call)
+                                                    <button
+                                                        type="button"
+                                                        x-on:click="idx = {{ $slideIndex }}"
+                                                        class="h-1.5 rounded-full transition-all"
+                                                        :class="idx === {{ $slideIndex }} ? 'w-5 bg-zinc-900 dark:bg-zinc-100' : 'w-1.5 bg-zinc-300 dark:bg-zinc-700'"
+                                                        aria-label="Go to approval {{ $slideIndex + 1 }}"
+                                                    ></button>
                                                 @endforeach
                                             </div>
-
-                                            @if ($awaitingApproval)
-                                                @if ($decision)
-                                                    <div class="mt-3">
-                                                        <span class="inline-flex items-center gap-1.5 text-[11.5px] font-medium px-2.5 py-1 rounded-full {{ $decision === 'approve' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400' }}">
-                                                            <span class="size-1.5 rounded-full {{ $decision === 'approve' ? 'bg-emerald-500' : 'bg-rose-500' }}"></span>
-                                                            {{ $decision === 'approve' ? 'Approved' : 'Rejected' }}
-                                                        </span>
-                                                    </div>
-                                                @else
-                                                    <div class="flex items-center gap-2 mt-3">
-                                                        <flux:button
-                                                            wire:click="approveToolCall('{{ $callId }}')"
-                                                            variant="primary"
-                                                            size="sm"
-                                                            class="rounded-lg text-xs flex-1"
-                                                        >
-                                                            Approve
-                                                        </flux:button>
-                                                        <flux:button
-                                                            wire:click="rejectToolCall('{{ $callId }}')"
-                                                            variant="subtle"
-                                                            size="sm"
-                                                            class="rounded-lg text-xs flex-1 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                                                        >
-                                                            Reject
-                                                        </flux:button>
-                                                    </div>
-                                                @endif
-                                            @endif
+                                            <button
+                                                type="button"
+                                                x-on:click="idx = (idx + 1) % total"
+                                                class="inline-flex size-7 items-center justify-center rounded-lg border border-zinc-200/70 dark:border-zinc-800/70 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition"
+                                                aria-label="Next approval"
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                                            </button>
                                         </div>
-
-                                        @if (! $loop->last)
-                                            <div class="border-t border-zinc-100 dark:border-zinc-800/70"></div>
-                                        @endif
-                                    @endforeach
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -273,15 +362,19 @@
             {{-- Live stream + loading / thinking --}}
             <div
                 x-data="chatStream(@js('test.'.$test->id))"
-                @agent-approval-requested.window="reset(); $wire.reloadMessages()"
-                @agent-done.window="reset(); $wire.reloadMessages()"
+                @agent-approval-requested.window="reset(); $wire.reloadMessages(); setTimeout(() => $wire.reloadMessages(), 1200)"
+                @agent-done.window="reset(); $wire.reloadMessages(); setTimeout(() => $wire.reloadMessages(), 1200)"
                 @agent-error.window="reset(); $wire.reloadError($event.detail)"
             >
                 {{-- Live agent bubble (streamed reasoning / text / tool activity) --}}
-                <template x-if="streaming || thinking || liveText || toolCount > 0">
+                <template x-if="streaming || thinking || liveText || toolCount > 0 || approvalPending">
                     <div class="flex justify-start">
                         <div class="max-w-[85%] rounded-2xl rounded-tl-xs px-4 py-3 bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border border-zinc-200/60 dark:border-zinc-800/60 shadow-xs">
-                            <div x-show="thinking && !liveText && toolCount === 0" class="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                            <div x-show="approvalPending && !liveText && toolCount === 0" class="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+                                <span class="size-2 rounded-full bg-amber-400 animate-pulse"></span>
+                                <span>Approval needed — loading details…</span>
+                            </div>
+                            <div x-show="thinking && !liveText && toolCount === 0 && !approvalPending" class="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                                 <span class="size-2 rounded-full bg-indigo-400 animate-pulse"></span>
                                 <span>Thinking…</span>
                             </div>
@@ -303,7 +396,7 @@
 
                 {{-- Fallback loading state shown before the first stream event --}}
                 @if ($isProcessing)
-                    <div class="flex justify-start" x-show="!streaming && !liveText && !toolCount && !thinking">
+                    <div class="flex justify-start" x-show="!streaming && !liveText && !toolCount && !thinking && !approvalPending">
                         @include('components.loading-state', [
                             'label' => $awaitingApproval ? 'Awaiting action approval' : 'Agent analyzing context & executing steps',
                             'variant' => 'Drive'

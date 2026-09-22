@@ -9,11 +9,12 @@ use App\Enums\ConnectorType;
 use App\Models\Connector;
 use App\Models\Script;
 use App\Models\Test;
-use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\JsonSchema\JsonSchemaTypeFactory;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Ai\Approvals\PendingApproval;
 use Laravel\Ai\Contracts\Approvable;
+use Laravel\Ai\ObjectSchema;
 use Laravel\Ai\Prompts\AgentPrompt;
 use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Tools\Request;
@@ -118,15 +119,30 @@ test('create script tool validates input schema', function () {
 
     $tool = new CreateScriptTool($test);
 
-    $mockSchema = Mockery::mock(JsonSchema::class);
-    $mockSchema->shouldReceive('string')->andReturn(Mockery::mock()->shouldReceive('description', 'required')->andReturnSelf()->getMock());
-    $mockSchema->shouldReceive('array')->andReturn(Mockery::mock()->shouldReceive('description')->andReturnSelf()->getMock());
+    $schema = (new ObjectSchema($tool->schema(new JsonSchemaTypeFactory)))->toSchema();
 
-    $schema = $tool->schema($mockSchema);
+    expect($schema['properties'])->toHaveKeys(['name', 'entry_point_content', 'additional_files']);
 
-    expect($schema)->toHaveKey('name');
-    expect($schema)->toHaveKey('entry_point_content');
-    expect($schema)->toHaveKey('additional_files');
+    // Gemini rejects array schemas without an explicit items definition.
+    $items = $schema['properties']['additional_files']['items'] ?? null;
+
+    expect($items)->not->toBeNull()
+        ->and($items['type'])->toBe('object')
+        ->and($items['properties'])->toHaveKeys(['path', 'content']);
+});
+
+test('update script tool files schema declares items for gemini', function () {
+    $test = Test::factory()->create();
+
+    $tool = new UpdateScriptTool($test);
+
+    $schema = (new ObjectSchema($tool->schema(new JsonSchemaTypeFactory)))->toSchema();
+
+    $items = $schema['properties']['files']['items'] ?? null;
+
+    expect($items)->not->toBeNull()
+        ->and($items['type'])->toBe('object')
+        ->and($items['properties'])->toHaveKeys(['path', 'content']);
 });
 
 test('create script tool requires approval', function () {

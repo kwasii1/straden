@@ -56,7 +56,7 @@ class extends Component
         return $count.' connector'.($count > 1 ? 's' : '').' ('.$types.')';
     }
 
-    public function formatLastRun(?string $lastRunAt): string
+    public function formatLastRun(Carbon|string|null $lastRunAt): string
     {
         if ($lastRunAt === null) {
             return 'Never run';
