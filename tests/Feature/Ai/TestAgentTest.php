@@ -314,3 +314,75 @@ test('agent fake assertions work', function () {
         return $prompt->contains('Create');
     });
 });
+
+test('validate script tool warns on teardown without teardown timeout', function () {
+    Storage::fake('local');
+
+    $test = Test::factory()->create();
+    $script = Script::factory()->create([
+        'test_id' => $test->id,
+        'disk' => 'local',
+        'script_path' => 'scripts/'.$test->id.'/'.$test->id.'/script.js',
+    ]);
+
+    Storage::disk('local')->makeDirectory('scripts/'.$test->id.'/'.$test->id);
+    Storage::disk('local')->put(
+        $script->script_path,
+        <<<'JS'
+import http from 'k6/http';
+import { check } from 'k6';
+
+export const options = { vus: 1, duration: '5s' };
+
+export default function () {
+    const res = http.get('https://example.com');
+    check(res, { 'status is 200': (r) => r.status === 200 });
+}
+
+export function teardown() {
+    http.get('https://example.com/cleanup');
+}
+JS
+    );
+
+    $tool = new ValidateScriptTool;
+    $result = json_decode((string) $tool->handle(new Request(['script_id' => $script->id])), true);
+
+    expect(collect($result['pattern_issues'])->pluck('pattern'))->toContain('teardownTimeout');
+});
+
+test('validate script tool accepts teardown with teardown timeout', function () {
+    Storage::fake('local');
+
+    $test = Test::factory()->create();
+    $script = Script::factory()->create([
+        'test_id' => $test->id,
+        'disk' => 'local',
+        'script_path' => 'scripts/'.$test->id.'/'.$test->id.'/script.js',
+    ]);
+
+    Storage::disk('local')->makeDirectory('scripts/'.$test->id.'/'.$test->id);
+    Storage::disk('local')->put(
+        $script->script_path,
+        <<<'JS'
+import http from 'k6/http';
+import { check } from 'k6';
+
+export const options = { vus: 1, duration: '5s', teardownTimeout: '3m' };
+
+export default function () {
+    const res = http.get('https://example.com');
+    check(res, { 'status is 200': (r) => r.status === 200 });
+}
+
+export function teardown() {
+    http.get('https://example.com/cleanup');
+}
+JS
+    );
+
+    $tool = new ValidateScriptTool;
+    $result = json_decode((string) $tool->handle(new Request(['script_id' => $script->id])), true);
+
+    expect(collect($result['pattern_issues'])->pluck('pattern'))->not->toContain('teardownTimeout');
+});

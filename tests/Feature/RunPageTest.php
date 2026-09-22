@@ -155,3 +155,16 @@ test('creating a run stamps the script last run timestamp', function () {
 
     expect($script->fresh()->last_run_at)->not->toBeNull();
 });
+
+test('error run shows collapsed error with expand chevron', function () {
+    $user = User::factory()->create();
+    $run = makeRun('error');
+    $run->update(['error_message' => "level=error msg=\"teardown() execution timed out after 60 seconds\"\nSecond line of the log\nThird line"]);
+
+    $this->actingAs($user)
+        ->get(route('projects.runs.view', ['project' => $run->script->test->project, 'run' => $run]))
+        ->assertOk()
+        ->assertSee('x-data="{ open: false }"', false)
+        ->assertSee('teardown() execution timed out', false)
+        ->assertSee('teardown() execution timed out after 60 seconds', false);
+});

@@ -139,6 +139,33 @@ class ValidateScriptTool implements Tool
             ];
         }
 
+        $this->checkLifecycleTimeout($content, 'setup', $issues);
+        $this->checkLifecycleTimeout($content, 'teardown', $issues);
+
         return $issues;
+    }
+
+    /**
+     * Flag lifecycle functions without a matching k6 timeout budget.
+     *
+     * k6 kills setup()/teardown() after 60s by default. Lifecycle functions
+     * that issue HTTP requests (provisioning, cleanup) routinely exceed that
+     * once the target is saturated, aborting an otherwise clean run.
+     */
+    private function checkLifecycleTimeout(string $content, string $hook, array &$issues): void
+    {
+        if (! preg_match('/export\s+function\s+'.$hook.'\s*\(/', $content)) {
+            return;
+        }
+
+        if (preg_match('/'.$hook.'Timeout\s*:/', $content)) {
+            return;
+        }
+
+        $issues[] = [
+            'pattern' => $hook.'Timeout',
+            'message' => "export function {$hook}() is defined but no {$hook}Timeout is set in options (k6 defaults to 60s and kills slow lifecycle functions). Add '{$hook}Timeout: \"3m\"' or similar to export const options, and batch any HTTP requests with http.batch() instead of issuing them one at a time.",
+            'severity' => 'warning',
+        ];
     }
 }

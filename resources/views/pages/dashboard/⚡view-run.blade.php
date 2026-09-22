@@ -344,15 +344,36 @@ class extends Component
         </div>
     </div>
 
-    {{-- Error message --}}
-    @if ($this->run->status === 'error' && $this->run->error_message)
-        <div class="overflow-hidden rounded-xl border border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-950/30">
-            <div class="flex flex-col gap-y-2 px-5 py-4">
-                <div class="flex items-center gap-2">
-                    <flux:icon.exclamation-triangle class="size-4 text-red-500 dark:text-red-400" />
-                    <flux:heading size="sm" class="text-red-600 dark:text-red-400">Error</flux:heading>
+    {{-- Error / warning message (collapsed by default, chevron to expand) --}}
+    @if ($this->run->error_message)
+        @php
+            $errorSummary = Str::limit(trim((string) strtok($this->run->error_message, "\n")), 140);
+            $isRunWarning = $this->run->status !== 'error';
+        @endphp
+        <div
+            x-data="{ open: false }"
+            class="overflow-hidden rounded-xl border {{ $isRunWarning ? 'border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/30' : 'border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-950/30' }}"
+        >
+            <button
+                type="button"
+                x-on:click="open = !open"
+                :aria-expanded="open.toString()"
+                class="flex w-full items-center gap-2 px-5 py-4 text-left"
+            >
+                <flux:icon.exclamation-triangle class="size-4 shrink-0 {{ $isRunWarning ? 'text-amber-500 dark:text-amber-400' : 'text-red-500 dark:text-red-400' }}" />
+                <flux:heading size="sm" class="shrink-0 {{ $isRunWarning ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400' }}">{{ $isRunWarning ? 'Warning' : 'Error' }}</flux:heading>
+                <span x-show="!open" class="min-w-0 flex-1 truncate font-mono text-xs {{ $isRunWarning ? 'text-amber-700/80 dark:text-amber-300/80' : 'text-red-700/80 dark:text-red-300/80' }}">{{ $errorSummary }}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                    class="shrink-0 transition-transform duration-200 {{ $isRunWarning ? 'text-amber-500 dark:text-amber-400' : 'text-red-500 dark:text-red-400' }}"
+                    :style="open ? 'transform: rotate(0deg)' : 'transform: rotate(-90deg)'">
+                    <path d="M6 9l6 6 6-6" />
+                </svg>
+            </button>
+            <div class="grid transition-[grid-template-rows,opacity] duration-300"
+                :style="open ? 'grid-template-rows:1fr;opacity:1' : 'grid-template-rows:0fr;opacity:0'">
+                <div class="overflow-hidden">
+                    <pre class="mx-5 mb-4 max-h-80 overflow-y-auto rounded-lg p-3 text-sm whitespace-pre-wrap break-words {{ $isRunWarning ? 'bg-amber-100/60 text-amber-700 dark:bg-black/30 dark:text-amber-300' : 'bg-red-100/60 text-red-700 dark:bg-black/30 dark:text-red-300' }}">{{ $this->run->error_message }}</pre>
                 </div>
-                <pre class="whitespace-pre-wrap text-sm text-red-700 dark:text-red-300">{{ $this->run->error_message }}</pre>
             </div>
         </div>
     @endif

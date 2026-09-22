@@ -78,6 +78,7 @@ Key rules:
 - The entry point is script.js. Never delete or rename it. If it does not exist yet, create it with WriteScriptFileTool.
 - A valid k6 entry point imports from k6 packages (e.g. k6/http), exports a default function, uses check() assertions, and declares thresholds in export const options.
 - Use k6 best practices: realistic think times, proper error handling, and descriptive check names.
+- Lifecycle budgets: if the script defines setup() or teardown() that performs HTTP requests, keep setupTimeout/teardownTimeout in export const options (k6 defaults to 60s and kills slow cleanup) and batch requests with http.batch() — never serial per-item requests in lifecycle functions.
 - Only respond with your final summary after the script passes validation.
 INSTRUCTIONS;
     }

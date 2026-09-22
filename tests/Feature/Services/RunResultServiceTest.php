@@ -347,3 +347,44 @@ test('hasLog detects live and persisted logs', function () {
     Storage::disk('local')->put('run-logs/'.$run->id.'.log', 'persisted');
     expect(RunResultService::hasLog($run->id))->toBeTrue();
 });
+
+test('finalize marks a teardown timeout with clean load as passed with warning', function () {
+    $run = Run::factory()->running()->create();
+    writeRunArtifacts($run, 101, k6Summary([
+        'metrics' => [
+            'http_req_failed' => ['passes' => 0, 'fails' => 5000],
+        ],
+    ]));
+    file_put_contents(
+        RunResultService::logFilePath($run->id),
+        'level=error msg="teardown() execution timed out after 60 seconds" hint="You can increase the time limit via the teardownTimeout option"'
+    );
+
+    RunResultService::finalize($run);
+    $run->refresh();
+
+    expect($run->status)->toBe('passed')
+        ->and($run->exit_code)->toBe(101)
+        ->and($run->error_message)->toStartWith('Teardown timed out after the load completed')
+        ->and($run->error_message)->toContain('teardown() execution timed out')
+        ->and($run->thresholds_passed)->toBeTrue();
+});
+
+test('finalize keeps teardown timeout with failed requests as error', function () {
+    $run = Run::factory()->running()->create();
+    writeRunArtifacts($run, 101, k6Summary([
+        'metrics' => [
+            'http_req_failed' => ['passes' => 50, 'fails' => 4950],
+        ],
+    ]));
+    file_put_contents(
+        RunResultService::logFilePath($run->id),
+        'level=error msg="teardown() execution timed out after 60 seconds"'
+    );
+
+    RunResultService::finalize($run);
+    $run->refresh();
+
+    expect($run->status)->toBe('error')
+        ->and($run->error_message)->toStartWith('k6 exited with code 101');
+});

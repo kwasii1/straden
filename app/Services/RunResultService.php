@@ -168,8 +168,24 @@ class RunResultService
             $update = array_merge($update, self::parseSummary($summary));
         }
 
+        $logTail = self::readLogTail($runId);
+
+        // A teardown timeout kills an otherwise clean run after the load has
+        // finished: k6 exits 101, but every recorded request succeeded. The
+        // load results are valid — only cleanup died — so this is a pass with
+        // a warning, not an error.
+        $teardownTimeout = $exitCode === 101
+            && $logTail !== null
+            && str_contains($logTail, 'teardown() execution timed out');
+
+        $cleanLoad = ($update['requests_total'] ?? 0) > 0
+            && ($update['error_rate'] ?? 100) == 0;
+
+        $teardownWarning = $teardownTimeout && $cleanLoad;
+
         $update['status'] = match (true) {
             $exitCode === 0 => 'passed',
+            $teardownWarning => 'passed',
             in_array($exitCode, [99, 104], true) => 'failed',
             $exitCode === 108 => 'error',
             in_array($exitCode, [130, 137, 143], true) => 'aborted',
@@ -179,19 +195,31 @@ class RunResultService
 
         // k6's exit code is the authoritative threshold result: it only exits 0
         // when every threshold is met. Only record it when thresholds exist.
+        // For a teardown-timeout pass, derive it from the evaluated summary.
         $update['thresholds_passed'] = match (true) {
             empty($update['thresholds_summary'] ?? null) => null,
             $exitCode === 0 => true,
             in_array($exitCode, [99, 104], true) => false,
+            $teardownWarning => array_all(
+                $update['thresholds_summary'],
+                fn ($threshold) => ($threshold['ok'] ?? false) === true,
+            ),
             default => null,
         };
 
-        if ($update['status'] === 'error') {
+        if ($teardownWarning) {
+            $message = 'Teardown timed out after the load completed with 0% failed requests — the results are valid, but cleanup may be incomplete (leftover test data). Batch cleanup requests with http.batch() or raise teardownTimeout.';
+
+            if ($logTail !== null) {
+                $message .= "\n\n".$logTail;
+            }
+
+            $update['error_message'] = mb_substr($message, 0, 65535);
+        } elseif ($update['status'] === 'error') {
             $message = $exitCode !== null
                 ? 'k6 exited with code '.$exitCode
                 : 'k6 process ended without recording an exit code';
 
-            $logTail = self::readLogTail($runId);
             if ($logTail !== null) {
                 $message .= "\n\n".$logTail;
             }

@@ -89,6 +89,7 @@ Key rules:
 - Create separate scripts for different test types by default. One script = one scenario type. Do not combine multiple scenarios (e.g., smoke + load) into a single script unless the user explicitly asks to combine them.
 - When validation fails, do not give up. Retry the fix-and-validate cycle up to 5 times per script before reporting a persistent issue to the user.
 - Use k6 best practices: checks, thresholds, proper error handling, realistic think times.
+- Lifecycle budgets: if a script defines setup() or teardown() that performs HTTP requests, always set setupTimeout/teardownTimeout in export const options (e.g. setupTimeout: '3m', teardownTimeout: '5m') — k6 kills them after 60s by default. Never issue serial per-item requests inside setup/teardown; batch with http.batch() in bounded chunks instead, since the target is usually still saturated when cleanup runs.
 - Output scripts as clean, well-structured JavaScript.
 INSTRUCTIONS;
     }
