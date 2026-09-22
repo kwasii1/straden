@@ -2,6 +2,7 @@
 
 use App\Models\Project;
 use App\Models\Run;
+use App\Services\EndpointGrouper;
 use App\Services\InfluxDbService;
 use App\Services\RunResultService;
 use Livewire\Attributes\Computed;
@@ -75,15 +76,45 @@ class extends Component
         return in_array($key, $this->extraCharts, true);
     }
 
+    /**
+     * Raw endpoint names grouped into route patterns, so one dynamic route
+     * (e.g. GET /todos/:id) renders as a single filter row instead of one
+     * row per identifier.
+     *
+     * @return array<int, array{pattern: string, label: string, count: int, names: array<int, string>}>
+     */
     #[Computed]
     public function endpoints(): array
     {
         try {
-            return (new InfluxDbService(\App\Models\Connector::influxDb()))
+            $names = (new InfluxDbService(\App\Models\Connector::influxDb()))
                 ->endpointsForRun($this->run->id);
         } catch (\Throwable) {
             return [];
         }
+
+        return EndpointGrouper::group($names);
+    }
+
+    /**
+     * The raw endpoint names behind the current selection.
+     *
+     * @return array<int, string>
+     */
+    public function selectedEndpointNames(): array
+    {
+        if ($this->selectedEndpoint === null || $this->selectedEndpoint === '') {
+            return [];
+        }
+
+        foreach ($this->endpoints as $group) {
+            if ($group['pattern'] === $this->selectedEndpoint) {
+                return $group['names'];
+            }
+        }
+
+        // Stale selection (endpoints reloaded): treat the value as one raw name.
+        return [$this->selectedEndpoint];
     }
 
     #[Computed]
@@ -104,13 +135,15 @@ class extends Component
     #[Computed]
     public function selectedEndpointSummary(): ?array
     {
-        if ($this->selectedEndpoint === null || $this->selectedEndpoint === '') {
+        $names = $this->selectedEndpointNames();
+
+        if ($names === []) {
             return null;
         }
 
         try {
             return (new InfluxDbService(\App\Models\Connector::influxDb()))
-                ->endpointSummary($this->run->id, $this->selectedEndpoint);
+                ->endpointSummary($this->run->id, $names);
         } catch (\Throwable) {
             return null;
         }
@@ -127,11 +160,14 @@ class extends Component
         }
     }
 
-    private function endpointFilter(): ?string
+    /**
+     * @return array<int, string>|null
+     */
+    private function endpointFilter(): ?array
     {
-        return $this->selectedEndpoint !== '' && $this->selectedEndpoint !== null
-            ? $this->selectedEndpoint
-            : null;
+        $names = $this->selectedEndpointNames();
+
+        return $names === [] ? null : $names;
     }
 
     #[Computed]
@@ -175,24 +211,6 @@ class extends Component
         } catch (\Throwable) {
             return null;
         }
-    }
-
-    public function endpointLabel(string $endpoint): string
-    {
-        if (! preg_match('#^https?://#i', $endpoint)) {
-            return $endpoint;
-        }
-
-        $segments = array_values(array_filter(
-            explode('/', (string) parse_url($endpoint, PHP_URL_PATH)),
-            fn (string $segment) => $segment !== ''
-        ));
-
-        if (count($segments) >= 2) {
-            return implode('/', array_slice($segments, -2));
-        }
-
-        return $segments[0] ?? $endpoint;
     }
 
     public function statusVariant(string $status): array
@@ -547,7 +565,18 @@ class extends Component
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <flux:text class="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Time-Series Charts</flux:text>
-                            <p class="text-xs text-[#919191]">Performance metrics sampled every 5 seconds</p>
+                            <p class="text-xs text-[#919191]">
+                                @if ($this->selectedEndpoint)
+                                    @php
+                                        $activeGroup = $currentEndpointGroup ?? collect($this->endpoints)->firstWhere('pattern', $this->selectedEndpoint);
+                                        $activeLabel = $activeGroup['label'] ?? $this->selectedEndpoint;
+                                        $activeCount = $activeGroup['count'] ?? 1;
+                                    @endphp
+                                    Filtered to {{ $activeLabel }}{{ $activeCount > 1 ? ' (× '.$activeCount.')' : '' }} · VUs, Checks and Data Transfer are run-level only
+                                @else
+                                    Performance metrics sampled every 5 seconds
+                                @endif
+                            </p>
                         </div>
                         <div class="flex items-center gap-2">
                             <flux:dropdown>
@@ -577,14 +606,101 @@ class extends Component
                             </flux:dropdown>
 
                             @if (! empty($this->endpoints))
-                                <flux:select wire:model.live="selectedEndpoint" class="w-72" label="Endpoint">
-                                    <flux:select.option value="">All endpoints</flux:select.option>
-                                    @foreach ($this->endpoints as $endpoint)
-                                        <flux:select.option value="{{ $endpoint }}" title="{{ $endpoint }}">
-                                            {{ $this->endpointLabel($endpoint) }}
-                                        </flux:select.option>
-                                    @endforeach
-                                </flux:select>
+                                @php
+                                    $currentEndpointGroup = collect($this->endpoints)->firstWhere('pattern', $this->selectedEndpoint);
+                                @endphp
+                                <div
+                                    x-data="{
+                                        open: false,
+                                        search: '',
+                                        groups: @js(collect($this->endpoints)->map(fn ($group) => ['pattern' => $group['pattern'], 'label' => $group['label'], 'count' => $group['count']])->values()),
+                                        selected: @js($this->selectedEndpoint),
+                                        get current() { return this.groups.find((g) => g.pattern === this.selected) ?? null; },
+                                        get filtered() {
+                                            const q = this.search.trim().toLowerCase();
+                                            if (q === '') return this.groups;
+                                            return this.groups.filter((g) => g.label.toLowerCase().includes(q) || g.pattern.toLowerCase().includes(q));
+                                        },
+                                        get visible() { return this.filtered.slice(0, 100); },
+                                        pick(pattern) {
+                                            this.selected = pattern;
+                                            $wire.set('selectedEndpoint', pattern);
+                                            this.open = false;
+                                            this.search = '';
+                                        },
+                                    }"
+                                    @keydown.escape.window="open = false"
+                                    class="relative w-72"
+                                    wire:key="endpoint-filter"
+                                >
+                                    <flux:text class="mb-1 block text-[11px] font-medium tracking-wide text-zinc-500 uppercase">Endpoint</flux:text>
+                                    <button
+                                        type="button"
+                                        x-on:click="open = !open; if (open) $nextTick(() => $refs.search.focus())"
+                                        class="flex w-full items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-left text-sm text-zinc-900 shadow-xs transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                                    >
+                                        <flux:icon.globe-alt class="size-4 shrink-0 text-zinc-400" />
+                                        <span class="min-w-0 flex-1 truncate" x-text="current ? current.label : 'All endpoints'">{{ $currentEndpointGroup['label'] ?? 'All endpoints' }}</span>
+                                        <span x-show="current && current.count > 1" x-text="'× ' + current?.count" class="shrink-0 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[11px] font-medium text-zinc-500 tabular-nums dark:bg-zinc-800 dark:text-zinc-400"></span>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="shrink-0 text-zinc-400 transition-transform duration-200"
+                                            :style="open ? 'transform: rotate(180deg)' : 'transform: rotate(0deg)'">
+                                            <path d="M6 9l6 6 6-6" />
+                                        </svg>
+                                    </button>
+                                    <div
+                                        x-show="open"
+                                        x-cloak
+                                        x-on:click.outside="open = false"
+                                        class="absolute right-0 z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
+                                    >
+                                        <div class="border-b border-zinc-100 p-2 dark:border-zinc-800">
+                                            <input
+                                                x-ref="search"
+                                                x-model="search"
+                                                type="text"
+                                                placeholder="Search endpoints…"
+                                                class="w-full rounded-lg bg-zinc-100 px-2.5 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500"
+                                            />
+                                        </div>
+                                        <ul class="max-h-64 overflow-y-auto p-1">
+                                            <li>
+                                                <button
+                                                    type="button"
+                                                    x-on:click="pick('')"
+                                                    class="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                                                >
+                                                    <span class="min-w-0 flex-1 truncate">All endpoints</span>
+                                                    <svg x-show="!current" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-emerald-500">
+                                                        <path d="M20 6L9 17l-5-5" />
+                                                    </svg>
+                                                </button>
+                                            </li>
+                                            <template x-for="group in visible" :key="group.pattern">
+                                                <li>
+                                                    <button
+                                                        type="button"
+                                                        x-on:click="pick(group.pattern)"
+                                                        :title="group.pattern"
+                                                        class="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                                                    >
+                                                        <span class="min-w-0 flex-1 truncate font-mono" x-text="group.label"></span>
+                                                        <span x-show="group.count > 1" x-text="'× ' + group.count" class="shrink-0 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10.5px] font-medium text-zinc-500 tabular-nums dark:bg-zinc-800 dark:text-zinc-400"></span>
+                                                        <svg x-show="current && current.pattern === group.pattern" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-emerald-500">
+                                                            <path d="M20 6L9 17l-5-5" />
+                                                        </svg>
+                                                    </button>
+                                                </li>
+                                            </template>
+                                            <li x-show="filtered.length === 0" class="px-3 py-2 text-xs text-zinc-400">
+                                                No endpoints match.
+                                            </li>
+                                            <li x-show="filtered.length > visible.length" class="px-3 py-2 text-[11px] text-zinc-400 tabular-nums">
+                                                Showing <span x-text="visible.length"></span> of <span x-text="filtered.length"></span> — refine search to narrow down.
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
                             @endif
                         </div>
                     </div>

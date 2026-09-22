@@ -57,8 +57,7 @@ test('run detail page shows the endpoint filter with short labels', function () 
         ->get(route('projects.runs.view', ['project' => $run->script->test->project, 'run' => $run]))
         ->assertOk()
         ->assertSee('All endpoints')
-        ->assertSee('v1/users')
-        ->assertSee('v1/orders')
+        ->assertSee('Search endpoints', false)
         ->assertSee('Active VUs');
 });
 
@@ -75,8 +74,8 @@ test('selecting an endpoint scopes the charts and shows a summary strip', functi
         ->assertSee('Total Requests')
         ->assertSee('100 ms')
         ->assertSee('200 ms')
-        ->assertDontSee('Active VUs')
-        ->assertDontSee('Data Transfer');
+        ->assertSee('are run-level only')
+        ->assertDontSee('Active VUs');
 });
 
 test('clearing the endpoint filter restores the run-level charts', function () {
@@ -106,4 +105,89 @@ test('run detail page hides the filter when no endpoints are available', functio
         ->get(route('projects.runs.view', ['project' => $run->script->test->project, 'run' => $run]))
         ->assertOk()
         ->assertDontSee('All endpoints');
+});
+
+function fakeGroupedRunPageInflux(): void
+{
+    Http::fake(function ($request) {
+        $q = $request['q'] ?? '';
+        $t = 1690000000000;
+
+        if (str_contains($q, 'SHOW TAG VALUES')) {
+            return Http::response(['results' => [['series' => [['columns' => ['key', 'value'], 'values' => [
+                ['name', 'https://api.example.com/v1/users'],
+                ['name', 'https://api.example.com/todos/1'],
+                ['name', 'https://api.example.com/todos/2'],
+            ]]]]]]);
+        }
+
+        $isDuration = str_contains($q, 'http_req_duration');
+
+        if ($isDuration) {
+            $series = ['columns' => ['time', 'p95', 'p99'], 'values' => [[$t, 100, 200]]];
+        } else {
+            $series = ['columns' => ['time', 'value'], 'values' => [[$t, 10]]];
+        }
+
+        return Http::response(['results' => [['series' => [$series]]]]);
+    });
+}
+
+test('dynamic endpoints collapse into one grouped filter row', function () {
+    fakeGroupedRunPageInflux();
+
+    Connector::factory()->influxDb()->create();
+    $user = User::factory()->create();
+    $run = makeFilteredRun();
+
+    $this->actingAs($user)
+        ->get(route('projects.runs.view', ['project' => $run->script->test->project, 'run' => $run]))
+        ->assertOk()
+        ->assertSee('{id}', false)
+        ->assertSee('Search endpoints', false);
+
+    $component = Livewire::actingAs($user)
+        ->test('pages::dashboard.view-run', ['project' => $run->script->test->project, 'run' => $run]);
+
+    expect($component->instance()->endpoints)->toBe([
+        [
+            'pattern' => 'https://api.example.com/v1/users',
+            'label' => 'v1/users',
+            'count' => 1,
+            'names' => ['https://api.example.com/v1/users'],
+        ],
+        [
+            'pattern' => 'https://api.example.com/todos/{id}',
+            'label' => 'todos/{id}',
+            'count' => 2,
+            'names' => [
+                'https://api.example.com/todos/1',
+                'https://api.example.com/todos/2',
+            ],
+        ],
+    ]);
+});
+
+test('selecting a grouped pattern scopes queries across every raw url', function () {
+    fakeGroupedRunPageInflux();
+
+    Connector::factory()->influxDb()->create();
+    $user = User::factory()->create();
+    $run = makeFilteredRun();
+
+    Livewire::actingAs($user)
+        ->test('pages::dashboard.view-run', ['project' => $run->script->test->project, 'run' => $run])
+        ->set('selectedEndpoint', 'https://api.example.com/todos/{id}')
+        ->assertSee('Total Requests');
+
+    // One anchored regex covers the whole group — no per-URL OR enumeration.
+    Http::assertSent(function ($request) {
+        $q = $request['q'] ?? '';
+
+        return str_contains($q, '"name" =~') && str_contains($q, 'todos');
+    });
+
+    foreach (Http::recorded() as $pair) {
+        expect($pair[0]['q'] ?? '')->not->toContain(' OR ');
+    }
 });

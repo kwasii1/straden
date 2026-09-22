@@ -105,7 +105,7 @@ class InfluxDbService
         ];
     }
 
-    public function metricsForRun(string $runId, ?string $endpoint = null, ?array $timeRange = null): array
+    public function metricsForRun(string $runId, array|string|null $endpoint = null, ?array $timeRange = null): array
     {
         $perEndpoint = $endpoint !== null;
 
@@ -131,18 +131,26 @@ class InfluxDbService
         return array_values(array_map(fn (array $row) => $row[1], $values));
     }
 
-    public function endpointSummary(string $runId, string $endpoint): array
+    /**
+     * @param  array<int, string>|string  $endpoint  A single name, or the raw
+     *                                               names behind a grouped route pattern.
+     */
+    public function endpointSummary(string $runId, array|string $endpoint): array
     {
+        $names = is_array($endpoint) ? array_values(array_unique($endpoint)) : [$endpoint];
+
+        $conditions = self::nameCondition($names);
+
         $requests = $this->query(
-            sprintf('SELECT count("value") FROM "http_reqs" WHERE "run_id"=\'%s\' AND "name"=\'%s\'', $runId, $endpoint)
+            sprintf('SELECT count("value") FROM "http_reqs" WHERE "run_id"=\'%s\' AND (%s)', $runId, $conditions)
         );
 
         $latency = $this->query(
-            sprintf('SELECT percentile("value", 95) AS "p95", percentile("value", 99) AS "p99" FROM "http_req_duration" WHERE "run_id"=\'%s\' AND "name"=\'%s\'', $runId, $endpoint)
+            sprintf('SELECT percentile("value", 95) AS "p95", percentile("value", 99) AS "p99" FROM "http_req_duration" WHERE "run_id"=\'%s\' AND (%s)', $runId, $conditions)
         );
 
         $errors = $this->query(
-            sprintf('SELECT mean("value") * 100 AS "error_rate" FROM "http_req_failed" WHERE "run_id"=\'%s\' AND "name"=\'%s\'', $runId, $endpoint)
+            sprintf('SELECT mean("value") * 100 AS "error_rate" FROM "http_req_failed" WHERE "run_id"=\'%s\' AND (%s)', $runId, $conditions)
         );
 
         $requestsRow = $requests[0]['series'][0]['values'][0] ?? null;
@@ -164,14 +172,14 @@ class InfluxDbService
         );
     }
 
-    public function requestRateOverTime(string $runId, ?string $endpoint = null, ?array $timeRange = null): array
+    public function requestRateOverTime(string $runId, array|string|null $endpoint = null, ?array $timeRange = null): array
     {
         return $this->queryTimeSeries(
             sprintf('SELECT count("value") FROM "http_reqs" WHERE "run_id"=\'%s\'%s%s GROUP BY time(5s) fill(0)', $runId, $this->endpointClause($endpoint), $this->timeRangeClause($timeRange))
         );
     }
 
-    public function responseTimeOverTime(string $runId, ?string $endpoint = null, ?array $timeRange = null): array
+    public function responseTimeOverTime(string $runId, array|string|null $endpoint = null, ?array $timeRange = null): array
     {
         $q = sprintf(
             'SELECT percentile("value", 95) AS "p95", percentile("value", 99) AS "p99" FROM "http_req_duration" WHERE "run_id"=\'%s\'%s%s GROUP BY time(5s) fill(none)',
@@ -183,7 +191,7 @@ class InfluxDbService
         return $this->queryMultiSeries($q, ['p95', 'p99']);
     }
 
-    public function errorRateOverTime(string $runId, ?string $endpoint = null, ?array $timeRange = null): array
+    public function errorRateOverTime(string $runId, array|string|null $endpoint = null, ?array $timeRange = null): array
     {
         return $this->queryTimeSeries(
             sprintf('SELECT mean("value") * 100 FROM "http_req_failed" WHERE "run_id"=\'%s\'%s%s GROUP BY time(5s) fill(0)', $runId, $this->endpointClause($endpoint), $this->timeRangeClause($timeRange))
@@ -233,7 +241,7 @@ class InfluxDbService
         ];
     }
 
-    public function responseCodeBreakdown(string $runId, ?string $endpoint = null): array
+    public function responseCodeBreakdown(string $runId, array|string|null $endpoint = null): array
     {
         $result = $this->query(
             sprintf('SELECT count("value") FROM "http_reqs" WHERE "run_id"=\'%s\'%s GROUP BY "status"', $runId, $this->endpointClause($endpoint))
@@ -270,7 +278,7 @@ class InfluxDbService
         ];
     }
 
-    public function responseCodesOverTime(string $runId, ?string $endpoint = null, ?array $timeRange = null): array
+    public function responseCodesOverTime(string $runId, array|string|null $endpoint = null, ?array $timeRange = null): array
     {
         $prefixes = ['2', '3', '4', '5'];
         $datasets = [];
@@ -307,7 +315,7 @@ class InfluxDbService
      *
      * @return array{labels: array, blocked: array, connecting: array, tls: array, sending: array, waiting: array, receiving: array}
      */
-    public function httpTimingOverTime(string $runId, ?string $endpoint = null, ?array $timeRange = null): array
+    public function httpTimingOverTime(string $runId, array|string|null $endpoint = null, ?array $timeRange = null): array
     {
         $components = [
             'blocked' => 'http_req_blocked',
@@ -432,11 +440,53 @@ class InfluxDbService
         return array_merge(['labels' => $labels], $datasets);
     }
 
-    private function endpointClause(?string $endpoint): string
+    /**
+     * @param  array<int, string>|string|null  $endpoint  A single name, or the
+     *                                                    raw names behind a grouped route pattern.
+     */
+    private function endpointClause(array|string|null $endpoint): string
     {
-        return $endpoint !== null
-            ? " AND \"name\"='".$endpoint."'"
-            : '';
+        $condition = self::nameCondition($endpoint);
+
+        return $condition === '' ? '' : ' AND ('.$condition.')';
+    }
+
+    /**
+     * Build the `"name"` match for one URL, or a whole grouped route.
+     *
+     * A uniform group (every name shares one pattern) matches via a single
+     * anchored regex instead of enumerating thousands of OR terms, which
+     * would blow past URL length limits on the InfluxDB query API. Mixed
+     * sets fall back to exact-match OR enumeration.
+     *
+     * @param  array<int, string>|string|null  $endpoint
+     */
+    private static function nameCondition(array|string|null $endpoint): string
+    {
+        if ($endpoint === null) {
+            return '';
+        }
+
+        $names = is_array($endpoint) ? array_values(array_unique($endpoint)) : [$endpoint];
+
+        if ($names === []) {
+            return '';
+        }
+
+        if (count($names) === 1) {
+            return '"name"=\''.str_replace("'", "\\'", $names[0]).'\'';
+        }
+
+        $regex = EndpointGrouper::regexForNames($names);
+
+        if ($regex !== null) {
+            return '"name" =~ '.$regex;
+        }
+
+        return implode(' OR ', array_map(
+            fn (string $name) => '"name"=\''.str_replace("'", "\\'", $name).'\'',
+            $names
+        ));
     }
 
     private function timeRangeClause(?array $timeRange): string

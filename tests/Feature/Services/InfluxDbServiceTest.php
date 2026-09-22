@@ -114,3 +114,61 @@ test('iteration duration and iterations queries hit the right measurements', fun
     expect($queries)->toContain('"iteration_duration"')
         ->toContain('"iterations"');
 });
+
+function fakeEndpointSummaryResponses(): void
+{
+    Http::fake(function ($request) {
+        $q = $request['q'] ?? '';
+
+        if (str_contains($q, 'http_req_duration')) {
+            $series = ['columns' => ['time', 'p95', 'p99'], 'values' => [[1690000000000, 100, 200]]];
+        } else {
+            $series = ['columns' => ['time', 'value'], 'values' => [[1690000000000, 10]]];
+        }
+
+        return Http::response(['results' => [['series' => [$series]]]]);
+    });
+}
+
+test('grouped endpoints match via one regex instead of or enumeration', function () {
+    Connector::factory()->influxDb()->create();
+    fakeEndpointSummaryResponses();
+
+    $service = new InfluxDbService(Connector::influxDb());
+    $service->endpointSummary('run-1', [
+        'https://api.example.com/todos/1',
+        'https://api.example.com/todos/2',
+    ]);
+
+    $queries = capturedInfluxQueries();
+
+    expect($queries)->toContain('"name" =~')->not->toContain(' OR ');
+});
+
+test('mixed endpoint sets fall back to or enumeration', function () {
+    Connector::factory()->influxDb()->create();
+    fakeEndpointSummaryResponses();
+
+    $service = new InfluxDbService(Connector::influxDb());
+    $service->endpointSummary('run-1', [
+        'https://api.example.com/v1/users',
+        'https://api.example.com/todos/1',
+    ]);
+
+    expect(capturedInfluxQueries())
+        ->toContain('"name"=\'https://api.example.com/v1/users\' OR "name"=\'https://api.example.com/todos/1\'');
+});
+
+test('single endpoint keeps an exact match', function () {
+    Connector::factory()->influxDb()->create();
+    fakeEndpointSummaryResponses();
+
+    $service = new InfluxDbService(Connector::influxDb());
+    $service->endpointSummary('run-1', 'https://api.example.com/v1/users');
+
+    $queries = capturedInfluxQueries();
+
+    expect($queries)
+        ->toContain('("name"=\'https://api.example.com/v1/users\')')
+        ->not->toContain('=~');
+});
