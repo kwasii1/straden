@@ -98,15 +98,81 @@ test('view test sync persists adds and removals while keeping influx', function 
         ->test('pages::dashboard.view-test', ['project' => $project, 'test' => $test])
         ->assertSet('testConnectors', []);
 
-    $component->set('testConnectors', $ids);
+    $component->call('startUpdate')->set('testConnectors', $ids)->call('updateTest')
+        ->assertHasNoErrors();
 
     $attached = $test->connectors()->pluck('connectors.id')->map(strval(...))->all();
 
     expect($attached)->toContain(...$ids)
         ->and($attached)->toContain((string) Connector::query()->where('type', 'influxdb')->value('id'));
 
-    $component->set('testConnectors', []);
+    $component->call('startUpdate')->set('testConnectors', [])->call('updateTest')
+        ->assertHasNoErrors();
 
     expect($test->connectors()->pluck('connectors.id')->map(strval(...))->all())
         ->toBe([(string) Connector::query()->where('type', 'influxdb')->value('id')]);
+});
+
+function makeViewTest(): Test
+{
+    $project = makePickerProject();
+
+    return Test::factory()->create(['project_id' => $project->id]);
+}
+
+test('update modal pre-fills and saves fields plus connectors', function () {
+    $user = User::factory()->create();
+    $test = makeViewTest();
+    $project = $test->project;
+
+    $optionId = (string) Connector::query()->where('project_id', $project->id)->value('id');
+    $influxId = (string) Connector::query()->where('type', 'influxdb')->value('id');
+
+    Livewire::actingAs($user)
+        ->test('pages::dashboard.view-test', ['project' => $project, 'test' => $test])
+        ->call('startUpdate')
+        ->assertSet('testName', $test->name)
+        ->assertSet('targetUrl', $test->target_url)
+        ->set('testName', 'Renamed Test')
+        ->set('targetUrl', 'https://staging.example.com')
+        ->set('testDescription', 'Updated description')
+        ->set('testConnectors', [$optionId])
+        ->call('updateTest')
+        ->assertHasNoErrors();
+
+    $test->refresh();
+
+    expect($test->name)->toBe('Renamed Test')
+        ->and($test->target_url)->toBe('https://staging.example.com')
+        ->and($test->description)->toBe('Updated description')
+        ->and($test->connectors()->pluck('connectors.id')->map(strval(...))->sort()->values()->all())
+        ->toBe(collect([$optionId, $influxId])->sort()->values()->all());
+});
+
+test('update test rejects invalid fields', function () {
+    $user = User::factory()->create();
+    $test = makeViewTest();
+
+    Livewire::actingAs($user)
+        ->test('pages::dashboard.view-test', ['project' => $test->project, 'test' => $test])
+        ->call('startUpdate')
+        ->set('testName', '')
+        ->set('targetUrl', 'not-a-url')
+        ->call('updateTest')
+        ->assertHasErrors(['testName', 'targetUrl']);
+
+    expect($test->refresh()->name)->not->toBe('');
+});
+
+test('connectors card reports the test connectors', function () {
+    $user = User::factory()->create();
+    $test = makeViewTest();
+
+    $optionId = (string) Connector::query()->where('project_id', $test->project_id)->value('id');
+    $test->syncConnectors([$optionId]);
+
+    $this->actingAs($user)
+        ->get(route('projects.view-test', ['project' => $test->project, 'test' => $test]))
+        ->assertOk()
+        ->assertSee('2 connectors', false);
 });

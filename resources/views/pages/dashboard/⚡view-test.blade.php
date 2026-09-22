@@ -30,6 +30,12 @@ class extends Component
      */
     public array $testConnectors = [];
 
+    public string $testName = '';
+
+    public string $targetUrl = '';
+
+    public string $testDescription = '';
+
     public function mount(Project $project, Test $test): void
     {
         $this->project = $project;
@@ -37,10 +43,36 @@ class extends Component
         $this->testConnectors = $this->testConnectorIds();
     }
 
-    public function updatedTestConnectors(): void
+    public function startUpdate(): void
     {
+        $this->test->refresh();
+        $this->testName = $this->test->name;
+        $this->targetUrl = $this->test->target_url;
+        $this->testDescription = $this->test->description ?? '';
+        $this->testConnectors = $this->testConnectorIds();
+    }
+
+    public function updateTest(): void
+    {
+        $this->validate([
+            'testName' => 'required|string|max:255',
+            'targetUrl' => 'required|url|max:2048',
+            'testDescription' => 'nullable|string|max:2000',
+            'testConnectors' => 'nullable|array',
+            'testConnectors.*' => 'string',
+        ]);
+
+        $this->test->update([
+            'name' => $this->testName,
+            'target_url' => $this->targetUrl,
+            'description' => $this->testDescription !== '' ? $this->testDescription : null,
+        ]);
+
         $this->test->syncConnectors($this->testConnectors);
         $this->testConnectors = $this->testConnectorIds();
+
+        Flux::modal('update-test')->close();
+        Flux::toast(variant: 'success', text: 'Test updated successfully.');
     }
 
     /**
@@ -72,21 +104,22 @@ class extends Component
     }
 
     #[Computed()]
-    public function projectConnectors()
+    public function testConnectorsList()
     {
-        return $this->project->connectors()->get();
+        return $this->test->connectors()->orderBy('name')->get();
     }
 
     #[Computed()]
     public function connectorSummary(): string
     {
-        $count = $this->projectConnectors->count();
+        $connectors = $this->testConnectorsList;
+        $count = $connectors->count();
 
         if ($count === 0) {
-            return 'No connectors configured';
+            return 'No connectors attached';
         }
 
-        $types = $this->projectConnectors->pluck('type')->map(fn ($t) => $t->label())->unique()->implode(', ');
+        $types = $connectors->pluck('type')->map(fn ($t) => $t->label())->unique()->implode(', ');
 
         return $count.' connector'.($count > 1 ? 's' : '').' ('.$types.')';
     }
@@ -182,6 +215,12 @@ JS);
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
+            <flux:modal.trigger name="update-test">
+                <flux:button wire:click="startUpdate" variant="subtle" icon="pencil-square" size="sm" class="rounded-lg border border-zinc-200 dark:border-zinc-700">
+                    Update Test
+                </flux:button>
+            </flux:modal.trigger>
+
             <flux:modal.trigger name="generate-with-ai">
                 <flux:button variant="subtle" icon="sparkles" size="sm" class="rounded-lg border border-zinc-200 dark:border-zinc-700">
                     Straden Agent
@@ -228,7 +267,7 @@ JS);
                     <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">Connectors</flux:text>
                 </div>
                 <div class="px-4 pb-3.5">
-                    <p class="text-lg font-semibold text-zinc-900 dark:text-white">{{ $this->projectConnectors->count() }}</p>
+                    <p class="text-lg font-semibold text-zinc-900 dark:text-white">{{ $this->testConnectorsList->count() }}</p>
                 </div>
             </div>
             <div class="px-4 py-2.5 dark:bg-zinc-800">
@@ -264,19 +303,6 @@ JS);
                     {{ $latestRun ? \Carbon\Carbon::parse($latestRun->created_at)->diffForHumans() : 'no executions recorded' }}
                 </p>
             </div>
-        </div>
-    </div>
-
-    {{-- Test Connectors Section --}}
-    <div class="rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
-        <div class="flex items-center justify-between px-3 py-2.5">
-            <div>
-                <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Test Connectors</flux:text>
-                <p class="text-xs text-[#919191] dark:text-zinc-400">Observability and data sources attached to this test</p>
-            </div>
-        </div>
-        <div class="rounded-xl bg-white px-4 py-3 dark:bg-zinc-900">
-            <livewire:connector-picker wire:model="testConnectors" :project="$project" wire:key="view-test-connectors-{{ $this->test->id }}" />
         </div>
     </div>
 
@@ -405,5 +431,33 @@ JS);
 
     <flux:modal class="md:w-1/3 p-0!" name="generate-with-ai" flyout>
         <livewire:agent-chat :project="$project" :test="$test" />
+    </flux:modal>
+
+    <flux:modal class="md:w-1/2 space-y-5" name="update-test" flyout>
+        <div>
+            <flux:heading size="lg">Update Test</flux:heading>
+            <flux:text class="text-xs text-zinc-500">Edit this test's details and attached connectors.</flux:text>
+        </div>
+
+        <form wire:submit="updateTest" class="space-y-4">
+            <div>
+                <flux:input wire:model="testName" label="Test Name" placeholder="e.g., Checkout Flow Load Test" />
+            </div>
+            <div>
+                <flux:input wire:model="targetUrl" label="Target Environment" placeholder="https://api.example.com" />
+            </div>
+            <div>
+                <flux:textarea wire:model="testDescription" label="Description" placeholder="Briefly explain what this test targets..." />
+            </div>
+            <div>
+                <livewire:connector-picker wire:model="testConnectors" :project="$project" wire:key="update-test-connectors-{{ $this->test->id }}" />
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <flux:modal.close>
+                    <flux:button variant="subtle">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">Save Changes</flux:button>
+            </div>
+        </form>
     </flux:modal>
 </div>
