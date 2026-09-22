@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Livewire\Concerns\PersistsChatMessages;
 use App\Models\User;
 use App\Notifications\ScriptGenerationCompleted;
+use App\Services\AiCredentialManager;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -56,6 +57,8 @@ class ChatAgentJob implements ShouldQueue
 
     public function handle(): void
     {
+        app(AiCredentialManager::class)->syncConfig();
+
         $channels = new PrivateChannel('test.'.$this->testId);
         $without = WithoutBroadcasting::eventsFor($this->agent);
 

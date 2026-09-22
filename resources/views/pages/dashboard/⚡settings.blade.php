@@ -1,7 +1,7 @@
 <?php
 
+use App\Services\AiCredentialManager;
 use Flux\Flux;
-use Illuminate\Support\Facades\Artisan;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -249,24 +249,12 @@ class extends Component
 
     public function isProviderConnected(string $slug): bool
     {
-        return ! empty($this->getConnectionStatusEnvValue($slug));
+        return app(AiCredentialManager::class)->isConnected($slug);
     }
 
-    private function getConnectionStatusEnvValue(string $slug): ?string
+    public function keyHintFor(string $slug): ?string
     {
-        $meta = $this->providerMeta[$slug] ?? null;
-
-        if (! $meta) {
-            return null;
-        }
-
-        $firstRequired = collect($meta['fields'])->firstWhere('required', true);
-
-        if (! $firstRequired) {
-            return null;
-        }
-
-        return env($firstRequired['env']);
+        return app(AiCredentialManager::class)->credentialFor($slug)?->key_hint;
     }
 
     public function startConnect(string $slug): void
@@ -278,6 +266,9 @@ class extends Component
     public function startConfigure(string $slug): void
     {
         $this->activeProvider = $slug;
+        // Pre-fill only non-secret fields so saving without touching the
+        // password inputs preserves the stored key.
+        $this->credentialValues = $this->nonSecretValues($slug);
     }
 
     public function connectProvider(): void
@@ -296,16 +287,47 @@ class extends Component
         }
         $this->validate($rules);
 
-        foreach ($meta['fields'] as $field) {
-            $envKey = $field['env'];
-            if (array_key_exists($envKey, $this->credentialValues) && $this->credentialValues[$envKey] !== null) {
-                $this->setEnvValue($envKey, $this->credentialValues[$envKey]);
-            }
-        }
+        // Encrypted at rest in the database — never written to `.env`.
+        app(AiCredentialManager::class)->put($this->activeProvider, $this->credentialValues);
 
         Flux::modal('connect-provider')->close();
 
         Flux::toast(variant: 'success', text: "{$meta['name']} connected successfully.");
+
+        $this->activeProvider = '';
+        $this->credentialValues = [];
+
+        unset($this->providers, $this->stats);
+    }
+
+    public function updateProvider(): void
+    {
+        $meta = $this->providerMeta[$this->activeProvider] ?? null;
+
+        if (! $meta) {
+            return;
+        }
+
+        $values = $this->credentialValues;
+
+        // Empty password inputs mean "keep the stored secret", not "clear it".
+        // Clearing happens explicitly via disconnect.
+        $passwordKeys = collect($meta['fields'])
+            ->where('type', 'password')
+            ->pluck('env')
+            ->all();
+
+        foreach ($passwordKeys as $key) {
+            if (! filled($values[$key] ?? null)) {
+                unset($values[$key]);
+            }
+        }
+
+        app(AiCredentialManager::class)->put($this->activeProvider, $values);
+
+        Flux::modal('configure-provider')->close();
+
+        Flux::toast(variant: 'success', text: "{$meta['name']} updated successfully.");
 
         $this->activeProvider = '';
         $this->credentialValues = [];
@@ -321,9 +343,7 @@ class extends Component
             return;
         }
 
-        foreach ($meta['fields'] as $field) {
-            $this->removeEnvValue($field['env']);
-        }
+        app(AiCredentialManager::class)->remove($slug);
 
         Flux::modal('configure-provider')->close();
 
@@ -339,52 +359,37 @@ class extends Component
         return $this->providerMeta[$this->activeProvider] ?? null;
     }
 
-    private function setEnvValue(string $key, ?string $value): void
+    /**
+     * Non-secret stored values for pre-filling the edit form.
+     *
+     * @return array<string, ?string>
+     */
+    private function nonSecretValues(string $slug): array
     {
-        $path = base_path('.env');
+        $manager = app(AiCredentialManager::class);
+        $credential = $manager->credentialFor($slug);
 
-        if (! file_exists($path)) {
-            return;
+        if (! $credential) {
+            return [];
         }
 
-        if ($value !== null && str_contains($value, ' ')) {
-            $value = '"'.$value.'"';
+        $map = AiCredentialManager::fieldMap()[$slug] ?? [];
+        $values = [];
+
+        foreach ($map as $inputKey => $target) {
+            if (str_starts_with($target, 'extra.')) {
+                $extraKey = substr($target, strlen('extra.'));
+                $value = $credential->extra[$extraKey] ?? null;
+                // Never pre-fill stored secrets (AWS secret key); only plain settings like region.
+                if ($extraKey !== 'secret_access_key' && is_string($value)) {
+                    $values[$inputKey] = $value;
+                }
+            } elseif ($target === 'base_url' && is_string($credential->base_url)) {
+                $values[$inputKey] = $credential->base_url;
+            }
         }
 
-        $content = file_get_contents($path);
-
-        if (preg_match("/^{$key}=.*/m", $content)) {
-            $content = preg_replace(
-                "/^{$key}=.*/m",
-                "{$key}={$value}",
-                $content
-            );
-        } else {
-            $content = rtrim($content)."\n{$key}={$value}\n";
-        }
-
-        file_put_contents($path, $content);
-
-        Artisan::call('config:clear');
-    }
-
-    private function removeEnvValue(string $key): void
-    {
-        $path = base_path('.env');
-
-        if (! file_exists($path)) {
-            return;
-        }
-
-        $content = file_get_contents($path);
-
-        if (preg_match("/^{$key}=.*/m", $content)) {
-            $content = preg_replace("/^{$key}=.*/m", "{$key}=", $content);
-        }
-
-        file_put_contents($path, $content);
-
-        Artisan::call('config:clear');
+        return $values;
     }
 };
 ?>
@@ -641,6 +646,7 @@ class extends Component
                                 wire:model="credentialValues.{{ $field['env'] }}"
                                 type="{{ $field['type'] === 'password' ? 'password' : 'text' }}"
                                 placeholder="{{ $field['placeholder'] ?? '' }}"
+                                autocomplete="off"
                             />
                         </flux:field>
                     @endforeach
@@ -655,7 +661,7 @@ class extends Component
     </flux:modal>
 
     {{-- Configure Modal --}}
-    <flux:modal name="configure-provider" class="md:w-1/3">
+    <flux:modal name="configure-provider" class="md:w-1/3 scrollbar-none [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-600">
         <div class="space-y-5">
             <div class="flex items-center gap-x-3 border-b dark:border-zinc-800 pb-4">
                 <div @class([
@@ -683,7 +689,7 @@ class extends Component
                         <flux:text class="text-xs font-medium text-zinc-700 dark:text-zinc-300">Supported Models</flux:text>
                         <span class="text-[10px] font-mono text-zinc-400">{{ count($this->getActiveMeta()['models']) }} total</span>
                     </div>
-                    <div class="divide-y dark:divide-zinc-800 max-h-48 overflow-y-auto">
+                    <div class="divide-y dark:divide-zinc-800 max-h-48 overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-600">
                         @foreach ($this->getActiveMeta()['models'] as $model)
                             <div class="flex items-center justify-between px-3.5 py-2">
                                 <div class="flex items-center gap-x-2">
@@ -698,10 +704,34 @@ class extends Component
 
                 <div class="bg-zinc-50 dark:bg-zinc-800/40 rounded-xl p-3 border border-zinc-200/60 dark:border-zinc-800">
                     <flux:text class="text-[11px] text-zinc-500 dark:text-zinc-400 leading-normal">
-                        Credentials stored in <code class="text-[10px] bg-zinc-200/70 dark:bg-zinc-700 px-1 py-0.5 rounded font-mono text-zinc-800 dark:text-zinc-200">.env</code>.
-                        Run <code class="text-[10px] bg-zinc-200/70 dark:bg-zinc-700 px-1 py-0.5 rounded font-mono text-zinc-800 dark:text-zinc-200">php artisan config:cache</code> in production after key rotation.
+                        Credentials are encrypted in the database
+                        @if ($this->keyHintFor($this->activeProvider))
+                            (key ending in <code class="text-[10px] bg-zinc-200/70 dark:bg-zinc-700 px-1 py-0.5 rounded font-mono text-zinc-800 dark:text-zinc-200">{{ $this->keyHintFor($this->activeProvider) }}</code>)
+                        @endif
+                        and applied immediately — no <code class="text-[10px] bg-zinc-200/70 dark:bg-zinc-700 px-1 py-0.5 rounded font-mono text-zinc-800 dark:text-zinc-200">.env</code> edits needed.
                     </flux:text>
                 </div>
+
+                <form wire:submit="updateProvider" class="space-y-4">
+                    @foreach ($this->getActiveMeta()['fields'] as $field)
+                        <flux:field>
+                            <flux:label class="text-xs">
+                                {{ $field['label'] }}
+                                @if (! ($field['required'] ?? false))
+                                    <span class="text-xs text-zinc-400 font-normal">(optional)</span>
+                                @endif
+                            </flux:label>
+                            <flux:input
+                                wire:model="credentialValues.{{ $field['env'] }}"
+                                type="{{ $field['type'] === 'password' ? 'password' : 'text' }}"
+                                placeholder="{{ $field['type'] === 'password' ? 'Leave blank to keep current secret' : ($field['placeholder'] ?? '') }}"
+                                autocomplete="off"
+                            />
+                        </flux:field>
+                    @endforeach
+
+                    <flux:button type="submit" variant="primary" size="sm" class="w-full">Save Changes</flux:button>
+                </form>
             @endif
 
             <div class="flex items-center justify-between pt-2 border-t dark:border-zinc-800">

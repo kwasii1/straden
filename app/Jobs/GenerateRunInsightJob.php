@@ -7,6 +7,7 @@ use App\Models\Run;
 use App\Models\RunInsight;
 use App\Notifications\RunInsightFailed;
 use App\Notifications\RunInsightReady;
+use App\Services\AiCredentialManager;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Notifications\Notification;
@@ -26,6 +27,8 @@ class GenerateRunInsightJob implements ShouldQueue
 
     public function handle(): void
     {
+        app(AiCredentialManager::class)->syncConfig();
+
         $run = Run::find($this->runId);
 
         if (! $run) {

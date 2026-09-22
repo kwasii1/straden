@@ -433,7 +433,7 @@ JS);
         <livewire:agent-chat :project="$project" :test="$test" />
     </flux:modal>
 
-    <flux:modal class="md:w-1/2 space-y-5" name="update-test" flyout>
+    <flux:modal class="md:w-1/2 space-y-5 scrollbar-none" name="update-test" flyout>
         <div>
             <flux:heading size="lg">Update Test</flux:heading>
             <flux:text class="text-xs text-zinc-500">Edit this test's details and attached connectors.</flux:text>

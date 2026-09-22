@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\AiCredentialManager;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\DevCommands;
 use Illuminate\Support\Facades\App;
@@ -27,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureDevCommands();
+        $this->syncAiProviderCredentials();
     }
 
     /**
@@ -63,5 +65,16 @@ class AppServiceProvider extends ServiceProvider
                 'opencode'
             )->purple();
         }
+    }
+
+    /**
+     * Inject encrypted DB credentials into ai.providers runtime config.
+     *
+     * Guarded inside the manager so missing tables (fresh installs,
+     * config:cache) never break boot.
+     */
+    protected function syncAiProviderCredentials(): void
+    {
+        app(AiCredentialManager::class)->syncConfig();
     }
 }
