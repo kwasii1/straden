@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ConnectorType;
 use App\Models\Project;
 use App\Models\Script;
 use App\Models\Test;
@@ -21,6 +22,40 @@ class extends Component
     public string $name = '';
 
     public string $description = '';
+
+    /**
+     * Selected connector IDs for this test (InfluxDB excluded — always on).
+     *
+     * @var array<int, string>
+     */
+    public array $testConnectors = [];
+
+    public function mount(Project $project, Test $test): void
+    {
+        $this->project = $project;
+        $this->test = $test;
+        $this->testConnectors = $this->testConnectorIds();
+    }
+
+    public function updatedTestConnectors(): void
+    {
+        $this->test->syncConnectors($this->testConnectors);
+        $this->testConnectors = $this->testConnectorIds();
+    }
+
+    /**
+     * IDs of this test's connectors, excluding the always-on InfluxDB.
+     *
+     * @return array<int, string>
+     */
+    private function testConnectorIds(): array
+    {
+        return $this->test->connectors()
+            ->where('connectors.type', '!=', ConnectorType::InfluxDb->value)
+            ->pluck('connectors.id')
+            ->map(strval(...))
+            ->all();
+    }
 
     #[Computed()]
     public function scripts()
@@ -229,6 +264,19 @@ JS);
                     {{ $latestRun ? \Carbon\Carbon::parse($latestRun->created_at)->diffForHumans() : 'no executions recorded' }}
                 </p>
             </div>
+        </div>
+    </div>
+
+    {{-- Test Connectors Section --}}
+    <div class="rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
+        <div class="flex items-center justify-between px-3 py-2.5">
+            <div>
+                <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Test Connectors</flux:text>
+                <p class="text-xs text-[#919191] dark:text-zinc-400">Observability and data sources attached to this test</p>
+            </div>
+        </div>
+        <div class="rounded-xl bg-white px-4 py-3 dark:bg-zinc-900">
+            <livewire:connector-picker wire:model="testConnectors" :project="$project" wire:key="view-test-connectors-{{ $this->test->id }}" />
         </div>
     </div>
 

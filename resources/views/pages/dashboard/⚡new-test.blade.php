@@ -1,7 +1,5 @@
 <?php
 
-use App\Enums\ConnectorType;
-use App\Models\Connector;
 use App\Models\Project;
 use App\Models\Test;
 use Flux\Flux;
@@ -25,8 +23,6 @@ class extends Component
 
     public Project $project;
 
-    public Collection $availableConnectors;
-
     public Collection $repositories;
 
     public function mount(Project $project): void
@@ -34,18 +30,6 @@ class extends Component
         $this->project = $project;
 
         $this->repositories = $project->repositories()->get();
-
-        $this->availableConnectors = Connector::query()
-            ->where(function ($q) use ($project) {
-                $q->where('project_id', $project->id)
-                    ->orWhere('is_system', true);
-            })
-            ->get();
-
-        $influx = $this->availableConnectors->firstWhere('type', ConnectorType::InfluxDb);
-        if ($influx) {
-            $this->connectors = [(string) $influx->id];
-        }
     }
 
     public function submit(): void
@@ -53,14 +37,18 @@ class extends Component
         $this->validate([
             'name' => 'required|string|max:255',
             'target_endpoint' => 'required|url|max:2048',
+            'connectors' => 'nullable|array',
+            'connectors.*' => 'string',
         ]);
 
-        Test::create([
+        $test = Test::create([
             'name' => $this->name,
             'project_id' => $this->project->id,
             'target_url' => $this->target_endpoint,
             'description' => $this->description,
         ]);
+
+        $test->syncConnectors((array) ($this->connectors ?? []));
 
         Flux::toast(variant: 'success', text: 'Test Created Successfully');
 
@@ -100,21 +88,7 @@ class extends Component
                         </flux:select>
                     </div>
                     <div>
-                        <flux:field>
-                            <flux:label>Connectors</flux:label>
-                            @if ($availableConnectors->isEmpty())
-                                <flux:description class="mt-1">No connectors available</flux:description>
-                            @else
-                                <flux:checkbox.group wire:model="connectors" variant="pills" class="mt-1">
-                                    @foreach ($availableConnectors as $connector)
-                                        <flux:checkbox
-                                            value="{{ $connector->id }}"
-                                            label="{{ $connector->name }} ({{ $connector->type->label() }})"
-                                        />
-                                    @endforeach
-                                </flux:checkbox.group>
-                            @endif
-                        </flux:field>
+                        <livewire:connector-picker wire:model="connectors" :project="$project" wire:key="new-test-connectors" />
                     </div>
                 </div>
                 <div class="flex justify-between">

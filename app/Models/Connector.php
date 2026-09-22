@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Connector extends Model
 {
@@ -62,6 +63,11 @@ class Connector extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function tests(): BelongsToMany
+    {
+        return $this->belongsToMany(Test::class, 'connector_test');
     }
 
     public function scopeOfType($query, ConnectorType $type)
