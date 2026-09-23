@@ -5,6 +5,10 @@
 // Their tables are resolved from runtime config (ai.conversations.tables.*),
 // so migration scanning cannot map columns to properties. The shapes below
 // mirror the package migrations and model casts.
+//
+// Note: `status` is typed as string (its column type) rather than the
+// package's MessageStatus enum, because PHPStan cannot discover laravel/ai
+// classes while validating stub PHPDocs.
 
 namespace Laravel\Ai\Models;
 
@@ -17,11 +21,13 @@ namespace Laravel\Ai\Models;
  * @property string $role
  * @property string $content
  * @property array<string, mixed> $attachments
- * @property array<string, mixed> $tool_calls
- * @property array<string, mixed> $tool_results
+ * @property array<int, mixed> $steps
+ * @property-read array<int, mixed> $tool_calls
+ * @property-read array<int, mixed> $tool_results
+ * @property-read array<int, mixed> $provider_tool_calls
  * @property array<string, mixed> $usage
  * @property array<string, mixed> $meta
- * @property array<string, mixed>|null $approval_state
+ * @property string $status
  * @property mixed $created_at
  * @property mixed $updated_at
  */

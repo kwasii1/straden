@@ -10,6 +10,7 @@ use App\Models\Test;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Laravel\Ai\Enums\MessageStatus;
 use Laravel\Ai\Models\Conversation;
 use Laravel\Ai\Models\ConversationMessage;
 use Livewire\Livewire;
@@ -27,16 +28,14 @@ function seedApprovalConversation(object $participant, string $agentClass, array
 
     foreach ($pauses as $pause) {
         $toolCalls = [];
-        $pending = [];
 
         foreach ($pause as $call) {
             $toolCalls[] = [
                 'id' => $call['id'],
                 'name' => $call['tool'] ?? 'CreateScriptTool',
                 'arguments' => $call['arguments'] ?? ['name' => 'demo'],
-                'reason' => $call['reason'] ?? 'Needs review.',
+                'approval_reason' => $call['reason'] ?? 'Needs review.',
             ];
-            $pending[$call['id']] = $call['reason'] ?? 'Needs review.';
         }
 
         ConversationMessage::create([
@@ -48,11 +47,18 @@ function seedApprovalConversation(object $participant, string $agentClass, array
             'role' => 'assistant',
             'content' => '',
             'attachments' => [],
-            'tool_calls' => $toolCalls,
-            'tool_results' => [],
+            'steps' => [
+                [
+                    'content' => '',
+                    'tool_calls' => $toolCalls,
+                    'reasoning' => '',
+                    'replay_blocks' => [],
+                    'provider_tool_calls' => [],
+                ],
+            ],
             'usage' => [],
             'meta' => [],
-            'approval_state' => ['pending' => $pending],
+            'status' => MessageStatus::Paused,
         ]);
     }
 
