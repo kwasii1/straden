@@ -10,6 +10,7 @@ use App\Services\AiCredentialManager;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class RunInsightPanel extends Component
 {
@@ -82,6 +83,90 @@ class RunInsightPanel extends Component
     public function refresh(): void
     {
         unset($this->insight);
+    }
+
+    public function export(): ?StreamedResponse
+    {
+        $insight = $this->insight;
+
+        if (! $insight || $insight->status !== 'completed' || empty($insight->report)) {
+            Flux::toast(variant: 'warning', text: 'No completed insight report to export yet.');
+
+            return null;
+        }
+
+        $report = $insight->report;
+        $filename = 'insight-'.$this->run->slug.'.md';
+        $markdown = $this->toMarkdown($report);
+
+        return response()->streamDownload(function () use ($markdown): void {
+            echo $markdown;
+        }, $filename, ['Content-Type' => 'text/markdown; charset=UTF-8']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $report
+     */
+    private function toMarkdown(array $report): string
+    {
+        $lines = [
+            '# AI Insights — Run '.$this->run->slug,
+            '',
+            'Generated: '.$this->insight->updated_at?->toDateTimeString().' UTC',
+            'System health: '.ucfirst((string) ($report['overall_health'] ?? 'acceptable')),
+            '',
+        ];
+
+        if (! empty($report['summary'])) {
+            $lines[] = '## Executive summary';
+            $lines[] = '';
+            $lines[] = (string) $report['summary'];
+            $lines[] = '';
+        }
+
+        if (! empty($report['what_is_slow'])) {
+            $lines[] = '## Performance bottlenecks';
+            $lines[] = '';
+            $lines[] = (string) $report['what_is_slow'];
+            $lines[] = '';
+        }
+
+        if (! empty($report['key_findings'])) {
+            $lines[] = '## Key diagnostic findings';
+            $lines[] = '';
+            foreach ($report['key_findings'] as $finding) {
+                $severity = strtoupper((string) ($finding['severity'] ?? 'medium'));
+                $lines[] = '- ['.$severity.'] '.($finding['title'] ?? '');
+                if (! empty($finding['detail'])) {
+                    $lines[] = '  '.$finding['detail'];
+                }
+            }
+            $lines[] = '';
+        }
+
+        if (! empty($report['recommendations'])) {
+            $lines[] = '## Recommended actions';
+            $lines[] = '';
+            foreach ($report['recommendations'] as $index => $recommendation) {
+                $lines[] = ($index + 1).'. '.($recommendation['title'] ?? '');
+                if (! empty($recommendation['impact'])) {
+                    $lines[] = '   Impact: '.$recommendation['impact'];
+                }
+                if (! empty($recommendation['detail'])) {
+                    $lines[] = '   '.$recommendation['detail'];
+                }
+            }
+            $lines[] = '';
+        }
+
+        if (! empty($report['script_observations'])) {
+            $lines[] = '## Script observations';
+            $lines[] = '';
+            $lines[] = (string) $report['script_observations'];
+            $lines[] = '';
+        }
+
+        return implode("\n", $lines);
     }
 
     public function render()

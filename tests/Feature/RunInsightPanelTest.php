@@ -114,3 +114,39 @@ test('panel shows an error state for a failed insight', function () {
         ->assertSee('AI provider unavailable.')
         ->assertSee('Retry');
 });
+
+test('panel exports a completed insight report as markdown', function () {
+    $user = User::factory()->create();
+    $run = makePanelRun();
+
+    RunInsight::factory()->completed()->create([
+        'run_id' => $run->id,
+        'report' => [
+            'summary' => 'The checkout endpoint degraded under load.',
+            'overall_health' => 'poor',
+            'what_is_slow' => 'P95 latency spiked to 900ms during the ramp-up.',
+            'key_findings' => [
+                ['title' => 'Latency threshold exceeded', 'severity' => 'high', 'detail' => 'P95 crossed 200ms.'],
+            ],
+            'recommendations' => [
+                ['title' => 'Add caching', 'impact' => 'Reduces latency', 'detail' => 'Cache product data at the edge.'],
+            ],
+            'script_observations' => 'Thresholds were appropriate for the SLA.',
+        ],
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('run-insight-panel', ['run' => $run])
+        ->call('export')
+        ->assertFileDownloaded('insight-'.$run->slug.'.md');
+});
+
+test('panel does not export when no completed insight exists', function () {
+    $user = User::factory()->create();
+    $run = makePanelRun();
+
+    Livewire::actingAs($user)
+        ->test('run-insight-panel', ['run' => $run])
+        ->call('export')
+        ->assertNoFileDownloaded();
+});

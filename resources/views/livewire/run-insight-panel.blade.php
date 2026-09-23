@@ -52,12 +52,16 @@
 
             <div class="flex items-center gap-1.5">
                 <flux:button
+                    wire:click="export"
+                    wire:loading.attr="disabled"
+                    wire:target="export"
                     variant="subtle"
                     size="sm"
                     icon="arrow-down-tray"
                     class="rounded-lg text-xs font-medium text-[#4A4A4A]"
                 >
-                    Export
+                    <span wire:loading.remove wire:target="export">Export</span>
+                    <span wire:loading wire:target="export">Exporting…</span>
                 </flux:button>
 
                 <flux:button
