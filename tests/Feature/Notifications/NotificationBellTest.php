@@ -30,7 +30,7 @@ test('bell shows an unread count badge', function () {
 
     Livewire::actingAs($user)
         ->test('notification-bell')
-        ->assertSeeHtml('bg-red-600')
+        ->assertSeeHtml('bg-red-500')
         ->assertSee('2')
         ->assertSee('Mark all as read');
 });
@@ -60,7 +60,7 @@ test('bell hides the badge and mark-all action when there are no unread notifica
 
     Livewire::actingAs($user)
         ->test('notification-bell')
-        ->assertDontSeeHtml('bg-red-600')
+        ->assertDontSeeHtml('bg-red-500')
         ->assertDontSee('Mark all as read');
 });
 

@@ -52,7 +52,7 @@ test('overview shows empty state when no runs exist', function () {
     $this->actingAs($user)
         ->get(route('projects.overview', $project))
         ->assertOk()
-        ->assertSee('No run data yet for this project.')
+        ->assertSee('No run data available for this project yet.')
         ->assertSee('Create your first test');
 });
 
@@ -69,7 +69,7 @@ test('overview shows recent runs in correct order', function () {
     $this->actingAs($user)
         ->get(route('projects.overview', $project))
         ->assertOk()
-        ->assertSee('Recent Runs')
+        ->assertSee('Recent Executions')
         ->assertSee('Passed')
         ->assertSee('Failed');
 });
@@ -131,7 +131,7 @@ test('overview passes status distribution data for charts', function () {
     $this->actingAs($user)
         ->get(route('projects.overview', $project))
         ->assertOk()
-        ->assertSee('Run Status Distribution')
+        ->assertSee('Status Distribution')
         ->assertSee('Response Time Trend');
 });
 
@@ -144,7 +144,7 @@ test('overview handles project with zero tests gracefully', function () {
         ->assertOk()
         ->assertSee('Total Tests')
         ->assertSee('0')
-        ->assertSee('No run data yet for this project.');
+        ->assertSee('No run data available for this project yet.');
 });
 
 test('overview shows last run as none when no runs exist', function () {
@@ -154,6 +154,6 @@ test('overview shows last run as none when no runs exist', function () {
     $this->actingAs($user)
         ->get(route('projects.overview', $project))
         ->assertOk()
-        ->assertSee('Last Run')
+        ->assertSee('Last Execution')
         ->assertSee('None');
 });

@@ -34,7 +34,7 @@ test('git providers page is accessible', function () {
 
     Livewire::actingAs($user)
         ->test('pages::dashboard.git-providers', ['project' => $project])
-        ->assertSee('No git providers')
+        ->assertSee('No Git Providers Connected')
         ->assertSee('Add Git Provider');
 });
 

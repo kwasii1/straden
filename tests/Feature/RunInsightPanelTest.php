@@ -29,7 +29,7 @@ test('panel shows the generate button for a completed run without an insight', f
 
     Livewire::actingAs($user)
         ->test('run-insight-panel', ['run' => $run])
-        ->assertSee('Generate AI Insights');
+        ->assertSee('Generate insights');
 });
 
 test('panel generate creates a queued insight and dispatches the job', function () {
@@ -93,7 +93,7 @@ test('panel displays a completed insight report', function () {
     Livewire::actingAs($user)
         ->test('run-insight-panel', ['run' => $run])
         ->assertSee('The checkout endpoint degraded under load.')
-        ->assertSee("What's Slow", false)
+        ->assertSee('Performance bottlenecks')
         ->assertSee('Latency threshold exceeded')
         ->assertSee('Add caching')
         ->assertSee('Regenerate');
@@ -110,7 +110,7 @@ test('panel shows an error state for a failed insight', function () {
 
     Livewire::actingAs($user)
         ->test('run-insight-panel', ['run' => $run])
-        ->assertSee('Generation failed')
+        ->assertSee('Analysis failed')
         ->assertSee('AI provider unavailable.')
         ->assertSee('Retry');
 });

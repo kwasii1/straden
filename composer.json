@@ -9,7 +9,7 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.3",
+        "php": "^8.4",
         "influxdata/influxdb-client-php": "^3.8",
         "laravel/ai": "^0.11.2",
         "laravel/chisel": "^0.1.0",
