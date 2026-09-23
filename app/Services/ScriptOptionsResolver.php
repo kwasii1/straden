@@ -63,7 +63,13 @@ class ScriptOptionsResolver
         }
 
         if (preg_match('/\bstages\s*:\s*\[/', $block, $match, PREG_OFFSET_CAPTURE)) {
-            $stages = $this->arrayBlock($block, strpos($block, '[', $match[0][1]));
+            $bracketPos = strpos($block, '[', $match[0][1]);
+
+            if ($bracketPos === false) {
+                return null;
+            }
+
+            $stages = $this->arrayBlock($block, $bracketPos);
 
             if ($stages === null) {
                 return null;
@@ -166,7 +172,7 @@ class ScriptOptionsResolver
     {
         preg_match_all('/\bduration\s*:\s*[\'"]([^\'"]+)[\'"]/', $stages, $matches);
 
-        return $matches[1] ?? [];
+        return $matches[1];
     }
 
     private static function parseDurationString(string $duration): ?int
@@ -180,13 +186,14 @@ class ScriptOptionsResolver
         foreach ($matches as $match) {
             $value = (float) $match[1];
 
+            // The regex above constrains the unit to ms|s|m|h|d,
+            // so the default arm handles 'd'.
             $total += match ($match[2]) {
                 'ms' => $value / 1000,
                 's' => $value,
                 'm' => $value * 60,
                 'h' => $value * 3600,
-                'd' => $value * 86400,
-                default => 0.0,
+                default => $value * 86400,
             };
         }
 

@@ -28,7 +28,7 @@ class CreateScriptTool implements Approvable, Tool
         $name = $request->string('name');
         $description = $request->string('description', '');
         $entryPointContent = $request->string('entry_point_content');
-        $additionalFiles = $request->array('additional_files', []);
+        $additionalFiles = $request->array('additional_files');
 
         $script = Script::create([
             'test_id' => $this->test->id,

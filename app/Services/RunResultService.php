@@ -70,7 +70,7 @@ class RunResultService
         }
 
         fseek($handle, $offset);
-        $content = (string) fread($handle, min($size - $offset, $maxBytes));
+        $content = (string) fread($handle, max(1, min($size - $offset, $maxBytes)));
         fclose($handle);
 
         $nextOffset = $offset + strlen($content);
@@ -210,9 +210,8 @@ class RunResultService
         if ($teardownWarning) {
             $message = 'Teardown timed out after the load completed with 0% failed requests — the results are valid, but cleanup may be incomplete (leftover test data). Batch cleanup requests with http.batch() or raise teardownTimeout.';
 
-            if ($logTail !== null) {
-                $message .= "\n\n".$logTail;
-            }
+            // $logTail is non-null here: $teardownWarning requires it.
+            $message .= "\n\n".$logTail;
 
             $update['error_message'] = mb_substr($message, 0, 65535);
         } elseif ($update['status'] === 'error') {
@@ -290,6 +289,7 @@ class RunResultService
         return $value > 0 ? $value : null;
     }
 
+    /** @return array<string, mixed>|null */
     private static function readSummary(string $runId): ?array
     {
         $path = self::summaryFilePath($runId);
@@ -324,6 +324,10 @@ class RunResultService
         return $content;
     }
 
+    /**
+     * @param  array<string, mixed>  $summary
+     * @return array<string, mixed>
+     */
     private static function parseSummary(array $summary): array
     {
         $metrics = $summary['metrics'] ?? [];
@@ -390,9 +394,16 @@ class RunResultService
      * reliable metric data. Time metric values are already exported in ms,
      * matching the units used in threshold expressions.
      */
+    /** @param array<string, mixed> $data */
     public static function evaluateThreshold(string $condition, array $data): bool
     {
-        foreach (preg_split('/\|\|/', $condition) as $orPart) {
+        $orParts = preg_split('/\|\|/', $condition);
+
+        if ($orParts === false) {
+            return false;
+        }
+
+        foreach ($orParts as $orPart) {
             if (self::evaluateAndExpression($orPart, $data)) {
                 return true;
             }
@@ -401,9 +412,16 @@ class RunResultService
         return false;
     }
 
+    /** @param array<string, mixed> $data */
     private static function evaluateAndExpression(string $expression, array $data): bool
     {
-        foreach (preg_split('/&&/', $expression) as $part) {
+        $parts = preg_split('/&&/', $expression);
+
+        if ($parts === false) {
+            return false;
+        }
+
+        foreach ($parts as $part) {
             if (! self::evaluateSingleCondition(trim($part), $data)) {
                 return false;
             }
@@ -412,6 +430,7 @@ class RunResultService
         return true;
     }
 
+    /** @param array<string, mixed> $data */
     private static function evaluateSingleCondition(string $expression, array $data): bool
     {
         if (! preg_match('/^\s*(!?)\s*([A-Za-z0-9_().]+)\s*(<=|>=|==|!=|<|>)\s*([+-]?\d*\.?\d+)\s*$/', $expression, $matches)) {
@@ -426,14 +445,15 @@ class RunResultService
             return false;
         }
 
+        // The regex above constrains $operator to one of the six
+        // comparisons, so the default arm handles '!='.
         $result = match ($operator) {
             '<' => (float) $actual < (float) $threshold,
             '>' => (float) $actual > (float) $threshold,
             '<=' => (float) $actual <= (float) $threshold,
             '>=' => (float) $actual >= (float) $threshold,
             '==' => (float) $actual == (float) $threshold,
-            '!=' => (float) $actual != (float) $threshold,
-            default => false,
+            default => (float) $actual != (float) $threshold,
         };
 
         return $negated === '!' ? ! $result : $result;
@@ -445,6 +465,9 @@ class RunResultService
      * k6 does not expose a per-threshold value in its summary, so we pull the
      * property referenced by the condition (e.g. "p(95)" from "p(95)<500")
      * directly from the metric's data, falling back to the metric's "value".
+     */
+    /**
+     * @param  array<string, mixed>  $data
      */
     private static function thresholdValue(array $data, string $condition): mixed
     {
@@ -461,6 +484,10 @@ class RunResultService
         return $data['value'] ?? null;
     }
 
+    /**
+     * @param  array<string, mixed>  $group
+     * @return array{passes: int, fails: int}
+     */
     private static function collectChecks(array $group): array
     {
         $passes = 0;

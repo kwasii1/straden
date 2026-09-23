@@ -2,6 +2,10 @@
 
 namespace App\Ai\Tools;
 
+use App\Models\Connector;
+use App\Models\Repository;
+use App\Models\Run;
+use App\Models\Script;
 use App\Models\Test;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Contracts\Tool;
@@ -28,7 +32,7 @@ class ScanContextTool implements Tool
             'runs' => $this->runsContext(),
         ];
 
-        return json_encode($context, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        return json_encode($context, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
     }
 
     public function schema(JsonSchema $schema): array
@@ -36,6 +40,7 @@ class ScanContextTool implements Tool
         return [];
     }
 
+    /** @return array<string, mixed> */
     private function testContext(): array
     {
         return [
@@ -46,6 +51,7 @@ class ScanContextTool implements Tool
         ];
     }
 
+    /** @return array<string, mixed> */
     private function projectContext(): array
     {
         return [
@@ -55,9 +61,10 @@ class ScanContextTool implements Tool
         ];
     }
 
+    /** @return array<int, mixed> */
     private function connectorsContext(): array
     {
-        return $this->test->project->connectors->map(function ($connector) {
+        return $this->test->project->connectors->map(function (Connector $connector) {
             return [
                 'id' => $connector->id,
                 'name' => $connector->name,
@@ -72,9 +79,10 @@ class ScanContextTool implements Tool
         })->values()->all();
     }
 
+    /** @return array<int, mixed> */
     private function repositoriesContext(): array
     {
-        return $this->test->project->repositories->map(function ($repo) {
+        return $this->test->project->repositories->map(function (Repository $repo) {
             return [
                 'id' => $repo->id,
                 'name' => $repo->name,
@@ -87,18 +95,19 @@ class ScanContextTool implements Tool
         })->values()->all();
     }
 
+    /** @return array<int, mixed> */
     private function scriptsContext(): array
     {
         return $this->test->scripts()->with(['runs' => function ($query) {
             $query->latest()->limit(5);
-        }])->get()->map(function ($script) {
+        }])->get()->map(function (Script $script) {
             return [
                 'id' => $script->id,
                 'name' => $script->name,
                 'description' => $script->description,
                 'is_default' => $script->is_default,
                 'last_run_at' => $script->last_run_at?->toIso8601String(),
-                'recent_runs' => $script->runs->map(function ($run) {
+                'recent_runs' => $script->runs->map(function (Run $run) {
                     return [
                         'id' => $run->id,
                         'status' => $run->status,
@@ -121,9 +130,10 @@ class ScanContextTool implements Tool
         })->values()->all();
     }
 
+    /** @return array<int, mixed> */
     private function runsContext(): array
     {
-        return $this->test->runs()->latest()->limit(10)->get()->map(function ($run) {
+        return $this->test->runs()->latest()->limit(10)->get()->map(function (Run $run) {
             return [
                 'id' => $run->id,
                 'script_name' => $run->script->name,

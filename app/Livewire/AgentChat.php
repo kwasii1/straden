@@ -8,11 +8,13 @@ use App\Jobs\ChatAgentJob;
 use App\Livewire\Concerns\PersistsChatMessages;
 use App\Models\Project;
 use App\Models\Test;
+use Illuminate\Contracts\View\View;
 use Laravel\Ai\Approvals\Decision;
 use Laravel\Ai\Approvals\Decisions;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Models\Conversation;
+use Laravel\Ai\Models\ConversationMessage;
 use Livewire\Component;
 
 class AgentChat extends Component
@@ -27,6 +29,7 @@ class AgentChat extends Component
 
     public ?string $conversationId = null;
 
+    /** @var array<int, array<string, mixed>> */
     public array $displayMessages = [];
 
     public bool $awaitingApproval = false;
@@ -213,6 +216,9 @@ class AgentChat extends Component
         $this->dispatch('chat-scroll-bottom');
     }
 
+    /**
+     * @param  array{conversation_id: string, message_id: string, is_new_conversation: bool}|null  $placeholder
+     */
     private function dispatchAgent(Agent $agent, Decisions|string $prompt, ?array $placeholder): void
     {
         $model = $this->selectedModel !== '' ? $this->selectedModel : null;
@@ -250,6 +256,7 @@ class AgentChat extends Component
         $this->dispatch('chat-scroll-bottom');
     }
 
+    /** @param array<string, mixed> $payload */
     public function reloadError(array $payload): void
     {
         $this->error = $payload['error'] ?? 'An unknown error occurred.';
@@ -366,6 +373,7 @@ class AgentChat extends Component
         $this->awaitingApproval = false;
     }
 
+    /** @return array<int, string> */
     private function getAllPendingCallIds(): array
     {
         $ids = [];
@@ -379,11 +387,6 @@ class AgentChat extends Component
         }
 
         return array_values(array_unique($ids));
-    }
-
-    private function getPendingCallIds(): array
-    {
-        return $this->getAllPendingCallIds();
     }
 
     private function loadConversationMessages(): void
@@ -408,9 +411,11 @@ class AgentChat extends Component
             return;
         }
 
-        $this->displayMessages = $messages->map(function ($message) {
-            $toolCalls = is_array($message->tool_calls) ? $message->tool_calls : [];
-            $toolResults = is_array($message->tool_results) ? $message->tool_results : [];
+        $this->displayMessages = $messages->map(function (ConversationMessage $message) {
+            // tool_calls/tool_results are array-cast and non-nullable, so they
+            // are always arrays here. approval_state is nullable.
+            $toolCalls = $message->tool_calls;
+            $toolResults = $message->tool_results;
             $approvalState = is_array($message->approval_state) ? $message->approval_state : null;
 
             $isApprovalPause = false;
@@ -483,7 +488,7 @@ class AgentChat extends Component
             ->all();
     }
 
-    public function render()
+    public function render(): View
     {
         return view('livewire.agent-chat');
     }

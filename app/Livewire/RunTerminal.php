@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Run;
 use App\Services\RunResultService;
+use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
 class RunTerminal extends Component
@@ -44,6 +45,8 @@ class RunTerminal extends Component
     /**
      * Emit newly read log content to the browser instead of accumulating it in
      * component state, keeping the Livewire payload small as logs grow.
+     *
+     * @param  array{content: string, nextOffset: int, eof: bool}  $chunk
      */
     private function streamChunk(array $chunk): void
     {
@@ -52,7 +55,7 @@ class RunTerminal extends Component
         }
     }
 
-    public function render()
+    public function render(): View
     {
         return view('livewire.run-terminal');
     }

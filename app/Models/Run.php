@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\SlugGenerator;
+use Database\Factories\RunFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Run extends Model
 {
+    /** @use HasFactory<RunFactory> */
     use HasFactory;
+
     use HasUuids;
 
     public $incrementing = true;
@@ -62,7 +65,8 @@ class Run extends Model
     protected static function booted(): void
     {
         static::creating(function (Run $run) {
-            $scriptName = Script::find($run->script_id)?->name ?? 'run';
+            $script = Script::find($run->script_id);
+            $scriptName = $script !== null ? $script->name : 'run';
             $run->slug = SlugGenerator::unique($scriptName.' '.now()->format('YmdHis'), self::class);
         });
 
@@ -76,16 +80,19 @@ class Run extends Model
         return 'slug';
     }
 
+    /** @return BelongsTo<Script, $this> */
     public function script(): BelongsTo
     {
         return $this->belongsTo(Script::class);
     }
 
+    /** @return BelongsTo<User, $this> */
     public function triggeredByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'triggered_by_user_id');
     }
 
+    /** @return HasOne<RunInsight, $this> */
     public function insight(): HasOne
     {
         return $this->hasOne(RunInsight::class);

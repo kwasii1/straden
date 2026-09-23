@@ -86,6 +86,7 @@ class SyncRepositoryJob implements ShouldQueue
         }
     }
 
+    /** @return array<int, object> */
     public function middleware(): array
     {
         return [

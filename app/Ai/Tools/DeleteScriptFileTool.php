@@ -25,14 +25,14 @@ class DeleteScriptFileTool extends ScriptFileTool implements Approvable
             return json_encode([
                 'deleted' => false,
                 'error' => 'The entry point script.js cannot be deleted.',
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         }
 
         if (! $this->itemExists($path)) {
             return json_encode([
                 'deleted' => false,
                 'error' => "Item '{$path}' does not exist in the script directory.",
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         }
 
         $this->fm()->delete($path);
@@ -41,7 +41,7 @@ class DeleteScriptFileTool extends ScriptFileTool implements Approvable
             'deleted' => true,
             'path' => $path,
             'message' => "Deleted '{$path}' from the script directory.",
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
     }
 
     public function schema(JsonSchema $schema): array

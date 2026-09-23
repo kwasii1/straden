@@ -8,6 +8,7 @@ class GitLabProvider implements GitProvider
 {
     private const API_BASE = 'https://gitlab.com/api/v4';
 
+    /** @param array{workspace?: string, organization?: string, project?: string, username?: string} $context */
     public function validateToken(string $token, array $context = []): bool
     {
         $response = Http::withToken($token)
@@ -16,6 +17,10 @@ class GitLabProvider implements GitProvider
         return $response->successful();
     }
 
+    /**
+     * @param  array{workspace?: string, organization?: string, project?: string, username?: string}  $context
+     * @return array<int, array<string, mixed>>
+     */
     public function listRepositories(string $token, array $context = []): array
     {
         $allRepos = [];
@@ -56,6 +61,11 @@ class GitLabProvider implements GitProvider
         return $allRepos;
     }
 
+    /**
+     * @param  array<string, mixed>  $repo
+     * @param  array{workspace?: string, organization?: string, project?: string, username?: string}  $context
+     * @return array<int, array<string, mixed>>
+     */
     public function listBranches(string $token, array $repo, array $context = []): array
     {
         $projectId = $repo['provider_id'] ?? '';

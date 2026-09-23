@@ -163,7 +163,7 @@ class AiCredentialManager
 
         $apiKey = null;
         $baseUrl = null;
-        $extra = $this->credentialFor($provider)?->extra ?? [];
+        $extra = $this->credentialFor($provider)->extra ?? [];
 
         foreach ($mapping as $inputKey => $target) {
             if (! array_key_exists($inputKey, $values)) {
@@ -318,6 +318,7 @@ class AiCredentialManager
     }
 
     /**
+     * @param  array<string, mixed>  $values
      * @return array<string, string> storage target => flag
      */
     private function submittedTargets(string $provider, array $values): array
@@ -334,6 +335,7 @@ class AiCredentialManager
         return $submitted;
     }
 
+    /** @param array<string, mixed> $values */
     private function submittedExtra(string $provider, array $values): bool
     {
         $mapping = static::fieldMap()[$provider] ?? [];
@@ -349,24 +351,24 @@ class AiCredentialManager
 
     private function applyToConfig(string $provider, ?AiProviderCredential $credential): void
     {
-        $extra = $credential?->extra ?? [];
+        $extra = $credential->extra ?? [];
 
         match ($provider) {
             'openai' => config([
                 'ai.providers.openai.key' => $credential?->api_key,
-                'ai.providers.openai.url' => $credential?->base_url ?? 'https://api.openai.com/v1',
+                'ai.providers.openai.url' => $credential->base_url ?? 'https://api.openai.com/v1',
             ]),
             'anthropic' => config([
                 'ai.providers.anthropic.key' => $credential?->api_key,
-                'ai.providers.anthropic.url' => $credential?->base_url ?? 'https://api.anthropic.com/v1',
+                'ai.providers.anthropic.url' => $credential->base_url ?? 'https://api.anthropic.com/v1',
             ]),
             'gemini' => config([
                 'ai.providers.gemini.key' => $credential?->api_key,
-                'ai.providers.gemini.url' => $credential?->base_url ?? 'https://generativelanguage.googleapis.com/v1beta/',
+                'ai.providers.gemini.url' => $credential->base_url ?? 'https://generativelanguage.googleapis.com/v1beta/',
             ]),
             'ollama' => config([
                 'ai.providers.ollama.key' => $credential?->api_key,
-                'ai.providers.ollama.url' => $credential?->base_url ?? 'http://localhost:11434',
+                'ai.providers.ollama.url' => $credential->base_url ?? 'http://localhost:11434',
             ]),
             'openai-compatible' => config([
                 'ai.providers.openai-compatible.key' => $credential?->api_key,

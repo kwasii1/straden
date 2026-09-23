@@ -18,7 +18,7 @@ return new class extends Migration
         });
 
         Run::with('script')->eachById(function (Run $run) {
-            $prefix = $run->script?->name ?? 'run';
+            $prefix = $run->script->name ?? 'run';
             $run->slug = SlugGenerator::unique($prefix.' '.$run->created_at->format('YmdHis'), Run::class);
             $run->save();
         });

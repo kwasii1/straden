@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\ConnectorType;
+use Database\Factories\ConnectorFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +13,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Connector extends Model
 {
+    /** @use HasFactory<ConnectorFactory> */
     use HasFactory;
+
     use HasUuids;
 
     public $incrementing = true;
@@ -60,24 +64,28 @@ class Connector extends Model
         ];
     }
 
+    /** @return BelongsTo<Project, $this> */
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
     }
 
+    /** @return BelongsToMany<Test, $this> */
     public function tests(): BelongsToMany
     {
         return $this->belongsToMany(Test::class, 'connector_test');
     }
 
-    public function scopeOfType($query, ConnectorType $type)
+    /** @param  Builder<self>  $query */
+    public function scopeOfType(Builder $query, ConnectorType $type): void
     {
-        return $query->where('type', $type);
+        $query->where('type', $type);
     }
 
-    public function scopeSystem($query)
+    /** @param  Builder<self>  $query */
+    public function scopeSystem(Builder $query): void
     {
-        return $query->where('is_system', true);
+        $query->where('is_system', true);
     }
 
     public static function influxDb(): self

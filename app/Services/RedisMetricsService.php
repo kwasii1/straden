@@ -51,6 +51,8 @@ class RedisMetricsService
 
     /**
      * Collect a normalized snapshot of Redis health and performance metrics.
+     *
+     * @return array<string, mixed>
      */
     public function metrics(): array
     {
@@ -97,6 +99,7 @@ class RedisMetricsService
         }
     }
 
+    /** @return array<int, array{id: int, timestamp: mixed, duration_micros: int, command: string}> */
     private function slowLog(Redis $client): array
     {
         try {
@@ -111,6 +114,7 @@ class RedisMetricsService
         }
     }
 
+    /** @param array<string, mixed> $stats */
     private function hitRatio(array $stats): ?float
     {
         $hits = $this->intOrNull($stats['keyspace_hits'] ?? null);

@@ -23,7 +23,7 @@ class ListScriptFilesTool extends ScriptFileTool
             'base_path' => $this->basePath(),
             'entry_point' => $this->fm()->entryPointPath(),
             'files' => $files,
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
     }
 
     public function schema(JsonSchema $schema): array

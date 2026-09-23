@@ -25,7 +25,7 @@ class UpdateScriptTool implements Approvable, Tool
 
     public function handle(Request $request): Stringable|string
     {
-        $scriptId = $request->string('script_id');
+        $scriptId = (string) $request->string('script_id');
 
         $script = $this->test->scripts()->findOrFail($scriptId);
 
@@ -43,7 +43,7 @@ class UpdateScriptTool implements Approvable, Tool
             $script->update(['description' => $request->string('description')]);
         }
 
-        $updates = $request->array('files', []);
+        $updates = $request->array('files');
         $updatedPaths = [];
 
         foreach ($updates as $file) {

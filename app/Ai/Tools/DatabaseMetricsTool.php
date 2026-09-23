@@ -22,20 +22,20 @@ class DatabaseMetricsTool implements Tool
 
     public function handle(Request $request): Stringable|string
     {
-        $connector = $this->resolveConnector($request->string('connector_id') ?: null);
+        $connector = $this->resolveConnector((string) $request->string('connector_id') ?: null);
 
         if ($connector === null) {
             return json_encode([
                 'available' => false,
                 'error' => 'No MySQL or PostgreSQL connector is configured for this project. Add one on the Connectors page.',
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         }
 
         if ($connector->type === ConnectorType::MongoDB) {
             return json_encode([
                 'available' => false,
                 'error' => 'MongoDB metrics require the mongodb PHP driver (ext-mongodb), which is not installed on this server.',
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         }
 
         try {
@@ -45,12 +45,12 @@ class DatabaseMetricsTool implements Tool
                 'available' => true,
                 'connector' => $connector->name,
                 ...$metrics,
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         } catch (\Throwable $e) {
             return json_encode([
                 'available' => false,
                 'error' => 'Failed to query database metrics: '.$e->getMessage(),
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         }
     }
 

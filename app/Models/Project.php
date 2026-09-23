@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\SlugGenerator;
+use Database\Factories\ProjectFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,9 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Project extends Model
 {
+    /** @use HasFactory<ProjectFactory> */
     use HasFactory;
+
     use HasUuids;
 
     protected static function booted(): void
@@ -45,21 +48,25 @@ class Project extends Model
         ];
     }
 
+    /** @return HasMany<Test, $this> */
     public function tests(): HasMany
     {
         return $this->hasMany(Test::class, 'project_id');
     }
 
+    /** @return HasMany<Repository, $this> */
     public function repositories(): HasMany
     {
         return $this->hasMany(Repository::class);
     }
 
+    /** @return HasManyThrough<Script, Test, $this> */
     public function scripts(): HasManyThrough
     {
         return $this->hasManyThrough(Script::class, Test::class);
     }
 
+    /** @return HasMany<Connector, $this> */
     public function connectors(): HasMany
     {
         return $this->hasMany(Connector::class);

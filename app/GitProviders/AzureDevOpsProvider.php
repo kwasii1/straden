@@ -8,6 +8,7 @@ class AzureDevOpsProvider implements GitProvider
 {
     private const API_BASE = 'https://dev.azure.com';
 
+    /** @param array{workspace?: string, organization?: string, project?: string, username?: string} $context */
     public function validateToken(string $token, array $context = []): bool
     {
         $organization = $context['organization'] ?? '';
@@ -24,6 +25,10 @@ class AzureDevOpsProvider implements GitProvider
         return $response->successful();
     }
 
+    /**
+     * @param  array{workspace?: string, organization?: string, project?: string, username?: string}  $context
+     * @return array<int, array<string, mixed>>
+     */
     public function listRepositories(string $token, array $context = []): array
     {
         $organization = $context['organization'] ?? '';
@@ -40,6 +45,11 @@ class AzureDevOpsProvider implements GitProvider
         return $this->listProjectRepositories($token, $organization, $project);
     }
 
+    /**
+     * @param  array<string, mixed>  $repo
+     * @param  array{workspace?: string, organization?: string, project?: string, username?: string}  $context
+     * @return array<int, array<string, mixed>>
+     */
     public function listBranches(string $token, array $repo, array $context = []): array
     {
         $organization = $context['organization'] ?? '';
@@ -91,6 +101,7 @@ class AzureDevOpsProvider implements GitProvider
         return 'Create a personal access token at <code>https://dev.azure.com/{org}/_usersSettings/tokens</code> with <strong>Code (Read)</strong> scope. Replace <code>{org}</code> with your organization name.';
     }
 
+    /** @return array<int, array<string, mixed>> */
     private function listProjects(string $token, string $organization): array
     {
         $allProjects = [];
@@ -114,6 +125,7 @@ class AzureDevOpsProvider implements GitProvider
         return $allProjects;
     }
 
+    /** @return array<int, array<string, mixed>> */
     private function listProjectRepositories(string $token, string $organization, string $project): array
     {
         $allRepos = [];

@@ -7,7 +7,6 @@ use App\Models\Connector;
 use App\Models\Project;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class PrometheusService
 {
@@ -37,6 +36,10 @@ class PrometheusService
         return $client;
     }
 
+    /**
+     * @param  array<string, mixed>  $params
+     * @return array<string, mixed>
+     */
     private function get(string $path, array $params = []): array
     {
         $response = $this->http()->get($this->baseUrl().$path, $params);
@@ -52,6 +55,8 @@ class PrometheusService
      * Available metrics and their metadata (type, help text, units).
      *
      * @see https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metadata
+     *
+     * @return array<string, mixed>
      */
     public function metadata(?string $metric = null): array
     {
@@ -64,6 +69,8 @@ class PrometheusService
      * Instant query evaluated at an optional point in time.
      *
      * @see https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
+     *
+     * @return array<string, mixed>
      */
     public function query(string $query, ?int $time = null): array
     {
@@ -80,6 +87,8 @@ class PrometheusService
      * Range query over an inclusive [start, end] window with a step size.
      *
      * @see https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
+     *
+     * @return array<string, mixed>
      */
     public function queryRange(string $query, int $start, int $end, string $step): array
     {
@@ -95,6 +104,8 @@ class PrometheusService
      * List all metric names (values of the __name__ label).
      *
      * @see https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values
+     *
+     * @return array<int, string>
      */
     public function listMetrics(?int $limit = null): array
     {

@@ -40,6 +40,8 @@ class ChatAgentJob implements ShouldQueue
 
     /**
      * @param  array{conversation_id: string, message_id: string, is_new_conversation?: bool}|null  $placeholder
+     * @param  array<int, mixed>  $attachments
+     * @param  Lab|array<string, mixed>|string|null  $provider
      */
     public function __construct(
         public Agent $agent,
@@ -152,7 +154,7 @@ class ChatAgentJob implements ShouldQueue
     {
         $message = $e->getMessage();
 
-        if ($e instanceof RequestException && $e->response) {
+        if ($e instanceof RequestException) {
             $body = mb_substr(trim((string) $e->response->body()), 0, 500);
 
             if ($body !== '') {

@@ -31,7 +31,7 @@ class RunInfluxMetricsTool implements Tool
             return json_encode([
                 'available' => false,
                 'error' => 'InfluxDB is not configured or the metrics are unavailable: '.$e->getMessage(),
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         }
 
         return json_encode(
@@ -39,7 +39,7 @@ class RunInfluxMetricsTool implements Tool
                 'per_endpoint' => $this->perEndpointBreakdown($service),
             ]),
             JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
-        );
+        ) ?: '{}';
     }
 
     public function schema(JsonSchema $schema): array
@@ -47,6 +47,7 @@ class RunInfluxMetricsTool implements Tool
         return [];
     }
 
+    /** @return array<int, array<string, mixed>> */
     private function perEndpointBreakdown(InfluxDbService $service): array
     {
         $runId = $this->run->id;
@@ -92,6 +93,9 @@ class RunInfluxMetricsTool implements Tool
 
     /**
      * Map InfluxDB GROUP BY "name" results into a [endpoint => column => value] map.
+     *
+     * @param  array<int, mixed>  $results
+     * @return array<string, array<string, mixed>>
      */
     private function groupByEndpoint(array $results, int $valueOffset): array
     {
@@ -114,6 +118,11 @@ class RunInfluxMetricsTool implements Tool
         return $map;
     }
 
+    /**
+     * @param  array<int, mixed>  $columns
+     * @param  array<int, mixed>  $row
+     * @return array<string, mixed>
+     */
     private function mapColumns(array $columns, array $row): array
     {
         $mapped = [];
@@ -129,6 +138,10 @@ class RunInfluxMetricsTool implements Tool
         return $mapped;
     }
 
+    /**
+     * @param  array<string, mixed>  $metrics
+     * @return array<string, mixed>
+     */
     private function summarize(array $metrics): array
     {
         $vus = $metrics['vus']['values'] ?? [];
@@ -176,6 +189,10 @@ class RunInfluxMetricsTool implements Tool
 
     /**
      * Reduce a time series to at most $limit evenly-spaced points.
+     *
+     * @param  array<int, mixed>  $labels
+     * @param  array<int, mixed>  $values
+     * @return array<int, mixed>
      */
     private function downsample(array $labels, array $values, int $limit = 30): array
     {
@@ -196,6 +213,11 @@ class RunInfluxMetricsTool implements Tool
         return $sampled;
     }
 
+    /**
+     * @param  array<int, mixed>  $labels
+     * @param  array<int, mixed>  $values
+     * @return array<int, mixed>
+     */
     private function pairs(array $labels, array $values): array
     {
         $pairs = [];
@@ -207,6 +229,11 @@ class RunInfluxMetricsTool implements Tool
         return $pairs;
     }
 
+    /**
+     * @param  array<int, mixed>  $labels
+     * @param  array<int, mixed>  $values
+     * @return array<string, mixed>
+     */
     private function peak(array $labels, array $values, string $name): array
     {
         $maxIndex = null;
@@ -234,6 +261,7 @@ class RunInfluxMetricsTool implements Tool
         ];
     }
 
+    /** @param array<int, mixed> $values */
     private function averageOf(array $values): ?float
     {
         $values = array_values(array_filter($values, fn ($v) => is_numeric($v)));
@@ -245,6 +273,7 @@ class RunInfluxMetricsTool implements Tool
         return array_sum($values) / count($values);
     }
 
+    /** @param array<int, mixed> $values */
     private function maxOf(array $values): ?float
     {
         $values = array_values(array_filter($values, fn ($v) => is_numeric($v)));

@@ -7,7 +7,7 @@ use Illuminate\Support\Str;
 
 class SlugGenerator
 {
-    public static function unique(string $source, string $modelClass, ?int $ignoreId = null): string
+    public static function unique(string $source, string $modelClass, int|string|null $ignoreId = null): string
     {
         $base = Str::slug($source);
         $slug = $base;
@@ -21,9 +21,9 @@ class SlugGenerator
         return $slug;
     }
 
-    protected static function exists(string $modelClass, string $slug, ?int $ignoreId): bool
+    protected static function exists(string $modelClass, string $slug, int|string|null $ignoreId): bool
     {
-        /** @var Model $modelClass */
+        /** @var class-string<Model> $modelClass */
         return $modelClass::query()
             ->where('slug', $slug)
             ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))

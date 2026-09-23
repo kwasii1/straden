@@ -20,7 +20,7 @@ class ValidateScriptTool implements Tool
 
     public function handle(Request $request): Stringable|string
     {
-        $scriptId = $request->string('script_id');
+        $scriptId = (string) $request->string('script_id');
 
         $script = Script::findOrFail($scriptId);
 
@@ -28,7 +28,7 @@ class ValidateScriptTool implements Tool
             return json_encode([
                 'valid' => false,
                 'error' => "Script file not found at {$script->script_path}.",
-            ]);
+            ]) ?: '{}';
         }
 
         $content = Storage::disk($script->disk)->get($script->script_path);
@@ -44,7 +44,7 @@ class ValidateScriptTool implements Tool
             'pattern_issues' => $patternIssues,
             'script_id' => $scriptId,
             'script_path' => $script->script_path,
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
     }
 
     public function schema(JsonSchema $schema): array
@@ -56,6 +56,7 @@ class ValidateScriptTool implements Tool
         ];
     }
 
+    /** @return array<int, array{line: int, message: string, severity: string}> */
     private function checkSyntax(string $content): array
     {
         $issues = [];
@@ -85,6 +86,7 @@ class ValidateScriptTool implements Tool
         return $issues;
     }
 
+    /** @return array<string, mixed> */
     private function runK6Inspect(Script $script): array
     {
         $disk = $script->disk;
@@ -111,6 +113,7 @@ class ValidateScriptTool implements Tool
         ];
     }
 
+    /** @return array<int, array{pattern: string, message: string, severity: string}> */
     private function checkPatterns(string $content): array
     {
         $issues = [];
@@ -151,6 +154,8 @@ class ValidateScriptTool implements Tool
      * k6 kills setup()/teardown() after 60s by default. Lifecycle functions
      * that issue HTTP requests (provisioning, cleanup) routinely exceed that
      * once the target is saturated, aborting an otherwise clean run.
+     *
+     * @param  array<int, array{pattern: string, message: string, severity: string}>  $issues
      */
     private function checkLifecycleTimeout(string $content, string $hook, array &$issues): void
     {

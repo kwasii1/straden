@@ -33,6 +33,7 @@ class RunInsight extends Model
         ];
     }
 
+    /** @return BelongsTo<Run, $this> */
     public function run(): BelongsTo
     {
         return $this->belongsTo(Run::class);

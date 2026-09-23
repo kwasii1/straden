@@ -28,7 +28,7 @@ class PrometheusListMetricsTool extends PrometheusTool
                 'available' => true,
                 'count' => count($metrics),
                 'metrics' => $metrics,
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         } catch (\Throwable $e) {
             return $this->failure($e);
         }

@@ -8,10 +8,17 @@ use App\Models\Run;
 use App\Models\RunInsight;
 use App\Services\AiCredentialManager;
 use Flux\Flux;
+use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * @property-read RunInsight|null $insight
+ * @property-read array{provider: string, model: string}|null $insightsSelection
+ * @property-read bool $insightsReady
+ * @property-read Project|null $project
+ */
 class RunInsightPanel extends Component
 {
     public Run $run;
@@ -32,6 +39,9 @@ class RunInsightPanel extends Component
         return $this->run->insight()->latest('id')->first();
     }
 
+    /**
+     * @return array{provider: string, model: string}|null
+     */
     #[Computed]
     public function insightsSelection(): ?array
     {
@@ -169,7 +179,7 @@ class RunInsightPanel extends Component
         return implode("\n", $lines);
     }
 
-    public function render()
+    public function render(): View
     {
         return view('livewire.run-insight-panel');
     }

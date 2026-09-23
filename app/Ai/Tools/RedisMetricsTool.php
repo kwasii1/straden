@@ -22,13 +22,13 @@ class RedisMetricsTool implements Tool
 
     public function handle(Request $request): Stringable|string
     {
-        $connector = $this->resolveConnector($request->string('connector_id') ?: null);
+        $connector = $this->resolveConnector((string) $request->string('connector_id') ?: null);
 
         if ($connector === null) {
             return json_encode([
                 'available' => false,
                 'error' => 'No Redis connector is configured for this project. Add one on the Connectors page.',
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         }
 
         try {
@@ -37,12 +37,12 @@ class RedisMetricsTool implements Tool
             return json_encode([
                 'connector' => $connector->name,
                 ...$metrics,
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         } catch (\Throwable $e) {
             return json_encode([
                 'available' => false,
                 'error' => 'Failed to query Redis metrics: '.$e->getMessage(),
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         }
     }
 

@@ -5,11 +5,13 @@ namespace App\Services;
 use App\Enums\ConnectorType;
 use App\Models\Connector;
 use PDO;
+use PDOStatement;
 
 class DatabaseMetricsService
 {
     public function __construct(private readonly Connector $connector) {}
 
+    /** @return 'mysql'|'pgsql' */
     private function driver(): string
     {
         return match ($this->connector->type) {
@@ -48,6 +50,7 @@ class DatabaseMetricsService
         };
     }
 
+    /** @return array<int, mixed> */
     private function options(): array
     {
         $options = [
@@ -74,7 +77,25 @@ class DatabaseMetricsService
     }
 
     /**
+     * Run a query, throwing instead of returning false on failure.
+     *
+     * @throws \RuntimeException
+     */
+    private function query(PDO $pdo, string $sql): PDOStatement
+    {
+        $statement = $pdo->query($sql);
+
+        if ($statement === false) {
+            throw new \RuntimeException("Database query failed: {$sql}");
+        }
+
+        return $statement;
+    }
+
+    /**
      * Collect a normalized snapshot of database health and performance metrics.
+     *
+     * @return array<string, mixed>
      */
     public function metrics(): array
     {
@@ -85,6 +106,7 @@ class DatabaseMetricsService
             : $this->mysqlMetrics($pdo);
     }
 
+    /** @return array<string, mixed> */
     private function mysqlMetrics(PDO $pdo): array
     {
         $status = $this->statusVariables($pdo, [
@@ -132,9 +154,11 @@ class DatabaseMetricsService
         ];
     }
 
+    /** @return array<string, mixed> */
     private function postgresMetrics(PDO $pdo): array
     {
-        $row = $pdo->query(
+        $row = $this->query(
+            $pdo,
             'SELECT datname, numbackends, xact_commit, xact_rollback, blks_read, blks_hit, conflicts, deadlocks, temp_files FROM pg_stat_database WHERE datname = current_database()'
         )->fetch();
 
@@ -144,7 +168,8 @@ class DatabaseMetricsService
         $blksRead = (int) ($row->blks_read ?? 0);
         $total = $blksHit + $blksRead;
 
-        $states = collect($pdo->query(
+        $states = collect($this->query(
+            $pdo,
             'SELECT state, count(*) AS count FROM pg_stat_activity GROUP BY state'
         )->fetchAll())->pluck('count', 'state')->map(fn ($count) => (int) $count)->all();
 
@@ -173,9 +198,14 @@ class DatabaseMetricsService
         ];
     }
 
+    /**
+     * @param  array<int, string>  $keys
+     * @return array<string, mixed>
+     */
     private function statusVariables(PDO $pdo, array $keys): array
     {
-        $result = $pdo->query(
+        $result = $this->query(
+            $pdo,
             "SHOW GLOBAL STATUS WHERE Variable_name IN ('".implode("','", $keys)."')"
         )->fetchAll();
 
@@ -190,14 +220,15 @@ class DatabaseMetricsService
 
     private function maxConnections(PDO $pdo): ?int
     {
-        $row = $pdo->query("SHOW GLOBAL VARIABLES LIKE 'max_connections'")->fetch();
+        $row = $this->query($pdo, "SHOW GLOBAL VARIABLES LIKE 'max_connections'")->fetch();
 
         return isset($row->Value) ? (int) $row->Value : null;
     }
 
     private function activeQueryCount(PDO $pdo): int
     {
-        $row = $pdo->query(
+        $row = $this->query(
+            $pdo,
             "SELECT count(*) AS count FROM information_schema.processlist WHERE command != 'Sleep'"
         )->fetch();
 

@@ -13,6 +13,7 @@ class DownloadProviderLogos extends Command
 
     protected $description = 'Download provider logos from GitHub';
 
+    /** @return array<string, array<int, string>> */
     private function getLogoUrls(): array
     {
         $baseUrl = 'https://raw.githubusercontent.com/ln-dev7/logos-apps/master/logos';
@@ -43,7 +44,7 @@ class DownloadProviderLogos extends Command
         ];
     }
 
-    public function handle()
+    public function handle(): void
     {
         $logos = $this->getLogoUrls();
 
@@ -52,7 +53,7 @@ class DownloadProviderLogos extends Command
         $path = 'images/providers';
 
         // Create directory if it doesn't exist
-        if (!$disk->exists($path)) {
+        if (! $disk->exists($path)) {
             $disk->makeDirectory($path);
             $this->info("Created directory: storage/app/public/{$path}");
         }
@@ -68,8 +69,9 @@ class DownloadProviderLogos extends Command
             $filepath = "{$path}/{$filename}";
 
             // Skip if file exists and not forcing
-            if ($disk->exists($filepath) && !$this->option('force')) {
+            if ($disk->exists($filepath) && ! $this->option('force')) {
                 $bar->advance();
+
                 continue;
             }
 
@@ -91,7 +93,7 @@ class DownloadProviderLogos extends Command
                 }
             }
 
-            if (!$downloadedSuccess) {
+            if (! $downloadedSuccess) {
                 $failed++;
                 $this->newLine();
                 $this->warn("Failed to download {$filename} from all sources");
@@ -104,7 +106,7 @@ class DownloadProviderLogos extends Command
         $this->newLine(2);
 
         // Check if storage symlink exists
-        if (!is_link(public_path('storage'))) {
+        if (! is_link(public_path('storage'))) {
             $this->error('⚠️  Storage symlink not found!');
             $this->info('Run: php artisan storage:link');
             $this->info('This will create the symlink so logos can be accessed publicly.');
@@ -112,7 +114,7 @@ class DownloadProviderLogos extends Command
             $this->info("✅ Downloaded: {$downloaded}");
             $this->info("❌ Failed: {$failed}");
             $this->info("📁 Logos saved to: storage/app/public/{$path}");
-            $this->info("📂 Public URL: " . asset("storage/{$path}/openai.svg"));
+            $this->info('📂 Public URL: '.asset("storage/{$path}/openai.svg"));
         }
     }
 }

@@ -20,6 +20,7 @@ class ScriptFileManager
         return $this->basePath;
     }
 
+    /** @return array<int, mixed> */
     public function fileTree(): array
     {
         if (! $this->disk->directoryExists($this->basePath)) {
@@ -191,6 +192,7 @@ class ScriptFileManager
         return implode('/', $segments);
     }
 
+    /** @return array<int, mixed> */
     private function scanDir(string $dir): array
     {
         $directories = $this->disk->directories($dir);

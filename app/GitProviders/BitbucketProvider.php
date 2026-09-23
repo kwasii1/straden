@@ -8,6 +8,7 @@ class BitbucketProvider implements GitProvider
 {
     private const API_BASE = 'https://api.bitbucket.org/2.0';
 
+    /** @param array{workspace?: string, organization?: string, project?: string, username?: string} $context */
     public function validateToken(string $token, array $context = []): bool
     {
         $username = $context['username'] ?? '';
@@ -31,6 +32,10 @@ class BitbucketProvider implements GitProvider
         return $response->successful();
     }
 
+    /**
+     * @param  array{workspace?: string, organization?: string, project?: string, username?: string}  $context
+     * @return array<int, array<string, mixed>>
+     */
     public function listRepositories(string $token, array $context = []): array
     {
         $workspace = $context['workspace'] ?? '';
@@ -78,6 +83,11 @@ class BitbucketProvider implements GitProvider
         return $allRepos;
     }
 
+    /**
+     * @param  array<string, mixed>  $repo
+     * @param  array{workspace?: string, organization?: string, project?: string, username?: string}  $context
+     * @return array<int, array<string, mixed>>
+     */
     public function listBranches(string $token, array $repo, array $context = []): array
     {
         $fullName = $repo['provider_id'] ?? ($repo['full_name'] ?? '');

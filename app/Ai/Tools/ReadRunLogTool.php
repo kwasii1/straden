@@ -24,7 +24,7 @@ class ReadRunLogTool implements Tool
             return json_encode([
                 'available' => false,
                 'error' => 'No run log is available. Logs are only persisted when the project has "persist logs" enabled.',
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         }
 
         $content = RunResultService::readLogChunk($this->run->id, 0)['content'];
@@ -41,7 +41,7 @@ class ReadRunLogTool implements Tool
             'run_id' => $this->run->id,
             'truncated' => $truncated,
             'content' => $content,
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
     }
 
     public function schema(JsonSchema $schema): array

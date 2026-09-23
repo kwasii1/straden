@@ -2,6 +2,7 @@
 
 namespace App\Ai\Tools;
 
+use App\Models\Run;
 use App\Models\Script;
 use App\Services\InfluxDbService;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -27,7 +28,7 @@ class ScriptInsightsTool implements Tool
             'recent_runs' => $runs->map(fn ($run) => $this->runContext($run))->values()->all(),
             'threshold_analysis' => $this->thresholdAnalysis($runs),
             'influx' => $this->influxInsights($runs),
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
     }
 
     public function schema(JsonSchema $schema): array
@@ -35,6 +36,7 @@ class ScriptInsightsTool implements Tool
         return [];
     }
 
+    /** @return array<string, mixed> */
     private function scriptContext(): array
     {
         return [
@@ -47,7 +49,8 @@ class ScriptInsightsTool implements Tool
         ];
     }
 
-    private function runContext($run): array
+    /** @return array<string, mixed> */
+    private function runContext(Run $run): array
     {
         return [
             'id' => $run->id,
@@ -71,6 +74,10 @@ class ScriptInsightsTool implements Tool
         ];
     }
 
+    /**
+     * @param  iterable<Run>  $runs
+     * @return array<string, mixed>
+     */
     private function thresholdAnalysis(iterable $runs): array
     {
         $failed = [];
@@ -94,11 +101,15 @@ class ScriptInsightsTool implements Tool
         );
 
         return [
-            'failed_thresholds' => array_values($failedThresholds),
+            'failed_thresholds' => $failedThresholds,
             'note' => 'Thresholds listed as failed exceeded their limits in at least one recent run. Consider raising them, fixing the underlying performance issue, or removing them if no longer relevant.',
         ];
     }
 
+    /**
+     * @param  iterable<Run>  $runs
+     * @return array<string, mixed>
+     */
     private function influxInsights(iterable $runs): array
     {
         try {
@@ -144,6 +155,7 @@ class ScriptInsightsTool implements Tool
         ];
     }
 
+    /** @param array<int, mixed> $values */
     private function averageOf(array $values): ?float
     {
         $values = array_values(array_filter($values, fn ($v) => is_numeric($v)));
@@ -155,6 +167,7 @@ class ScriptInsightsTool implements Tool
         return array_sum($values) / count($values);
     }
 
+    /** @param array<int, mixed> $values */
     private function maxOf(array $values): ?int
     {
         $values = array_values(array_filter($values, fn ($v) => is_numeric($v)));

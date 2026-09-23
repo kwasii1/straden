@@ -28,7 +28,7 @@ class PrometheusQueryTool extends PrometheusTool
             return json_encode([
                 'available' => true,
                 'data' => $response['data'] ?? [],
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         } catch (\Throwable $e) {
             return $this->failure($e);
         }

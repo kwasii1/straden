@@ -14,6 +14,7 @@ class RepositorySyncService
 
     private const GIT_PULL_TIMEOUT = 120;
 
+    /** @return array{file_tree: array<int, mixed>, last_commit_sha: string|null} */
     public function sync(Repository $repository): array
     {
         if ($repository->type === 'git') {
@@ -27,6 +28,7 @@ class RepositorySyncService
         throw new RuntimeException("Unsupported repository type: {$repository->type}");
     }
 
+    /** @return array{file_tree: array<int, mixed>, last_commit_sha: string|null} */
     private function syncGitRepository(Repository $repository): array
     {
         $clonePath = $this->clonePath($repository);
@@ -46,6 +48,7 @@ class RepositorySyncService
         ];
     }
 
+    /** @return array{file_tree: array<int, mixed>, last_commit_sha: string|null} */
     private function syncLocalPath(Repository $repository): array
     {
         $localPath = $repository->local_path;
@@ -93,11 +96,6 @@ class RepositorySyncService
         $process = new Process($command);
         $process->setTimeout(self::GIT_CLONE_TIMEOUT);
 
-        $env = $this->gitEnvironment($repository);
-        if ($env !== null) {
-            $process->setEnv(array_merge($_ENV, $_SERVER, $env));
-        }
-
         $process->run();
 
         if (! $process->isSuccessful()) {
@@ -120,11 +118,6 @@ class RepositorySyncService
 
         $process = new Process($command, $targetPath);
         $process->setTimeout(self::GIT_PULL_TIMEOUT);
-
-        $env = $this->gitEnvironment($repository);
-        if ($env !== null) {
-            $process->setEnv(array_merge($_ENV, $_SERVER, $env));
-        }
 
         $process->run();
 
@@ -169,16 +162,13 @@ class RepositorySyncService
         return $url;
     }
 
-    private function gitEnvironment(Repository $repository): ?array
-    {
-        return null;
-    }
-
+    /** @return array<int, mixed> */
     private function buildFileTree(string $basePath): array
     {
         return $this->scanDir($basePath);
     }
 
+    /** @return array<int, mixed> */
     private function scanDir(string $dir): array
     {
         $items = [];

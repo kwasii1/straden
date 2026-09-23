@@ -22,12 +22,12 @@ class PrometheusMetadataTool extends PrometheusTool
         }
 
         try {
-            $response = $service->metadata($request->string('metric') ?: null);
+            $response = $service->metadata((string) $request->string('metric') ?: null);
 
             return json_encode([
                 'available' => true,
                 'data' => $response['data'] ?? [],
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         } catch (\Throwable $e) {
             return $this->failure($e);
         }

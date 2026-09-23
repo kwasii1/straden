@@ -23,7 +23,7 @@ class RunCompleted extends BaseNotification
     {
         $run = Run::with(['script.test.project'])->find($this->runId);
 
-        $status = $run?->status ?? 'error';
+        $status = $run->status ?? 'error';
 
         return [
             'type' => 'run',

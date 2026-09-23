@@ -20,6 +20,7 @@ class InfluxDbService
         );
     }
 
+    /** @return array<int, mixed> */
     public function query(string $influxQl): array
     {
         $response = Http::timeout($this->connector->timeout ?? 5)
@@ -39,6 +40,7 @@ class InfluxDbService
         return $json['results'] ?? [];
     }
 
+    /** @return array<int, string> */
     public function showDatabases(): array
     {
         $results = $this->query('SHOW DATABASES');
@@ -50,6 +52,7 @@ class InfluxDbService
         return array_column($results[0]['series'][0]['values'], 0);
     }
 
+    /** @param array<int, string> $points */
     public function write(array $points, ?string $precision = null): void
     {
         $body = implode("\n", $points);
@@ -93,6 +96,7 @@ class InfluxDbService
      * thousands of empty buckets for old runs (huge payloads and stretched
      * chart axes), so every time-series query is scoped to when the run ran.
      */
+    /** @return array{start: CarbonInterface, end: CarbonInterface}|null */
     public static function runTimeRange(?CarbonInterface $start, ?CarbonInterface $end): ?array
     {
         if ($start === null) {
@@ -105,6 +109,11 @@ class InfluxDbService
         ];
     }
 
+    /**
+     * @param  array<int, string>|string|null  $endpoint
+     * @param  array{start?: CarbonInterface, end?: CarbonInterface}|null  $timeRange
+     * @return array<string, mixed>
+     */
     public function metricsForRun(string $runId, array|string|null $endpoint = null, ?array $timeRange = null): array
     {
         $perEndpoint = $endpoint !== null;
@@ -120,6 +129,7 @@ class InfluxDbService
         ];
     }
 
+    /** @return array<int, string> */
     public function endpointsForRun(string $runId): array
     {
         $result = $this->query(
@@ -134,6 +144,7 @@ class InfluxDbService
     /**
      * @param  array<int, string>|string  $endpoint  A single name, or the raw
      *                                               names behind a grouped route pattern.
+     * @return array<string, mixed>
      */
     public function endpointSummary(string $runId, array|string $endpoint): array
     {
@@ -165,6 +176,10 @@ class InfluxDbService
         ];
     }
 
+    /**
+     * @param  array{start?: CarbonInterface, end?: CarbonInterface}|null  $timeRange
+     * @return array{labels: array<int, string>, values: array<int, mixed>}
+     */
     public function vusOverTime(string $runId, ?array $timeRange = null): array
     {
         return $this->queryTimeSeries(
@@ -172,6 +187,11 @@ class InfluxDbService
         );
     }
 
+    /**
+     * @param  array<int, string>|string|null  $endpoint
+     * @param  array{start?: CarbonInterface, end?: CarbonInterface}|null  $timeRange
+     * @return array{labels: array<int, string>, values: array<int, mixed>}
+     */
     public function requestRateOverTime(string $runId, array|string|null $endpoint = null, ?array $timeRange = null): array
     {
         return $this->queryTimeSeries(
@@ -179,6 +199,11 @@ class InfluxDbService
         );
     }
 
+    /**
+     * @param  array<int, string>|string|null  $endpoint
+     * @param  array{start?: CarbonInterface, end?: CarbonInterface}|null  $timeRange
+     * @return array<string, mixed>
+     */
     public function responseTimeOverTime(string $runId, array|string|null $endpoint = null, ?array $timeRange = null): array
     {
         $q = sprintf(
@@ -191,6 +216,11 @@ class InfluxDbService
         return $this->queryMultiSeries($q, ['p95', 'p99']);
     }
 
+    /**
+     * @param  array<int, string>|string|null  $endpoint
+     * @param  array{start?: CarbonInterface, end?: CarbonInterface}|null  $timeRange
+     * @return array{labels: array<int, string>, values: array<int, mixed>}
+     */
     public function errorRateOverTime(string $runId, array|string|null $endpoint = null, ?array $timeRange = null): array
     {
         return $this->queryTimeSeries(
@@ -198,6 +228,10 @@ class InfluxDbService
         );
     }
 
+    /**
+     * @param  array{start?: CarbonInterface, end?: CarbonInterface}|null  $timeRange
+     * @return array{labels: array<int, string>, passed: array<int, mixed>, failed: array<int, mixed>}
+     */
     public function checksOverTime(string $runId, ?array $timeRange = null): array
     {
         $total = $this->queryTimeSeries(
@@ -224,6 +258,10 @@ class InfluxDbService
         ];
     }
 
+    /**
+     * @param  array{start?: CarbonInterface, end?: CarbonInterface}|null  $timeRange
+     * @return array{labels: array<int, string>, sent: array<int, mixed>, received: array<int, mixed>}
+     */
     public function dataTransferOverTime(string $runId, ?array $timeRange = null): array
     {
         $sent = $this->queryTimeSeries(
@@ -241,6 +279,10 @@ class InfluxDbService
         ];
     }
 
+    /**
+     * @param  array<int, string>|string|null  $endpoint
+     * @return array{total: int, groups: array<string, array{count: int, percent: float}>}
+     */
     public function responseCodeBreakdown(string $runId, array|string|null $endpoint = null): array
     {
         $result = $this->query(
@@ -278,6 +320,11 @@ class InfluxDbService
         ];
     }
 
+    /**
+     * @param  array<int, string>|string|null  $endpoint
+     * @param  array{start?: CarbonInterface, end?: CarbonInterface}|null  $timeRange
+     * @return array<string, mixed>
+     */
     public function responseCodesOverTime(string $runId, array|string|null $endpoint = null, ?array $timeRange = null): array
     {
         $prefixes = ['2', '3', '4', '5'];
@@ -313,7 +360,9 @@ class InfluxDbService
     /**
      * Time-series breakdown of where HTTP request time is spent (p95 per 5s).
      *
-     * @return array{labels: array, blocked: array, connecting: array, tls: array, sending: array, waiting: array, receiving: array}
+     * @param  array<int, string>|string|null  $endpoint
+     * @param  array{start?: CarbonInterface, end?: CarbonInterface}|null  $timeRange
+     * @return array<string, mixed>
      */
     public function httpTimingOverTime(string $runId, array|string|null $endpoint = null, ?array $timeRange = null): array
     {
@@ -353,7 +402,8 @@ class InfluxDbService
     /**
      * Time-series of iteration duration (avg and p95, in ms, per 5s).
      *
-     * @return array{labels: array, avg: array, p95: array}
+     * @param  array{start?: CarbonInterface, end?: CarbonInterface}|null  $timeRange
+     * @return array<string, mixed>
      */
     public function iterationDurationOverTime(string $runId, ?array $timeRange = null): array
     {
@@ -369,7 +419,8 @@ class InfluxDbService
     /**
      * Time-series of the number of completed iterations per 5s bucket.
      *
-     * @return array{labels: array, values: array}
+     * @param  array{start?: CarbonInterface, end?: CarbonInterface}|null  $timeRange
+     * @return array{labels: array<int, string>, values: array<int, mixed>}
      */
     public function iterationsOverTime(string $runId, ?array $timeRange = null): array
     {
@@ -391,6 +442,7 @@ class InfluxDbService
         };
     }
 
+    /** @return array{labels: array<int, string>, values: array<int, mixed>} */
     public function queryTimeSeries(string $influxQl): array
     {
         $result = $this->query($influxQl);
@@ -411,6 +463,10 @@ class InfluxDbService
         return ['labels' => $labels, 'values' => $values];
     }
 
+    /**
+     * @param  array<int, string>  $columns
+     * @return array<string, mixed>
+     */
     public function queryMultiSeries(string $influxQl, array $columns): array
     {
         $result = $this->query($influxQl);
@@ -489,6 +545,7 @@ class InfluxDbService
         ));
     }
 
+    /** @param array{start?: CarbonInterface, end?: CarbonInterface}|null $timeRange */
     private function timeRangeClause(?array $timeRange): string
     {
         $clauses = [];

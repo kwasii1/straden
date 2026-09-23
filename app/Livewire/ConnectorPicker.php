@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Enums\ConnectorType;
 use App\Models\Connector;
 use App\Models\Project;
+use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Modelable;
 use Livewire\Component;
 
@@ -18,6 +19,7 @@ class ConnectorPicker extends Component
 {
     public Project $project;
 
+    /** @var array<int, string> */
     #[Modelable]
     public array $selected = [];
 
@@ -134,7 +136,7 @@ class ConnectorPicker extends Component
         ));
     }
 
-    public function render()
+    public function render(): View
     {
         return view('livewire.connector-picker');
     }

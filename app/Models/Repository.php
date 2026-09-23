@@ -45,11 +45,13 @@ class Repository extends Model
         ];
     }
 
+    /** @return BelongsTo<Project, $this> */
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
     }
 
+    /** @return BelongsTo<Connector, $this> */
     public function connector(): BelongsTo
     {
         return $this->belongsTo(Connector::class);

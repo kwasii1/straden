@@ -26,21 +26,21 @@ class RenameScriptFileTool extends ScriptFileTool implements Approvable
             return json_encode([
                 'renamed' => false,
                 'error' => 'The entry point script.js cannot be renamed.',
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         }
 
         if (! $this->itemExists($source)) {
             return json_encode([
                 'renamed' => false,
                 'error' => "Item '{$source}' does not exist in the script directory.",
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         }
 
         if ($newName === '' || str_contains($newName, '/') || str_contains($newName, '\\') || $newName === '.' || $newName === '..') {
             return json_encode([
                 'renamed' => false,
                 'error' => 'The new name must be a single file or folder name, not a path.',
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         }
 
         $destination = $this->fm()->rename($source, $newName);
@@ -49,7 +49,7 @@ class RenameScriptFileTool extends ScriptFileTool implements Approvable
             return json_encode([
                 'renamed' => false,
                 'error' => 'Rename failed: the destination already exists or the name is unchanged.',
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
         }
 
         return json_encode([
@@ -57,7 +57,7 @@ class RenameScriptFileTool extends ScriptFileTool implements Approvable
             'source' => $source,
             'destination' => $destination,
             'message' => "Renamed '{$source}' to '{$destination}'.",
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
     }
 
     public function schema(JsonSchema $schema): array

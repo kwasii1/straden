@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ConnectorType;
 use App\Services\SlugGenerator;
+use Database\Factories\TestFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,7 +18,10 @@ use Laravel\Ai\Concerns\HasConversations;
 class Test extends Model
 {
     use HasConversations;
+
+    /** @use HasFactory<TestFactory> */
     use HasFactory;
+
     use HasUuids;
 
     public $incrementing = true;
@@ -39,21 +43,25 @@ class Test extends Model
         });
     }
 
+    /** @return BelongsTo<Project, $this> */
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
     }
 
+    /** @return HasMany<Script, $this> */
     public function scripts(): HasMany
     {
         return $this->hasMany(Script::class);
     }
 
+    /** @return HasManyThrough<Run, Script, $this> */
     public function runs(): HasManyThrough
     {
         return $this->hasManyThrough(Run::class, Script::class);
     }
 
+    /** @return BelongsToMany<Connector, $this> */
     public function connectors(): BelongsToMany
     {
         return $this->belongsToMany(Connector::class, 'connector_test');

@@ -23,7 +23,7 @@ class RunContextTool implements Tool
             'run' => $this->runContext(),
             'script' => $this->scriptContext(),
             'test' => $this->testContext(),
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
     }
 
     public function schema(JsonSchema $schema): array
@@ -31,6 +31,7 @@ class RunContextTool implements Tool
         return [];
     }
 
+    /** @return array<string, mixed> */
     private function runContext(): array
     {
         return [
@@ -57,6 +58,7 @@ class RunContextTool implements Tool
         ];
     }
 
+    /** @return array<string, mixed> */
     private function scriptContext(): array
     {
         return [
@@ -68,6 +70,7 @@ class RunContextTool implements Tool
         ];
     }
 
+    /** @return array<string, mixed> */
     private function testContext(): array
     {
         return [

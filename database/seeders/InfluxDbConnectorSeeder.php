@@ -18,9 +18,9 @@ class InfluxDbConnectorSeeder extends Seeder
             [
                 'project_id' => null,
                 'name' => 'InfluxDB (built-in)',
-                'host' => env('INFLUXDB_HOST', '127.0.0.1'),
-                'port' => env('INFLUXDB_PORT', 8086),
-                'database' => env('INFLUXDB_DB', 'k6'),
+                'host' => config('influxdb.host'),
+                'port' => config('influxdb.port'),
+                'database' => config('influxdb.database'),
                 'ssl_enabled' => false,
                 'verify_ssl' => false,
                 'timeout' => 5,

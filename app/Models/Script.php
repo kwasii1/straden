@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\SlugGenerator;
+use Database\Factories\ScriptFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +14,10 @@ use Laravel\Ai\Concerns\HasConversations;
 class Script extends Model
 {
     use HasConversations;
+
+    /** @use HasFactory<ScriptFactory> */
     use HasFactory;
+
     use HasUuids;
 
     public $incrementing = true;
@@ -48,11 +52,13 @@ class Script extends Model
         });
     }
 
+    /** @return BelongsTo<Test, $this> */
     public function test(): BelongsTo
     {
         return $this->belongsTo(Test::class);
     }
 
+    /** @return HasMany<Run, $this> */
     public function runs(): HasMany
     {
         return $this->hasMany(Run::class);

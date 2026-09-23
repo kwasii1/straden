@@ -50,7 +50,7 @@ class WriteScriptFileTool extends ScriptFileTool implements Approvable
             'is_entry_point' => $path === $this->fm()->entryPointPath(),
             'message' => ($existed ? 'Overwrote' : 'Created')." '{$path}' in the script directory.",
             'validation' => $validation,
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
     }
 
     public function schema(JsonSchema $schema): array
@@ -70,6 +70,7 @@ class WriteScriptFileTool extends ScriptFileTool implements Approvable
         return true;
     }
 
+    /** @return array<string, mixed>|null */
     private function validateScript(): ?array
     {
         try {
