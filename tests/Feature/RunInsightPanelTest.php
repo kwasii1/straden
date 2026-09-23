@@ -7,6 +7,7 @@ use App\Models\RunInsight;
 use App\Models\Script;
 use App\Models\Test;
 use App\Models\User;
+use App\Services\AiCredentialManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
@@ -36,6 +37,9 @@ test('panel generate creates a queued insight and dispatches the job', function 
 
     $user = User::factory()->create();
     $run = makePanelRun();
+
+    app(AiCredentialManager::class)->put('openai', ['OPENAI_API_KEY' => 'sk-test-1234']);
+    app(AiCredentialManager::class)->setInsightsSelection('openai', 'gpt-4o');
 
     Livewire::actingAs($user)
         ->test('run-insight-panel', ['run' => $run])

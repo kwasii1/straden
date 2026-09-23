@@ -3,8 +3,10 @@
 namespace App\Livewire;
 
 use App\Jobs\GenerateRunInsightJob;
+use App\Models\Project;
 use App\Models\Run;
 use App\Models\RunInsight;
+use App\Services\AiCredentialManager;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -29,10 +31,34 @@ class RunInsightPanel extends Component
         return $this->run->insight()->latest('id')->first();
     }
 
+    #[Computed]
+    public function insightsSelection(): ?array
+    {
+        return app(AiCredentialManager::class)->getInsightsSelection();
+    }
+
+    #[Computed]
+    public function insightsReady(): bool
+    {
+        return app(AiCredentialManager::class)->isInsightsSelectionUsable();
+    }
+
+    #[Computed]
+    public function project(): ?Project
+    {
+        return $this->run->script->test->project;
+    }
+
     public function generate(): void
     {
         if ($this->isActive()) {
             Flux::toast(variant: 'warning', text: 'Wait for the run to finish before generating insights.');
+
+            return;
+        }
+
+        if (! $this->insightsReady) {
+            Flux::toast(variant: 'warning', text: 'Choose an insights model in Settings first.');
 
             return;
         }

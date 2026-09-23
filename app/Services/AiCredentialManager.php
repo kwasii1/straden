@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\AiProviderCredential;
+use App\Models\AiSetting;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
 use Throwable;
 
 /**
@@ -16,6 +18,10 @@ use Throwable;
  */
 class AiCredentialManager
 {
+    public const INSIGHTS_PROVIDER_KEY = 'insights.provider';
+
+    public const INSIGHTS_MODEL_KEY = 'insights.model';
+
     /**
      * Map of provider => [env-style input key => storage target].
      *
@@ -212,6 +218,73 @@ class AiCredentialManager
         AiProviderCredential::query()->where('provider', $provider)->delete();
 
         $this->syncProvider($provider);
+    }
+
+    /**
+     * The user-selected insights model, if one has been chosen in Settings.
+     *
+     * @return array{provider: string, model: string}|null
+     */
+    public function getInsightsSelection(): ?array
+    {
+        try {
+            if (! Schema::hasTable((new AiSetting)->getTable())) {
+                return null;
+            }
+
+            $settings = AiSetting::query()
+                ->whereIn('key', [self::INSIGHTS_PROVIDER_KEY, self::INSIGHTS_MODEL_KEY])
+                ->pluck('value', 'key');
+
+            $provider = $settings[self::INSIGHTS_PROVIDER_KEY] ?? null;
+            $model = $settings[self::INSIGHTS_MODEL_KEY] ?? null;
+
+            if (! is_string($provider) || ! in_array($provider, static::supportedProviders(), true)) {
+                return null;
+            }
+
+            if (! is_string($model) || trim($model) === '') {
+                return null;
+            }
+
+            return ['provider' => $provider, 'model' => trim($model)];
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Whether an insights model is selected AND its provider is connected.
+     */
+    public function isInsightsSelectionUsable(): bool
+    {
+        $selection = $this->getInsightsSelection();
+
+        return $selection !== null && $this->isConnected($selection['provider']);
+    }
+
+    /**
+     * Persist the user-selected insights model.
+     */
+    public function setInsightsSelection(string $provider, string $model): void
+    {
+        Validator::make(
+            ['provider' => $provider, 'model' => $model],
+            [
+                'provider' => ['required', 'string', 'in:'.implode(',', static::supportedProviders())],
+                'model' => ['required', 'string', 'max:255'],
+            ]
+        )->validate();
+
+        AiSetting::updateOrCreate(['key' => self::INSIGHTS_PROVIDER_KEY], ['value' => $provider]);
+        AiSetting::updateOrCreate(['key' => self::INSIGHTS_MODEL_KEY], ['value' => trim($model)]);
+    }
+
+    public function clearInsightsSelection(): void
+    {
+        AiSetting::query()
+            ->whereIn('key', [self::INSIGHTS_PROVIDER_KEY, self::INSIGHTS_MODEL_KEY])
+            ->delete();
     }
 
     /**

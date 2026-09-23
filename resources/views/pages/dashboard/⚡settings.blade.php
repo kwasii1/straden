@@ -1,5 +1,6 @@
 <?php
 
+use App\Ai\Providers\AvailableModelMap;
 use App\Services\AiCredentialManager;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
@@ -13,6 +14,24 @@ class extends Component
     public string $activeProvider = '';
 
     public array $credentialValues = [];
+
+    public string $insightsProvider = '';
+
+    public string $insightsModel = '';
+
+    public function mount(): void
+    {
+        $selection = app(AiCredentialManager::class)->getInsightsSelection();
+
+        $this->insightsProvider = $selection['provider'] ?? '';
+        $this->insightsModel = $selection['model'] ?? '';
+    }
+
+    public function updatedInsightsProvider(): void
+    {
+        // A stale model from another provider must never be saved by accident.
+        $this->insightsModel = '';
+    }
 
     private array $providerMeta = [
         'openai' => [
@@ -257,6 +276,86 @@ class extends Component
         return app(AiCredentialManager::class)->credentialFor($slug)?->key_hint;
     }
 
+    #[Computed]
+    public function insightsSelection(): ?array
+    {
+        $selection = app(AiCredentialManager::class)->getInsightsSelection();
+
+        if (! $selection) {
+            return null;
+        }
+
+        return [
+            'provider' => $selection['provider'],
+            'provider_label' => AvailableModelMap::labelFor($selection['provider']),
+            'model' => $selection['model'],
+            'usable' => app(AiCredentialManager::class)->isConnected($selection['provider']),
+        ];
+    }
+
+    #[Computed]
+    public function insightProviderOptions(): array
+    {
+        $manager = app(AiCredentialManager::class);
+
+        $options = array_map(fn (string $slug) => [
+            'value' => $slug,
+            'label' => AvailableModelMap::labelFor($slug),
+            'connected' => $manager->isConnected($slug),
+        ], AiCredentialManager::supportedProviders());
+
+        usort($options, fn ($a, $b) => [$b['connected'], $a['label']] <=> [$a['connected'], $b['label']]);
+
+        return $options;
+    }
+
+    #[Computed]
+    public function insightModelSuggestions(): array
+    {
+        if ($this->insightsProvider === '') {
+            return [];
+        }
+
+        return AvailableModelMap::modelsFor($this->insightsProvider);
+    }
+
+    #[Computed]
+    public function insightsModelPlaceholder(): string
+    {
+        if ($this->insightsProvider === '') {
+            return 'Select a provider first';
+        }
+
+        $first = $this->insightModelSuggestions[0] ?? null;
+
+        return $first ? "e.g. {$first}" : 'Type a model name';
+    }
+
+    public function saveInsightsModel(): void
+    {
+        $this->validate([
+            'insightsProvider' => ['required', 'string', 'in:'.implode(',', AiCredentialManager::supportedProviders())],
+            'insightsModel' => ['required', 'string', 'max:255'],
+        ]);
+
+        app(AiCredentialManager::class)->setInsightsSelection($this->insightsProvider, $this->insightsModel);
+
+        Flux::modal('insights-model')->close();
+
+        Flux::toast(variant: 'success', text: 'Insights model updated.');
+
+        unset($this->insightsSelection);
+    }
+
+    public function startInsightsModel(): void
+    {
+        // Start the modal from the stored selection so cancelled edits are discarded.
+        $selection = app(AiCredentialManager::class)->getInsightsSelection();
+
+        $this->insightsProvider = $selection['provider'] ?? '';
+        $this->insightsModel = $selection['model'] ?? '';
+    }
+
     public function startConnect(string $slug): void
     {
         $this->activeProvider = $slug;
@@ -297,7 +396,7 @@ class extends Component
         $this->activeProvider = '';
         $this->credentialValues = [];
 
-        unset($this->providers, $this->stats);
+        unset($this->providers, $this->stats, $this->insightsSelection);
     }
 
     public function updateProvider(): void
@@ -332,7 +431,7 @@ class extends Component
         $this->activeProvider = '';
         $this->credentialValues = [];
 
-        unset($this->providers, $this->stats);
+        unset($this->providers, $this->stats, $this->insightsSelection);
     }
 
     public function disconnectProvider(string $slug): void
@@ -351,7 +450,7 @@ class extends Component
 
         $this->activeProvider = '';
 
-        unset($this->providers, $this->stats);
+        unset($this->providers, $this->stats, $this->insightsSelection);
     }
 
     public function getActiveMeta(): ?array
@@ -426,6 +525,44 @@ class extends Component
         <div class="flex items-center justify-between p-3.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xs">
             <span class="text-xs text-zinc-500 font-medium">Available to Setup</span>
             <span class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 font-mono">{{ $this->stats['available'] }}</span>
+        </div>
+    </div>
+
+    {{-- AI Insights Model --}}
+    <div class="rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xs p-4 sm:p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div class="flex-1 min-w-0">
+                <flux:heading size="sm" class="font-semibold text-zinc-900 dark:text-zinc-100">AI Insights Model</flux:heading>
+                <flux:text class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Choose which provider and model powers load-test insight reports.</flux:text>
+            </div>
+
+            @if ($this->insightsSelection)
+                @if ($this->insightsSelection['usable'])
+                    <span class="inline-flex self-start sm:self-auto items-center gap-x-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <span class="size-1.5 rounded-full bg-emerald-500"></span>
+                        {{ $this->insightsSelection['model'] }} via {{ $this->insightsSelection['provider_label'] }}
+                    </span>
+                @else
+                    <span class="inline-flex self-start sm:self-auto items-center gap-x-1.5 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        <span class="size-1.5 rounded-full bg-amber-500"></span>
+                        {{ $this->insightsSelection['provider_label'] }} not connected
+                    </span>
+                @endif
+            @else
+                <span class="inline-flex self-start sm:self-auto items-center rounded-full bg-zinc-100 dark:bg-zinc-800/80 px-2 py-0.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50">
+                    No model selected
+                </span>
+            @endif
+
+            <flux:button
+                x-on:click="$wire.startInsightsModel(); $flux.modal('insights-model').show()"
+                variant="primary"
+                size="sm"
+                icon="sparkles"
+                class="shrink-0 self-start sm:self-auto"
+            >
+                {{ $this->insightsSelection ? 'Change Model' : 'Select Model' }}
+            </flux:button>
         </div>
     </div>
 
@@ -753,6 +890,62 @@ class extends Component
                     Done
                 </flux:button>
             </div>
+        </div>
+    </flux:modal>
+
+    {{-- AI Insights Model Modal --}}
+    <flux:modal name="insights-model" class="md:w-1/3 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-600">
+        <div class="space-y-5">
+            <div class="border-b dark:border-zinc-800 pb-4">
+                <flux:heading size="lg">AI Insights Model</flux:heading>
+                <flux:text class="mt-0.5 text-xs text-zinc-500">Choose which provider and model powers load-test insight reports.</flux:text>
+            </div>
+
+            @if ($this->insightsSelection)
+                <div class="bg-zinc-50 dark:bg-zinc-800/40 rounded-xl p-3 border border-zinc-200/60 dark:border-zinc-800">
+                    <flux:text class="text-[11px] text-zinc-500 dark:text-zinc-400 leading-normal">
+                        Currently using
+                        <code class="text-[10px] bg-zinc-200/70 dark:bg-zinc-700 px-1 py-0.5 rounded font-mono text-zinc-800 dark:text-zinc-200">{{ $this->insightsSelection['model'] }}</code>
+                        via {{ $this->insightsSelection['provider_label'] }}.
+                    </flux:text>
+                </div>
+            @endif
+
+            <form wire:submit="saveInsightsModel" class="space-y-4">
+                <flux:field>
+                    <flux:label class="text-xs">Provider</flux:label>
+                    <flux:select wire:model.live="insightsProvider" placeholder="Choose provider...">
+                        @foreach ($this->insightProviderOptions as $option)
+                            <flux:select.option value="{{ $option['value'] }}">
+                                {{ $option['label'] }}{{ $option['connected'] ? '' : ' (not connected)' }}
+                            </flux:select.option>
+                        @endforeach
+                    </flux:select>
+                    <flux:error name="insightsProvider" />
+                </flux:field>
+
+                <flux:field>
+                    <flux:label class="text-xs">Model</flux:label>
+                    <flux:input
+                        wire:model="insightsModel"
+                        list="insights-model-suggestions"
+                        placeholder="{{ $this->insightsModelPlaceholder }}"
+                        :disabled="$this->insightsProvider === ''"
+                        autocomplete="off"
+                    />
+                    <datalist id="insights-model-suggestions">
+                        @foreach ($this->insightModelSuggestions as $suggestion)
+                            <option value="{{ $suggestion }}"></option>
+                        @endforeach
+                    </datalist>
+                    <flux:error name="insightsModel" />
+                </flux:field>
+
+                <div class="flex items-center justify-end gap-2 pt-4 border-t dark:border-zinc-800">
+                    <flux:button x-on:click="$flux.modal('insights-model').close()" variant="ghost" size="sm">Cancel</flux:button>
+                    <flux:button type="submit" variant="primary" size="sm">Save Model</flux:button>
+                </div>
+            </form>
         </div>
     </flux:modal>
 </div>

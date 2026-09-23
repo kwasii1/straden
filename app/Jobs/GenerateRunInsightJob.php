@@ -52,9 +52,25 @@ class GenerateRunInsightJob implements ShouldQueue
 
         $insight->update(['status' => 'generating', 'error' => null]);
 
+        $manager = app(AiCredentialManager::class);
+        $selection = $manager->getInsightsSelection();
+
+        if ($selection && ! $manager->isConnected($selection['provider'])) {
+            $insight->update([
+                'status' => 'failed',
+                'error' => "The selected insights provider [{$selection['provider']}] is not connected. Reconnect it or pick another model in Settings → AI Integrations.",
+            ]);
+
+            return;
+        }
+
         try {
             $response = (new RunInsightAgent($run))
-                ->prompt('Analyze this load test run and generate the structured performance report.');
+                ->prompt(
+                    'Analyze this load test run and generate the structured performance report.',
+                    provider: $selection['provider'] ?? null,
+                    model: $selection['model'] ?? null,
+                );
 
             $insight->update([
                 'status' => 'completed',

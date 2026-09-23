@@ -322,18 +322,60 @@
                 </div>
             @endif
 
+            @if (! $this->insightsReady)
+                <div class="w-full max-w-md p-4 rounded-xl border border-amber-200 bg-amber-50 text-left flex items-start gap-x-3">
+                    <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                        <flux:icon.exclamation-triangle class="size-4" />
+                    </div>
+                    <div class="space-y-1.5">
+                        <flux:heading size="sm" class="font-semibold text-amber-900">
+                            {{ $this->insightsSelection ? 'Insights provider not connected' : 'No insights model selected' }}
+                        </flux:heading>
+                        <flux:text class="text-xs text-amber-700 leading-relaxed">
+                            {{ $this->insightsSelection
+                                ? 'The selected provider is no longer connected. Reconnect it or pick another model in Settings.'
+                                : 'Choose which AI model should generate insight reports in Settings before running your first analysis.' }}
+                        </flux:text>
+                        @if ($this->project)
+                            <flux:button
+                                wire:navigate
+                                :href="route('projects.settings', ['project' => $this->project])"
+                                variant="primary"
+                                size="sm"
+                                icon="cog-6-tooth"
+                                class="rounded-lg mt-1"
+                            >
+                                Go to Settings
+                            </flux:button>
+                        @endif
+                    </div>
+                </div>
+            @endif
+
             <flux:button
                 wire:click="generate"
                 wire:loading.attr="disabled"
                 variant="primary"
                 size="base"
                 icon="sparkles"
-                :disabled="$isActive"
+                :disabled="$isActive || ! $this->insightsReady"
                 class="rounded-lg bg-[#1A1A1A] hover:bg-black px-5"
             >
                 <span wire:loading.remove wire:target="generate">{{ $isActive ? 'Run In Progress' : 'Generate AI Insights' }}</span>
                 <span wire:loading wire:target="generate">Initializing Agent...</span>
             </flux:button>
+
+            @if ($this->insightsReady && $this->insightsSelection)
+                <flux:text class="text-[11px] text-[#919191]">
+                    Using {{ $this->insightsSelection['model'] }} — change anytime in
+                    @if ($this->project)
+                        <a wire:navigate href="{{ route('projects.settings', ['project' => $this->project]) }}" class="underline underline-offset-2 hover:text-[#4A4A4A]">Settings</a>
+                    @else
+                        Settings
+                    @endif
+                    .
+                </flux:text>
+            @endif
         </div>
     @endif
 </div>
