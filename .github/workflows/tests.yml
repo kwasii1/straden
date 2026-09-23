@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php-version: ['8.3', '8.4', '8.5']
+        php-version: ['8.4', '8.5']
 
     steps:
       - name: Checkout code
@@ -41,6 +41,15 @@ jobs:
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '22'
+
+      - name: Install k6
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download --repo grafana/k6 --pattern 'k6-*-linux-amd64.tar.gz' --dir /tmp/k6dl
+          tar -xzf /tmp/k6dl/k6-*-linux-amd64.tar.gz -C /tmp/k6dl
+          sudo mv /tmp/k6dl/k6-*/k6 /usr/local/bin/k6
+          k6 version
 
       - name: Install Node Dependencies
         run: npm i

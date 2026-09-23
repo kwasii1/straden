@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
+use App\Services\AiCredentialManager;
 use Carbon\CarbonImmutable;
+use Illuminate\Foundation\DevCommands;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
@@ -24,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureDevCommands();
+        $this->syncAiProviderCredentials();
     }
 
     /**
@@ -46,5 +51,30 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null,
         );
+    }
+
+    protected function configureDevCommands(): void
+    {
+        DevCommands::artisan('serve --port=8001', 'server');
+        DevCommands::artisan('schedule:work', 'scheduler');
+        DevCommands::artisan('horizon:listen', 'horizon');
+
+        if (App::environment('local')) {
+            DevCommands::register(
+                'opencode serve --hostname 0.0.0.0',
+                'opencode'
+            )->purple();
+        }
+    }
+
+    /**
+     * Inject encrypted DB credentials into ai.providers runtime config.
+     *
+     * Guarded inside the manager so missing tables (fresh installs,
+     * config:cache) never break boot.
+     */
+    protected function syncAiProviderCredentials(): void
+    {
+        app(AiCredentialManager::class)->syncConfig();
     }
 }

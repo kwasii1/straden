@@ -15,13 +15,16 @@ export default defineConfig({
             ],
             refresh: true,
             fonts: [
-                bunny('Instrument Sans', {
+                bunny('Inter', {
                     weights: [400, 500, 600],
                 }),
             ],
         }),
         tailwindcss(),
     ],
+    worker: {
+        format: 'es',
+    },
     server: {
         cors: true,
         watch: {

@@ -3,6 +3,9 @@ includes:
     - vendor/nesbot/carbon/extension.neon
 
 parameters:
+    stubFiles:
+        - phpstan/stubs/ai-models.stub
+
     paths:
         - app/
         - bootstrap/app.php
@@ -11,3 +14,8 @@ parameters:
         - routes/
 
     level: 7
+
+    # Parse casts() methods statically: Laravel merges them into $casts only
+    # inside the model constructor, which Larastan bypasses when inspecting
+    # models. Without this, enum/datetime/array casts resolve as raw column types.
+    parseModelCastsMethod: true
