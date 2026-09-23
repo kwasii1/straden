@@ -31,6 +31,14 @@
                 <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
                     {{ __('Documentation') }}
                 </flux:sidebar.item>
+
+                <flux:sidebar.item icon="queue-list" :href="route('horizon.index')" target="_blank">
+                    {{ __('Horizon') }}
+                </flux:sidebar.item>
+
+                <flux:sidebar.item icon="document-text" :href="route('log-viewer.index')" target="_blank">
+                    {{ __('Log Viewer') }}
+                </flux:sidebar.item>
             </flux:sidebar.nav>
 
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
