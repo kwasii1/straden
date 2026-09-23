@@ -39,7 +39,7 @@ class ChatAgentJob implements ShouldQueue
     public string $invocationId;
 
     /**
-     * @param  array{conversation_id: string, message_id: string}|null  $placeholder
+     * @param  array{conversation_id: string, message_id: string, is_new_conversation?: bool}|null  $placeholder
      */
     public function __construct(
         public Agent $agent,

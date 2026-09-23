@@ -191,7 +191,14 @@ class AgentChat extends Component
         $userInput = trim($this->input);
         $this->input = '';
 
-        $placeholder = PersistsChatMessages::storeUserPrompt($this->test, TestAgent::class, $userInput);
+        $placeholder = PersistsChatMessages::storeUserPrompt($this->test, TestAgent::class, $userInput, $this->conversationId);
+
+        if ($placeholder) {
+            $this->conversationId = $placeholder['conversation_id'];
+            $this->pushOptimisticUserMessage($userInput);
+            $this->loadConversations();
+            $this->dispatch('chat-optimistic-sent');
+        }
 
         $agent = new TestAgent($this->test);
 

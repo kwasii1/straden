@@ -1,4 +1,8 @@
-<div class="flex flex-col h-screen max-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden relative">
+<div
+    class="flex flex-col h-screen max-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden relative"
+    x-data="{ pendingMessage: '' }"
+    @chat-optimistic-sent.window="pendingMessage = ''"
+>
     {{-- Fixed Header --}}
     <div class="shrink-0 px-4 py-3 border-b border-zinc-200/80 dark:border-zinc-800/80 flex items-center justify-between bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md z-20">
         <div class="flex items-center gap-2.5">
@@ -59,13 +63,13 @@
 
                 <div class="grid grid-cols-1 gap-2 w-full mt-6">
                     <button
-                        x-on:click="$wire.set('input', 'Analyze my target endpoints and suggest a 30s load test scenario.'); $wire.submitMessage()"
+                        x-on:click="pendingMessage = 'Analyze my target endpoints and suggest a 30s load test scenario.'; $wire.set('input', 'Analyze my target endpoints and suggest a 30s load test scenario.'); $wire.submitMessage()"
                         class="text-left text-xs p-2.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/40 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition text-zinc-600 dark:text-zinc-300"
                     >
                         ⚡ <span class="font-medium text-zinc-900 dark:text-zinc-100">Suggest load test</span> for target endpoints
                     </button>
                     <button
-                        x-on:click="$wire.set('input', 'Generate a k6 script targeting the primary API connectors.'); $wire.submitMessage()"
+                        x-on:click="pendingMessage = 'Generate a k6 script targeting the primary API connectors.'; $wire.set('input', 'Generate a k6 script targeting the primary API connectors.'); $wire.submitMessage()"
                         class="text-left text-xs p-2.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/40 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition text-zinc-600 dark:text-zinc-300"
                     >
                         🧪 <span class="font-medium text-zinc-900 dark:text-zinc-100">Generate k6 script</span> for API connectors
@@ -395,6 +399,17 @@
             @endif
         @endforeach
 
+        {{-- Instant client echo: visible before the Livewire round-trip returns.
+             Cleared once the server confirms with `chat-optimistic-sent`. --}}
+        <template x-if="pendingMessage">
+            <div class="flex flex-col items-end gap-0.5">
+                <div class="max-w-[85%] rounded-2xl rounded-tr-xs px-4 py-2.5 text-xs sm:text-sm bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-sm">
+                    <div class="whitespace-pre-wrap break-words leading-relaxed" x-text="pendingMessage"></div>
+                </div>
+                <span class="text-[10px] text-zinc-400 dark:text-zinc-600 pr-1">Sending…</span>
+            </div>
+        </template>
+
         {{-- Live stream + loading / thinking --}}
         <div
             x-data="chatStream(@js('test.'.$test->id))"
@@ -459,8 +474,10 @@
     <div class="shrink-0 p-3 sm:p-4 bg-gradient-to-t from-white via-white/95 dark:from-zinc-950 dark:via-zinc-950/95 to-transparent pt-4 z-20">
         <div class="max-w-3xl mx-auto rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl shadow-xl shadow-zinc-900/5 p-2 flex flex-col gap-2">
             <textarea
+                x-ref="chatInput"
                 wire:model="input"
                 wire:keydown.enter="submitMessage"
+                x-on:keydown.enter="if ($event.target.value.trim() !== '') { pendingMessage = $event.target.value.trim(); $nextTick(() => document.getElementById('chat-messages')?.scrollTo({ top: document.getElementById('chat-messages').scrollHeight })); }"
                 rows="2"
                 placeholder="Ask assistant to generate scripts, configure tests..."
                 class="w-full bg-transparent text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 resize-none focus:outline-none px-2 py-1 leading-relaxed"
@@ -499,6 +516,7 @@
 
                 <button
                     wire:click="submitMessage"
+                    x-on:click="const ta = $refs.chatInput; if (ta && ta.value.trim() !== '') { pendingMessage = ta.value.trim(); }"
                     class="inline-flex size-8 shrink-0 items-center justify-center rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:opacity-90 transition shadow-xs disabled:opacity-40"
                     wire:loading.attr="disabled"
                 >

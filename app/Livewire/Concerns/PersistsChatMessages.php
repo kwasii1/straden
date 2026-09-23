@@ -18,22 +18,45 @@ use Laravel\Ai\Models\ConversationMessage;
 trait PersistsChatMessages
 {
     /**
-     * Durably record the user's prompt in a fresh conversation.
+     * Durably record the user's prompt, reusing the active conversation when one
+     * is given so the placeholder is visible to the subsequent reload.
      *
-     * @return array{conversation_id: string, message_id: string}|null
+     * @return array{conversation_id: string, message_id: string, is_new_conversation: bool}|null
      */
-    public static function storeUserPrompt(object $participant, string $agentClass, string $text): ?array
+    public static function storeUserPrompt(object $participant, string $agentClass, string $text, ?string $existingConversationId = null): ?array
     {
         if (trim($text) === '') {
             return null;
         }
 
-        $conversation = Conversation::create([
-            'id' => (string) Str::uuid7(),
-            'participant_type' => Conversation::participantType($participant),
-            'participant_id' => Conversation::participantKey($participant),
-            'title' => Str::limit($text, 50, preserveWords: true),
-        ]);
+        $participantType = Conversation::participantType($participant);
+        $participantKey = Conversation::participantKey($participant);
+
+        $conversation = null;
+        $isNewConversation = true;
+
+        if ($existingConversationId) {
+            $conversation = Conversation::query()
+                ->where('id', $existingConversationId)
+                ->where('participant_type', $participantType)
+                ->where('participant_id', $participantKey)
+                ->first();
+
+            if ($conversation) {
+                $isNewConversation = false;
+                $conversation->touch();
+            }
+        }
+
+        if (! $conversation) {
+            $conversation = Conversation::create([
+                'id' => (string) Str::uuid7(),
+                'participant_type' => $participantType,
+                'participant_id' => $participantKey,
+                'title' => Str::limit($text, 50, preserveWords: true),
+            ]);
+            $isNewConversation = true;
+        }
 
         $message = ConversationMessage::create([
             'id' => (string) Str::uuid7(),
@@ -54,17 +77,46 @@ trait PersistsChatMessages
         return [
             'conversation_id' => $conversation->id,
             'message_id' => $message->id,
+            'is_new_conversation' => $isNewConversation,
         ];
     }
 
     /**
-     * Remove the placeholder conversation once the SDK has persisted the real one.
+     * Append an optimistic user bubble so the sent message is visible before
+     * the queued agent run completes and triggers a reload from storage.
+     */
+    protected function pushOptimisticUserMessage(string $text): void
+    {
+        $this->displayMessages[] = [
+            'role' => 'user',
+            'content' => $text,
+            'tool_calls' => [],
+            'tool_results' => [],
+            'is_approval_pause' => false,
+            'pending_call_ids' => [],
+            'created_at' => now()->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Remove the placeholder message once the SDK has persisted the real one.
      *
-     * @param  array{conversation_id: string, message_id: string}|null  $placeholder
+     * When the placeholder reused an existing conversation only the single
+     * message is removed; a freshly created placeholder conversation is
+     * removed entirely. Placeholders written before the reuse flag existed
+     * fall back to the previous behaviour.
+     *
+     * @param  array{conversation_id: string, message_id: string, is_new_conversation?: bool}|null  $placeholder
      */
     public static function forgetPlaceholder(?array $placeholder): void
     {
         if ($placeholder === null) {
+            return;
+        }
+
+        if (($placeholder['is_new_conversation'] ?? true) === false) {
+            ConversationMessage::where('id', $placeholder['message_id'])->delete();
+
             return;
         }
 

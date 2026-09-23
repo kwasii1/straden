@@ -199,7 +199,14 @@ class ScriptAgentChat extends Component
         $scriptId = $this->script->id;
         $userId = auth()->id();
 
-        $placeholder = PersistsChatMessages::storeUserPrompt($this->script, ScriptAgent::class, $userInput);
+        $placeholder = PersistsChatMessages::storeUserPrompt($this->script, ScriptAgent::class, $userInput, $this->conversationId);
+
+        if ($placeholder) {
+            $this->conversationId = $placeholder['conversation_id'];
+            $this->pushOptimisticUserMessage($userInput);
+            $this->loadConversations();
+            $this->dispatch('chat-optimistic-sent');
+        }
 
         $agent = new ScriptAgent($this->script);
 
