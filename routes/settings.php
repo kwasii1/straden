@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\RememberSettingsReturnUrl;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth'])->group(function () {
@@ -16,6 +17,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'password.confirm',
         ])
         ->name('security.edit');
+
+    Route::middleware(RememberSettingsReturnUrl::class)->group(function () {
+        Route::livewire('settings/ai-integrations', 'pages::settings.ai-integrations')->name('settings.ai-integrations');
+        Route::livewire('settings/insights-model', 'pages::settings.insights-model')->name('settings.insights-model');
+        Route::livewire('settings/api-tokens', 'pages::settings.api-tokens')->name('settings.api-tokens');
+    });
 });
 
 Route::get('.well-known/passkey-endpoints', function () {

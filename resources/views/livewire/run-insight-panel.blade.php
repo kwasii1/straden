@@ -278,7 +278,7 @@
                     @if ($this->project)
                         <flux:button
                             wire:navigate
-                            :href="route('projects.settings', ['project' => $this->project])"
+                            :href="route('settings.insights-model')"
                             variant="primary"
                             size="sm"
                             icon="cog-6-tooth"
@@ -306,7 +306,7 @@
                 <flux:text class="text-[11px] text-[#919191]">
                     Using {{ $this->insightsSelection['model'] }} — change anytime in
                     @if ($this->project)
-                        <a wire:navigate href="{{ route('projects.settings', ['project' => $this->project]) }}" class="underline underline-offset-2 hover:text-[#4A4A4A]">Settings</a>
+                        <a wire:navigate href="{{ route('settings.insights-model') }}" class="underline underline-offset-2 hover:text-[#4A4A4A]">Settings</a>
                     @else
                         Settings
                     @endif

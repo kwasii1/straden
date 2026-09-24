@@ -37,8 +37,8 @@
                 <flux:sidebar.item icon="git-compare" :href="route('projects.git-providers', ['project' => $project])" :current="request()->routeIs('projects.git-providers*')" wire:navigate>
                     {{ __('Git Providers') }}
                 </flux:sidebar.item>
-                <flux:sidebar.item icon="cog-6-tooth" :href="route('projects.settings', ['project' => $project])" :current="request()->routeIs('projects.settings')" wire:navigate>
-                    {{ __('AI Providers') }}
+                <flux:sidebar.item icon="cog-6-tooth" :href="route('settings.ai-integrations')" wire:navigate>
+                    {{ __('Settings') }}
                 </flux:sidebar.item>
             </flux:sidebar.nav>
 

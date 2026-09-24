@@ -18,6 +18,9 @@
                     <flux:sidebar.item icon="rectangle-stack" :href="route('projects')" :current="request()->routeIs('projects')" wire:navigate>
                         {{ __('Projects') }}
                     </flux:sidebar.item>
+                    <flux:sidebar.item icon="cog-6-tooth" :href="route('settings.ai-integrations')" :current="request()->routeIs('settings.ai-integrations', 'settings.insights-model', 'settings.api-tokens')" wire:navigate>
+                        {{ __('Settings') }}
+                    </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 

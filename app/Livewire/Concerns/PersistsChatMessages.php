@@ -3,6 +3,7 @@
 namespace App\Livewire\Concerns;
 
 use Illuminate\Support\Str;
+use Laravel\Ai\Enums\MessageStatus;
 use Laravel\Ai\Models\Conversation;
 use Laravel\Ai\Models\ConversationMessage;
 
@@ -67,11 +68,10 @@ trait PersistsChatMessages
             'role' => 'user',
             'content' => $text,
             'attachments' => [],
-            'tool_calls' => [],
-            'tool_results' => [],
+            'steps' => [],
             'usage' => [],
             'meta' => [],
-            'approval_state' => null,
+            'status' => MessageStatus::Completed,
         ]);
 
         return [

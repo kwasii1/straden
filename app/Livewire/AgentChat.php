@@ -11,6 +11,7 @@ use App\Models\Test;
 use Illuminate\Contracts\View\View;
 use Laravel\Ai\Approvals\Decision;
 use Laravel\Ai\Approvals\Decisions;
+use Laravel\Ai\Approvals\PendingApproval;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Models\Conversation;
@@ -412,18 +413,18 @@ class AgentChat extends Component
         }
 
         $this->displayMessages = $messages->map(function (ConversationMessage $message) {
-            // tool_calls/tool_results are array-cast and non-nullable, so they
-            // are always arrays here. approval_state is nullable.
+            // tool_calls/tool_results are read-only accessors derived from
+            // the stored steps. A call with an approval_reason but no result
+            // is still awaiting a decision.
             $toolCalls = $message->tool_calls;
             $toolResults = $message->tool_results;
-            $approvalState = is_array($message->approval_state) ? $message->approval_state : null;
 
-            $isApprovalPause = false;
             $pendingCallIds = [];
 
-            if ($approvalState && isset($approvalState['pending']) && is_array($approvalState['pending'])) {
-                $isApprovalPause = ! empty($approvalState['pending']);
-                $pendingCallIds = array_keys($approvalState['pending']);
+            foreach ($toolCalls as $call) {
+                if (is_array($call) && PendingApproval::isPending($call)) {
+                    $pendingCallIds[] = $call['id'];
+                }
             }
 
             return [
@@ -431,7 +432,7 @@ class AgentChat extends Component
                 'content' => $message->content,
                 'tool_calls' => $toolCalls,
                 'tool_results' => $toolResults,
-                'is_approval_pause' => $isApprovalPause,
+                'is_approval_pause' => $pendingCallIds !== [],
                 'pending_call_ids' => $pendingCallIds,
                 'created_at' => $message->created_at->toIso8601String(),
             ];
