@@ -387,7 +387,7 @@ class extends Component
                     <path d="M6 9l6 6 6-6" />
                 </svg>
             </button>
-            <div class="grid transition-[grid-template-rows,opacity] duration-300"
+            <div x-cloak class="grid transition-[grid-template-rows,opacity] duration-300"
                 :style="open ? 'grid-template-rows:1fr;opacity:1' : 'grid-template-rows:0fr;opacity:0'">
                 <div class="overflow-hidden">
                     <pre class="mx-5 mb-4 max-h-80 overflow-y-auto rounded-lg p-3 text-sm whitespace-pre-wrap break-words {{ $isRunWarning ? 'bg-amber-100/60 text-amber-700 dark:bg-black/30 dark:text-amber-300' : 'bg-red-100/60 text-red-700 dark:bg-black/30 dark:text-red-300' }}">{{ $this->run->error_message }}</pre>
