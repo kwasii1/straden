@@ -186,9 +186,9 @@ test('ai providers page is accessible', function () {
     $project = Project::factory()->create();
 
     $this->actingAs($user)
-        ->get(route('projects.settings', ['project' => $project]))
+        ->get(route('settings.ai-integrations'))
         ->assertOk()
-        ->assertSee('AI Providers');
+        ->assertSee('AI Integrations');
 });
 
 test('git providers list shows empty state', function () {

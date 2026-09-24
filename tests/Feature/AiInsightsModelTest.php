@@ -64,13 +64,13 @@ test('insights selection rejects unknown providers and blank models', function (
     expect($manager->getInsightsSelection())->toBeNull();
 });
 
-test('settings page saves the insights model', function () {
+test('insights model page saves the insights model', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
     connectInsightsProvider('openai');
 
     Livewire::actingAs($user)
-        ->test('pages::dashboard.settings', ['project' => $project->slug])
+        ->test('pages::settings.insights-model')
         ->set('insightsProvider', 'openai')
         ->set('insightsModel', 'gpt-4o')
         ->call('saveInsightsModel')
@@ -80,29 +80,31 @@ test('settings page saves the insights model', function () {
         ->toBe(['provider' => 'openai', 'model' => 'gpt-4o']);
 });
 
-test('opening the insights modal starts from the stored selection', function () {
+test('the insights model form starts from and resets to the stored selection', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
     connectInsightsProvider('openai');
     app(AiCredentialManager::class)->setInsightsSelection('openai', 'gpt-4o');
 
     Livewire::actingAs($user)
-        ->test('pages::dashboard.settings', ['project' => $project->slug])
+        ->test('pages::settings.insights-model')
+        ->assertSet('insightsProvider', 'openai')
+        ->assertSet('insightsModel', 'gpt-4o')
         ->set('insightsProvider', 'anthropic')
         ->set('insightsModel', 'claude-sonnet-4')
-        ->call('startInsightsModel')
+        ->call('resetForm')
         ->assertSet('insightsProvider', 'openai')
         ->assertSet('insightsModel', 'gpt-4o');
 });
 
-test('settings page shows the insights picker section', function () {
+test('insights model page renders within the settings navigation', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
 
     $this->actingAs($user)
-        ->get(route('projects.settings', ['project' => $project]))
+        ->get(route('settings.insights-model'))
         ->assertOk()
-        ->assertSee('AI Insights Model');
+        ->assertSee(['AI Insights Model', 'AI Integrations', 'API Tokens']);
 });
 
 test('panel prompts to visit settings when no model is selected', function () {
@@ -209,4 +211,15 @@ test('job fails with a settings hint when the selected provider is disconnected'
 
     expect($insight->status)->toBe('failed');
     expect($insight->error)->toContain('not connected');
+});
+
+test('insights model page renders searchable comboboxes', function () {
+    connectInsightsProvider('openai');
+    app(AiCredentialManager::class)->setInsightsSelection('openai', 'gpt-4o');
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('settings.insights-model'))
+        ->assertOk()
+        ->assertSee(['Search providers...', 'Search or type a model name...'])
+        ->assertDontSee('<datalist', false);
 });

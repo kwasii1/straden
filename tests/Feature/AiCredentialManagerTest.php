@@ -119,7 +119,7 @@ test('settings page does not expose secrets in html', function () {
     app(AiCredentialManager::class)->put('openai', ['OPENAI_API_KEY' => 'sk-super-secret-xyz']);
 
     $this->actingAs($user)
-        ->get(route('projects.settings', ['project' => $project]))
+        ->get(route('settings.ai-integrations'))
         ->assertOk()
         ->assertDontSee('sk-super-secret-xyz');
 });

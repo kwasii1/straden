@@ -93,3 +93,7 @@ select:focus[data-flux-control] {
 html {
     scrollbar-gutter: stable;
 }
+
+[x-cloak] {
+    display: none !important;
+}

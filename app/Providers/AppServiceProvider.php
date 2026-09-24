@@ -4,10 +4,13 @@ namespace App\Providers;
 
 use App\Services\AiCredentialManager;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\DevCommands;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -29,6 +32,15 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->configureDevCommands();
         $this->syncAiProviderCredentials();
+        $this->configureRateLimiting();
+    }
+
+    /**
+     * Configure rate limiting for the MCP endpoint.
+     */
+    protected function configureRateLimiting(): void
+    {
+        RateLimiter::for('mcp', fn (Request $request) => Limit::perMinute(120)->by($request->user()?->getAuthIdentifier() ?: $request->ip()));
     }
 
     /**
@@ -58,6 +70,7 @@ class AppServiceProvider extends ServiceProvider
         DevCommands::artisan('serve --port=8001', 'server');
         DevCommands::artisan('schedule:work', 'scheduler');
         DevCommands::artisan('horizon:listen', 'horizon');
+        DevCommands::artisan('mcp:inspector mcp', 'mcp');
 
         if (App::environment('local')) {
             DevCommands::register(
