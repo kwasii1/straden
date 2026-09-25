@@ -15,7 +15,8 @@ class extends Component
 
     public string $target_endpoint;
 
-    public ?string $repository_source = null;
+    /** @var array<int, string> */
+    public array $repositoryIds = [];
 
     public array $connectors = [];
 
@@ -39,6 +40,8 @@ class extends Component
             'target_endpoint' => 'required|url|max:2048',
             'connectors' => 'nullable|array',
             'connectors.*' => 'string',
+            'repositoryIds' => 'nullable|array',
+            'repositoryIds.*' => 'string',
         ]);
 
         $test = Test::create([
@@ -49,10 +52,11 @@ class extends Component
         ]);
 
         $test->syncConnectors((array) ($this->connectors ?? []));
+        $test->syncRepositories($this->repositoryIds);
 
         Flux::toast(variant: 'success', text: 'Test Created Successfully');
 
-        $this->reset(['name', 'target_endpoint', 'repository_source', 'connectors', 'description']);
+        $this->reset(['name', 'target_endpoint', 'repositoryIds', 'connectors', 'description']);
     }
 };
 ?>
@@ -78,14 +82,15 @@ class extends Component
                 </div>
                 <div class="grid grid-cols-2 gap-4 w-full">
                     <div>
-                        <flux:select wire:model="repository_source" label="Repository Source" class="w-full!">
-                            <flux:select.option value="">Select repository source</flux:select.option>
-                            @foreach ($repositories as $repo)
-                                <flux:select.option value="{{ $repo->id }}">
-                                    {{ $repo->name }} ({{ $repo->type }})
-                                </flux:select.option>
-                            @endforeach
-                        </flux:select>
+                        <x-multi-combobox
+                            wire:model="repositoryIds"
+                            label="Repositories"
+                            :options="$repositories->map(fn ($repo) => ['value' => $repo->id, 'label' => $repo->name, 'hint' => $repo->type])"
+                            placeholder="All project repositories"
+                            search-placeholder="Search repositories..."
+                            empty-text="No repositories in this project yet."
+                            description="The AI agents only read code from these repositories. Leave empty to use every repository in the project."
+                        />
                     </div>
                     <div>
                         <livewire:connector-picker wire:model="connectors" :project="$project" wire:key="new-test-connectors" />

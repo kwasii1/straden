@@ -28,6 +28,9 @@ class ScanContextTool implements Tool
             'project' => $this->projectContext(),
             'connectors' => $this->connectorsContext(),
             'repositories' => $this->repositoriesContext(),
+            // "linked": repositories chosen for this test; "project": none are
+            // linked, so every repository in the project is in scope.
+            'repositories_scope' => $this->test->repositories()->exists() ? 'linked' : 'project',
             'scripts' => $this->scriptsContext(),
             'runs' => $this->runsContext(),
         ];
@@ -82,7 +85,7 @@ class ScanContextTool implements Tool
     /** @return array<int, mixed> */
     private function repositoriesContext(): array
     {
-        return $this->test->project->repositories->map(function (Repository $repo) {
+        return $this->test->contextRepositories()->map(function (Repository $repo) {
             return [
                 'id' => $repo->id,
                 'name' => $repo->name,

@@ -40,26 +40,88 @@ self.MonacoEnvironment = {
     },
 };
 
+const AUTOSAVE_DELAY_MS = 1000;
+const AUTOSAVE_STORAGE_KEY = 'straden.editor.autosave';
+
+const readAutosavePreference = () => {
+    try {
+        return localStorage.getItem(AUTOSAVE_STORAGE_KEY) !== 'off';
+    } catch {
+        return true;
+    }
+};
+
+const currentMonacoTheme = () => (document.documentElement.classList.contains('dark') ? 'vs-dark' : 'vs');
+
+// Keep every editor in step with the app's light/dark appearance.
+new MutationObserver(() => monaco.editor.setTheme(currentMonacoTheme()))
+    .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
 document.addEventListener('alpine:init', () => {
-    Alpine.store('editor', { buffers: {} });
+    Alpine.store('editor', {
+        buffers: {},
+        autosave: readAutosavePreference(),
+
+        toggleAutosave() {
+            this.autosave = ! this.autosave;
+
+            try {
+                localStorage.setItem(AUTOSAVE_STORAGE_KEY, this.autosave ? 'on' : 'off');
+            } catch {
+                // Preference simply won't persist (private mode, blocked storage).
+            }
+        },
+
+        /**
+         * Record the result of a save for a buffer. Content typed while the
+         * request was in flight keeps the buffer dirty.
+         */
+        markSaved(path, savedContent, succeeded) {
+            const buf = this.buffers[path];
+
+            if (! buf) {
+                return;
+            }
+
+            if (succeeded) {
+                buf.savedContent = savedContent;
+                buf.lastSavedAt = new Date();
+            }
+
+            buf.dirty = buf.content !== buf.savedContent;
+            buf.status = succeeded ? (buf.dirty ? 'dirty' : 'saved') : 'error';
+        },
+    });
 
     Alpine.data('monacoEditor', (initialValue, language, editable, path) => {
         let editor = null;
+        let autosaveTimer = null;
 
         const store = () => Alpine.store('editor').buffers[path] ?? (Alpine.store('editor').buffers[path] = {
             content: initialValue,
             savedContent: initialValue,
             dirty: false,
+            status: 'saved',
+            lastSavedAt: null,
         });
 
         const markDirty = () => {
             const buf = store();
             buf.content = editor.getValue();
             buf.dirty = buf.content !== buf.savedContent;
+
+            if (buf.dirty && buf.status !== 'saving') {
+                buf.status = 'dirty';
+            }
         };
 
         return {
             content: initialValue,
+            cursor: { line: 1, column: 1 },
+
+            get buffer() {
+                return path ? store() : null;
+            },
 
             init() {
                 const buf = store();
@@ -70,10 +132,17 @@ document.addEventListener('alpine:init', () => {
                 editor = monaco.editor.create(this.$refs.editorContainer, {
                     value: value,
                     language: language,
-                    theme: 'vs-dark',
+                    theme: currentMonacoTheme(),
                     automaticLayout: true,
                     minimap: { enabled: true },
                     fontSize: 13,
+                    fontLigatures: true,
+                    lineHeight: 20,
+                    padding: { top: 12 },
+                    scrollBeyondLastLine: false,
+                    smoothScrolling: true,
+                    cursorBlinking: 'smooth',
+                    renderLineHighlight: 'all',
                     roundedSelection: false,
                     readOnly: !editable,
                 });
@@ -81,28 +150,63 @@ document.addEventListener('alpine:init', () => {
                 editor.onDidChangeModelContent(() => {
                     this.content = editor.getValue();
                     markDirty();
+                    this.scheduleAutosave();
+                });
+
+                editor.onDidChangeCursorPosition((event) => {
+                    this.cursor = { line: event.position.lineNumber, column: event.position.column };
                 });
 
                 if (editable && path) {
                     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => this.save());
+
+                    // Like VS Code's "onFocusChange": leaving the editor saves.
+                    editor.onDidBlurEditorText(() => {
+                        if (Alpine.store('editor').autosave && store().dirty) {
+                            this.save();
+                        }
+                    });
                 }
             },
 
-            save() {
+            scheduleAutosave() {
+                if (! editable || ! path || ! Alpine.store('editor').autosave) {
+                    return;
+                }
+
+                clearTimeout(autosaveTimer);
+                autosaveTimer = setTimeout(() => {
+                    if (store().dirty) {
+                        this.save({ silent: true });
+                    }
+                }, AUTOSAVE_DELAY_MS);
+            },
+
+            save({ silent = false } = {}) {
                 if (! editable || ! path) {
                     return;
                 }
 
+                clearTimeout(autosaveTimer);
+
                 this.content = editor.getValue();
+                store().status = 'saving';
 
                 window.dispatchEvent(new CustomEvent('editor-save', {
-                    detail: { path: path, content: this.content },
+                    detail: { path: path, content: this.content, silent: silent },
                 }));
             },
 
             destroy() {
                 if (editor) {
                     markDirty();
+
+                    // Switching files shouldn't lose pending autosaved edits.
+                    if (editable && path && Alpine.store('editor').autosave && store().dirty) {
+                        this.save({ silent: true });
+                    }
+
+                    clearTimeout(autosaveTimer);
                     editor.dispose();
                     editor = null;
                 }

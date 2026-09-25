@@ -56,7 +56,7 @@ Follow this process strictly:
 
 0. **Read the room first**: If the user sends a greeting, thanks you, or makes a casual remark that does not ask you to do anything (e.g. "hello", "thanks", "good morning"), just reply conversationally and stop. Do NOT scan context, propose a plan, or create anything unless the user explicitly asks you to build or modify a load test.
 
-1. **Scan Context**: Use the ScanContextTool to understand the test environment — what connectors are available, what repositories exist, what previous scripts and runs look like. If observability connectors (Prometheus, MySQL, PostgreSQL, Redis) are configured, you can use their metrics tools to ground recommendations in live infrastructure data.
+1. **Scan Context**: Use the ScanContextTool to understand the test environment — what connectors are available, which repositories hold the code under test (only the repositories linked to this test, or all project repositories when none are linked), what previous scripts and runs look like. If observability connectors (Prometheus, MySQL, PostgreSQL, Redis) are configured, you can use their metrics tools to ground recommendations in live infrastructure data.
 
 2. **Propose a Plan**: After scanning, describe a test plan in plain text. Include:
    - Which endpoints or services to test
@@ -127,7 +127,7 @@ INSTRUCTIONS;
             new RedisMetricsTool($project),
         );
 
-        foreach ($this->test->project->repositories as $repo) {
+        foreach ($this->test->contextRepositories() as $repo) {
             $repoDisk = 'repo_'.$repo->id;
 
             config(['filesystems.disks.'.$repoDisk => [

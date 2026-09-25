@@ -38,6 +38,8 @@ test('creating a script writes entry point file to disk', function () {
     $content = Storage::disk('local')->get($basePath.'/script.js');
     expect($content)->toContain("import http from 'k6/http'");
     expect($content)->toContain('export default function ()');
+    expect($content)->toContain('http.get(__ENV.TARGET_URL)')
+        ->not->toContain('__TARGET_URL__');
 });
 
 test('script editor page loads with file tree', function () {
@@ -713,4 +715,30 @@ test('script editor hides the view current run button without an active run', fu
         ]))
         ->assertOk()
         ->assertDontSee('View Current Run');
+});
+
+test('autosaves persist silently and report success to the editor', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $test = Test::factory()->create(['project_id' => $project->id]);
+    $script = Script::factory()->create(['test_id' => $test->id]);
+
+    $basePath = 'scripts/'.$test->id.'/'.$script->id;
+    Storage::disk('local')->put($basePath.'/script.js', '// original');
+
+    $component = Livewire::actingAs($user)
+        ->test('pages::dashboard.view-test-script', [
+            'project' => $project,
+            'test' => $test,
+            'script' => $script,
+        ]);
+
+    $component->call('saveFile', 'script.js', '// autosaved', true)
+        ->assertReturned(true)
+        ->assertNotDispatched('toast-show');
+
+    expect(Storage::disk('local')->get($basePath.'/script.js'))->toBe('// autosaved');
+
+    $component->call('saveFile', '../../evil.js', 'bad', true)
+        ->assertReturned(false);
 });

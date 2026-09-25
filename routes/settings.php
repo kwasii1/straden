@@ -19,9 +19,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('security.edit');
 
     Route::middleware(RememberSettingsReturnUrl::class)->group(function () {
-        Route::livewire('settings/ai-integrations', 'pages::settings.ai-integrations')->name('settings.ai-integrations');
-        Route::livewire('settings/insights-model', 'pages::settings.insights-model')->name('settings.insights-model');
         Route::livewire('settings/api-tokens', 'pages::settings.api-tokens')->name('settings.api-tokens');
+
+        // Instance-wide configuration: admins only.
+        Route::middleware('admin')->group(function () {
+            Route::livewire('settings/ai-integrations', 'pages::settings.ai-integrations')->name('settings.ai-integrations');
+            Route::livewire('settings/insights-model', 'pages::settings.insights-model')->name('settings.insights-model');
+            Route::livewire('settings/users', 'pages::settings.users')->name('settings.users');
+        });
     });
 });
 

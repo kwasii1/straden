@@ -1,10 +1,10 @@
 name: tests
 
 on:
+  # Pushes to main run through the release workflow, which calls this one.
   push:
     branches:
       - develop
-      - main
       - master
       - workos
   pull_request:
@@ -13,6 +13,7 @@ on:
       - main
       - master
       - workos
+  workflow_call:
 
 permissions:
   contents: read
@@ -45,8 +46,10 @@ jobs:
       - name: Install k6
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Keep in sync with K6_VERSION in the Dockerfile.
+          K6_VERSION: v2.0.0
         run: |
-          gh release download --repo grafana/k6 --pattern 'k6-*-linux-amd64.tar.gz' --dir /tmp/k6dl
+          gh release download "$K6_VERSION" --repo grafana/k6 --pattern 'k6-*-linux-amd64.tar.gz' --dir /tmp/k6dl
           tar -xzf /tmp/k6dl/k6-*-linux-amd64.tar.gz -C /tmp/k6dl
           sudo mv /tmp/k6dl/k6-*/k6 /usr/local/bin/k6
           k6 version

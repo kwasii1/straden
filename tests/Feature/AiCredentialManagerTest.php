@@ -113,7 +113,7 @@ test('remove clears runtime config and connection status', function () {
 });
 
 test('settings page does not expose secrets in html', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
 
     app(AiCredentialManager::class)->put('openai', ['OPENAI_API_KEY' => 'sk-super-secret-xyz']);

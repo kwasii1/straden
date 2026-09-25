@@ -275,7 +275,9 @@
                             ? 'The selected provider is no longer connected. Reconnect it or pick another model in Settings.'
                             : 'Choose which AI model should generate insight reports in Settings before running your first analysis.' }}
                     </flux:text>
-                    @if ($this->project)
+                    @if (! auth()->user()?->isAdmin())
+                        <flux:text class="text-xs text-amber-700">Ask a Straden admin to configure it.</flux:text>
+                    @elseif ($this->project)
                         <flux:button
                             wire:navigate
                             :href="route('settings.insights-model')"
@@ -305,7 +307,7 @@
             @if ($this->insightsReady && $this->insightsSelection)
                 <flux:text class="text-[11px] text-[#919191]">
                     Using {{ $this->insightsSelection['model'] }} — change anytime in
-                    @if ($this->project)
+                    @if ($this->project && auth()->user()?->isAdmin())
                         <a wire:navigate href="{{ route('settings.insights-model') }}" class="underline underline-offset-2 hover:text-[#4A4A4A]">Settings</a>
                     @else
                         Settings

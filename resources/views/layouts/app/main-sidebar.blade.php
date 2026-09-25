@@ -37,7 +37,7 @@
                 <flux:sidebar.item icon="git-compare" :href="route('projects.git-providers', ['project' => $project])" :current="request()->routeIs('projects.git-providers*')" wire:navigate>
                     {{ __('Git Providers') }}
                 </flux:sidebar.item>
-                <flux:sidebar.item icon="cog-6-tooth" :href="route('settings.ai-integrations')" wire:navigate>
+                <flux:sidebar.item icon="cog-6-tooth" :href="route(auth()->user()?->isAdmin() ? 'settings.ai-integrations' : 'settings.api-tokens')" wire:navigate>
                     {{ __('Settings') }}
                 </flux:sidebar.item>
             </flux:sidebar.nav>
@@ -45,21 +45,23 @@
             <flux:spacer />
 
             <flux:sidebar.nav>
-                <flux:sidebar.item icon="git-branch" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
+                <flux:sidebar.item icon="git-branch" :href="config('straden.links.repository')" target="_blank">
                     {{ __('Repository') }}
                 </flux:sidebar.item>
 
-                <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
+                <flux:sidebar.item icon="book-open-text" :href="config('straden.links.documentation')" target="_blank">
                     {{ __('Documentation') }}
                 </flux:sidebar.item>
 
-                <flux:sidebar.item icon="queue-list" :href="route('horizon.index')" target="_blank">
-                    {{ __('Horizon') }}
-                </flux:sidebar.item>
+                @if (auth()->user()?->isAdmin())
+                    <flux:sidebar.item icon="queue-list" :href="route('horizon.index')" target="_blank">
+                        {{ __('Horizon') }}
+                    </flux:sidebar.item>
 
-                <flux:sidebar.item icon="document-text" :href="route('log-viewer.index')" target="_blank">
-                    {{ __('Log Viewer') }}
-                </flux:sidebar.item>
+                    <flux:sidebar.item icon="document-text" :href="route('log-viewer.index')" target="_blank">
+                        {{ __('Log Viewer') }}
+                    </flux:sidebar.item>
+                @endif
             </flux:sidebar.nav>
 
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />

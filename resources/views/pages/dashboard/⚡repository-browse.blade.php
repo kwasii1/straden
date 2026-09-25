@@ -110,7 +110,7 @@ class extends Component
 ?>
 
 <div class="flex flex-col h-full">
-    <div class="flex items-center gap-x-3 px-4 py-2 border-b border-zinc-200 dark:border-zinc-700 shrink-0">
+    <div class="flex h-12 shrink-0 items-center gap-x-3 border-b border-zinc-200 px-4 dark:border-zinc-800">
         <a
             wire:navigate
             href="{{ route('projects.repositories', ['project' => $this->project]) }}"
@@ -128,15 +128,22 @@ class extends Component
         <flux:heading>{{ $repository->name }}</flux:heading>
 
         @if ($this->selectedFilePath)
-            <flux:separator vertical />
-            <flux:text class="text-sm text-zinc-500">{{ $this->selectedFilePath }}</flux:text>
+            <div class="flex min-w-0 items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+                @foreach (explode('/', $this->selectedFilePath) as $segment)
+                    <flux:icon.chevron-right variant="micro" class="size-3 shrink-0 text-zinc-400" />
+                    <span @class(['truncate', 'text-zinc-800 dark:text-zinc-200' => $loop->last])>{{ $segment }}</span>
+                @endforeach
+            </div>
         @endif
     </div>
 
     <div class="flex flex-1 min-h-0">
-        <div class="w-72 border-r border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 overflow-y-auto shrink-0">
+        <aside class="flex w-72 shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+            <div class="flex h-9 shrink-0 items-center border-b border-zinc-200 px-3 dark:border-zinc-800">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Explorer</span>
+            </div>
             @if ($fileTree)
-                <div class="p-1">
+                <div class="flex-1 overflow-y-auto p-1.5">
                     @foreach ($fileTree as $item)
                         @include('components.repository-tree-item', ['item' => $item, 'depth' => 0, 'path' => ''])
                     @endforeach
@@ -147,7 +154,7 @@ class extends Component
                     <flux:text class="text-center text-sm">No file tree available. Sync the repository to index its files.</flux:text>
                 </div>
             @endif
-        </div>
+        </aside>
 
         <div class="flex-1 min-w-0 flex flex-col min-h-0">
             @if ($this->selectedFilePath)
@@ -158,7 +165,7 @@ class extends Component
                         :language="$fileLanguage"
                         height="100%"
                         wire:key="editor-{{ $repository->id }}-{{ md5($this->selectedFilePath) }}"
-                        class="!rounded-none !border-0 h-full"
+                        class="h-full !rounded-none !border-0"
                     />
                 </div>
             @else

@@ -65,7 +65,7 @@ test('insights selection rejects unknown providers and blank models', function (
 });
 
 test('insights model page saves the insights model', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
     connectInsightsProvider('openai');
 
@@ -81,7 +81,7 @@ test('insights model page saves the insights model', function () {
 });
 
 test('the insights model form starts from and resets to the stored selection', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
     connectInsightsProvider('openai');
     app(AiCredentialManager::class)->setInsightsSelection('openai', 'gpt-4o');
@@ -98,7 +98,7 @@ test('the insights model form starts from and resets to the stored selection', f
 });
 
 test('insights model page renders within the settings navigation', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
 
     $this->actingAs($user)
@@ -110,7 +110,7 @@ test('insights model page renders within the settings navigation', function () {
 test('panel prompts to visit settings when no model is selected', function () {
     Queue::fake();
 
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $run = makeInsightsRun('passed');
 
     Livewire::actingAs($user)
@@ -126,7 +126,7 @@ test('panel prompts to visit settings when no model is selected', function () {
 test('panel generates once a usable model is selected', function () {
     Queue::fake();
 
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $run = makeInsightsRun('passed');
     connectInsightsProvider('openai');
     app(AiCredentialManager::class)->setInsightsSelection('openai', 'gpt-4o');
@@ -143,7 +143,7 @@ test('panel generates once a usable model is selected', function () {
 test('panel prompts when the selected provider is disconnected', function () {
     Queue::fake();
 
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $run = makeInsightsRun('passed');
     app(AiCredentialManager::class)->setInsightsSelection('openai', 'gpt-4o');
 
@@ -217,7 +217,7 @@ test('insights model page renders searchable comboboxes', function () {
     connectInsightsProvider('openai');
     app(AiCredentialManager::class)->setInsightsSelection('openai', 'gpt-4o');
 
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->admin()->create())
         ->get(route('settings.insights-model'))
         ->assertOk()
         ->assertSee(['Search providers...', 'Search or type a model name...'])

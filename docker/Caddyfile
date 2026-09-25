@@ -1,0 +1,27 @@
+{
+	frankenphp
+	servers {
+		trusted_proxies static private_ranges
+	}
+	{$CADDY_GLOBAL_OPTIONS}
+}
+
+# STRADEN_DOMAIN=":80" serves plain HTTP (local); a real domain such as
+# "straden.example.com" gets automatic HTTPS from Let's Encrypt.
+{$STRADEN_DOMAIN::80} {
+	root * /app/public
+	encode zstd br gzip
+
+	# Websockets: browsers connect to the same origin as the page and are
+	# forwarded to Reverb, so no extra port or build-time config is needed.
+	@reverb path /app/* /apps/*
+	handle @reverb {
+		reverse_proxy {$REVERB_UPSTREAM:reverb:8080}
+	}
+
+	handle {
+		php_server
+	}
+
+	{$CADDY_SERVER_EXTRA_DIRECTIVES}
+}

@@ -27,6 +27,7 @@ class StradenServer extends Server
     protected array $tools = [
         Tools\ListProjects::class,
         Tools\GetTestContext::class,
+        Tools\SetTestRepositories::class,
         Tools\CreateScript::class,
         Tools\UpdateScript::class,
         Tools\ValidateScript::class,

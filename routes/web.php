@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard')->name('home');
 
+Route::livewire('setup', 'pages::auth.setup')->middleware('guest')->name('setup');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     // Route::view('dashboard', 'dashboard')->name('dashboard');
     Route::livewire('dashboard', 'pages::main-dashboard.main-dashboard')->name('dashboard');

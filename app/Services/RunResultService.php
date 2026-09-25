@@ -2,30 +2,49 @@
 
 namespace App\Services;
 
+use App\Jobs\CancelRunJob;
 use App\Models\Run;
 use App\Notifications\RunCompleted;
 use Illuminate\Support\Facades\Storage;
 
 class RunResultService
 {
+    /**
+     * Directory for in-flight run artifacts (summary, exit code, PID, live log).
+     *
+     * Lives under storage rather than the system temp dir so that, in a
+     * containerised deployment, the web container can read live logs written
+     * by k6 in the runner container through the shared storage volume.
+     */
+    public static function runArtifactsDirectory(): string
+    {
+        $directory = storage_path('app/k6-runs');
+
+        if (! is_dir($directory)) {
+            @mkdir($directory, 0775, true);
+        }
+
+        return $directory;
+    }
+
     public static function summaryFilePath(string $runId): string
     {
-        return sys_get_temp_dir().'/k6-summary-'.$runId.'.json';
+        return self::runArtifactsDirectory().'/k6-summary-'.$runId.'.json';
     }
 
     public static function exitCodeFilePath(string $runId): string
     {
-        return sys_get_temp_dir().'/k6-exit-'.$runId.'.txt';
+        return self::runArtifactsDirectory().'/k6-exit-'.$runId.'.txt';
     }
 
     public static function k6PidFilePath(string $runId): string
     {
-        return sys_get_temp_dir().'/k6-pid-'.$runId.'.txt';
+        return self::runArtifactsDirectory().'/k6-pid-'.$runId.'.txt';
     }
 
     public static function logFilePath(string $runId): string
     {
-        return sys_get_temp_dir().'/k6-log-'.$runId.'.log';
+        return self::runArtifactsDirectory().'/k6-log-'.$runId.'.log';
     }
 
     public static function persistedLogPath(string $runId): string
@@ -119,17 +138,15 @@ class RunResultService
     }
 
     /**
-     * Stop a running k6 process. The status update is applied by the polling
-     * job once the process has exited.
+     * Cancel a run. Queued runs are aborted immediately. Running runs are
+     * signalled from the runner (the only process that can see k6's PID when
+     * the web and runner live in separate containers); the status update is
+     * applied by the polling job once the process has exited.
      */
     public static function cancel(Run $run): void
     {
         if ($run->status === 'running') {
-            $k6Pid = self::readK6Pid($run->id);
-
-            if ($k6Pid !== null) {
-                @posix_kill($k6Pid, SIGTERM);
-            }
+            CancelRunJob::dispatch($run);
 
             return;
         }
@@ -142,6 +159,18 @@ class RunResultService
             ]);
 
             self::notifyCompletion($run);
+        }
+    }
+
+    /**
+     * Send SIGTERM to the run's k6 process. Must be called from the runner.
+     */
+    public static function terminate(Run $run): void
+    {
+        $k6Pid = self::readK6Pid($run->id);
+
+        if ($k6Pid !== null) {
+            @posix_kill($k6Pid, SIGTERM);
         }
     }
 
@@ -188,7 +217,8 @@ class RunResultService
             $teardownWarning => 'passed',
             in_array($exitCode, [99, 104], true) => 'failed',
             $exitCode === 108 => 'error',
-            in_array($exitCode, [130, 137, 143], true) => 'aborted',
+            // 105 is k6's "externally aborted" code (SIGTERM from a cancel).
+            in_array($exitCode, [105, 130, 137, 143], true) => 'aborted',
             $exitCode === null => 'error',
             default => 'error',
         };

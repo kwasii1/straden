@@ -2,6 +2,7 @@
 
 use App\Concerns\PasswordValidationRules;
 use App\Livewire\Actions\Logout;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -18,6 +19,14 @@ new class extends Component {
         $this->validate([
             'password' => $this->currentPasswordRules(),
         ]);
+
+        $user = Auth::user();
+
+        if ($user->isAdmin() && ! User::query()->where('is_admin', true)->whereKeyNot($user->id)->exists()) {
+            $this->addError('password', __('You are the only admin. Make another user an admin before deleting your account.'));
+
+            return;
+        }
 
         tap(Auth::user(), $logout(...))->delete();
 

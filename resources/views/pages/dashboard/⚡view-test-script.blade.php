@@ -165,17 +165,26 @@ class extends Component
         return $this->fm()->readFile($relativePath);
     }
 
-    public function saveFile(string $path, string $content): void
+    /**
+     * Save a file. Autosaves pass $silent so typing doesn't spam toasts; the
+     * editor's status bar shows the result instead.
+     */
+    public function saveFile(string $path, string $content, bool $silent = false): bool
     {
         try {
             $this->fm()->updateFile($path, $content);
         } catch (\InvalidArgumentException $e) {
             $this->addError('path', $e->getMessage());
+            Flux::toast(variant: 'danger', text: $e->getMessage());
 
-            return;
+            return false;
         }
 
-        Flux::toast(variant: 'success', text: "Saved {$path}.");
+        if (! $silent) {
+            Flux::toast(variant: 'success', text: "Saved {$path}.");
+        }
+
+        return true;
     }
 
     public function runTest(): void
@@ -293,12 +302,9 @@ class extends Component
         },
 
         saveEditor(detail) {
-            $wire.saveFile(detail.path, detail.content).then(() => {
-                if (Alpine.store('editor').buffers[detail.path]) {
-                    Alpine.store('editor').buffers[detail.path].savedContent = detail.content;
-                    Alpine.store('editor').buffers[detail.path].dirty = false;
-                }
-            });
+            $wire.saveFile(detail.path, detail.content, detail.silent ?? false)
+                .then((saved) => Alpine.store('editor').markSaved(detail.path, detail.content, saved === true))
+                .catch(() => Alpine.store('editor').markSaved(detail.path, detail.content, false));
         },
 
         handleEditorMoved(detail) {
@@ -378,117 +384,109 @@ class extends Component
 
     {{-- Content area --}}
     <div class="flex flex-1 min-h-0">
-        {{-- Script mode: IDE (4/5) + File tree (1/5) --}}
+        {{-- Script mode: explorer + editor --}}
         @if ($mode === 'script')
-            <div class="flex flex-col flex-1 min-h-0 border-r border-zinc-200 dark:border-zinc-800"
-                 style="width: 80%;">
-                <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
-                    <div class="shrink-0 flex items-center bg-zinc-50 dark:bg-zinc-950 overflow-x-auto
-                                [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-zinc-200 dark:border-zinc-800">
-                        @foreach ($openTabs as $tab)
-                            @php $isActive = $tab === $activeFilePath; @endphp
-                            <div
-                                wire:click="selectFile('{{ $tab }}')"
-                                class="group/tab flex items-center gap-2 px-3 py-1.5 text-sm border-r
-                                       border-zinc-200 dark:border-zinc-800 shrink-0 cursor-pointer select-none
-                                       {{ $isActive
-                                           ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 -mb-px border-b border-b-white dark:border-b-zinc-800'
-                                           : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900/50' }}">
-                                <flux:icon.document-text class="size-3.5 shrink-0" />
-                                <span class="truncate max-w-[160px]">{{ basename($tab) }}</span>
-                                <span
-                                    x-show="Alpine.store('editor').buffers['{{ $tab }}']?.dirty"
-                                    class="size-1.5 shrink-0 rounded-full bg-amber-400"
-                                ></span>
-                                <button
-                                    wire:click.stop="closeTab('{{ $tab }}')"
-                                    class="rounded p-0.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400
-                                           hover:text-zinc-700 dark:hover:text-zinc-300 opacity-0 group-hover/tab:opacity-100
-                                           transition-opacity">
-                                    <flux:icon.x-mark class="size-3" />
-                                </button>
-                            </div>
-                        @endforeach
-                        <div class="flex-1 self-stretch bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800"></div>
-                    </div>
-
-                    @if ($activeFilePath)
-                        <x-code-editor
-                            name="script_content"
-                            wire:key="editor-{{ $script->id }}-{{ $activeFilePath }}"
-                            :value="$this->readFile($activeFilePath)"
-                            :language="$this->detectLanguage($activeFilePath)"
-                            height="100%"
-                            :editable="true"
-                            :save-path="$activeFilePath"
-                            class="!rounded-none !border-0 flex-1"
-                        />
-                    @else
-                        <div class="flex-1 flex items-center justify-center text-zinc-400 dark:text-zinc-600 text-sm">
-                            Select a file to edit
-                        </div>
-                    @endif
-                </div>
-            </div>
-
-            <div class="flex flex-col bg-zinc-50 dark:bg-zinc-950 overflow-hidden"
-                 style="width: 20%;">
-                <div class="flex items-center gap-0.5 px-1 py-0.5 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
-                    <button
-                        @click="startCreate('file')"
-                        title="New File"
-                        class="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
-                    >
-                        <flux:icon.document-plus class="size-4" />
+            <aside class="flex w-64 shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+                <div class="flex h-9 shrink-0 items-center gap-0.5 border-b border-zinc-200 pl-3 pr-1.5 dark:border-zinc-800">
+                    <span class="flex-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Explorer</span>
+                    <button @click="startCreate('file')" title="New file" class="rounded p-1 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-100">
+                        <flux:icon.document-plus variant="micro" class="size-4" />
                     </button>
-                    <button
-                        @click="startCreate('folder')"
-                        title="New Folder"
-                        class="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
-                    >
-                        <flux:icon.folder-plus class="size-4" />
+                    <button @click="startCreate('folder')" title="New folder" class="rounded p-1 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-100">
+                        <flux:icon.folder-plus variant="micro" class="size-4" />
                     </button>
-                    <div class="flex-1"></div>
-                    <button
-                        @click="$refs.fileUploadInput.click()"
-                        title="Upload Files"
-                        class="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
-                    >
-                        <flux:icon.arrow-up-tray class="size-4" />
+                    <button @click="$refs.fileUploadInput.click()" title="Upload files" class="rounded p-1 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-100">
+                        <flux:icon.arrow-up-tray variant="micro" class="size-4" />
                     </button>
-                    <input
-                        type="file"
-                        x-ref="fileUploadInput"
-                        multiple
-                        hidden
-                        @change="handleFileUpload($event)"
-                    />
+                    <input type="file" x-ref="fileUploadInput" multiple hidden @change="handleFileUpload($event)" />
                 </div>
 
-                <div x-show="creating" class="px-2 py-1 shrink-0" x-transition>
+                <div x-show="creating" x-cloak class="shrink-0 px-2 pt-2" x-transition>
                     <input
                         x-ref="newItemInput"
                         x-model="newItemName"
                         @keydown.enter="submitCreate()"
                         @keydown.escape="cancelCreate()"
-                        :placeholder="createType === 'file' ? 'Filename...' : 'Folder name...'"
-                        class="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1
-                               text-sm text-zinc-800 dark:text-zinc-200 outline-none focus:border-blue-500"
-                        x-init="$el.focus()"
+                        @blur="cancelCreate()"
+                        :placeholder="createType === 'file' ? 'File name…' : 'Folder name…'"
+                        x-effect="creating && $nextTick(() => $el.focus())"
+                        class="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-800 outline-none focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
                     />
                 </div>
 
-                <div class="flex-1 overflow-y-auto p-1" @dragenter="$event.preventDefault()" @dragover.prevent @drop.prevent="$event.dataTransfer.files.length > 0 && handleFileUpload({target: {files: $event.dataTransfer.files}, preventDefault: () => {}, stopPropagation: () => {}})">
+                <div class="flex-1 overflow-y-auto p-1.5" @dragenter="$event.preventDefault()" @dragover.prevent @drop.prevent="$event.dataTransfer.files.length > 0 && handleFileUpload({target: {files: $event.dataTransfer.files}, preventDefault: () => {}, stopPropagation: () => {}})">
                     @foreach ($fileTree as $item)
                         <x-script-tree-item :item="$item" :depth="0" path="" :activeFilePath="$activeFilePath" />
                     @endforeach
 
                     @if (empty($fileTree))
-                        <div class="text-zinc-400 dark:text-zinc-600 text-sm p-2">
-                            No files yet.
-                        </div>
+                        <div class="p-2 text-sm text-zinc-500 dark:text-zinc-400">No files yet.</div>
                     @endif
                 </div>
+            </aside>
+
+            <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+                <div class="flex h-9 shrink-0 items-stretch overflow-x-auto border-b border-zinc-200 bg-zinc-50 [scrollbar-width:none] dark:border-zinc-800 dark:bg-zinc-900 [&::-webkit-scrollbar]:hidden">
+                    @foreach ($openTabs as $tab)
+                        @php $isActive = $tab === $activeFilePath; @endphp
+                        <div
+                            wire:key="tab-{{ md5($tab) }}"
+                            wire:click="selectFile('{{ $tab }}')"
+                            title="{{ $tab }}"
+                            @class([
+                                'group/tab relative flex shrink-0 cursor-pointer select-none items-center gap-2 border-r border-zinc-200 px-3 text-[13px] dark:border-zinc-800',
+                                'bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100' => $isActive,
+                                'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-200' => ! $isActive,
+                            ])
+                        >
+                            @if ($isActive)
+                                <span class="absolute inset-x-0 top-0 h-0.5 bg-zinc-900 dark:bg-white"></span>
+                            @endif
+                            <x-file-icon :name="$tab" class="size-3.5" />
+                            <span class="max-w-[180px] truncate">{{ basename($tab) }}</span>
+                            <span class="relative flex size-4 items-center justify-center">
+                                <span
+                                    x-show="$store.editor.buffers['{{ $tab }}']?.dirty"
+                                    class="size-2 rounded-full bg-zinc-500 group-hover/tab:hidden dark:bg-zinc-300"
+                                ></span>
+                                <button
+                                    wire:click.stop="closeTab('{{ $tab }}')"
+                                    title="Close"
+                                    class="absolute inset-0 hidden items-center justify-center rounded text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 group-hover/tab:flex dark:hover:bg-white/10 dark:hover:text-zinc-200"
+                                    x-bind:class="{ '!flex': ! $store.editor.buffers['{{ $tab }}']?.dirty && @js($isActive) }"
+                                >
+                                    <flux:icon.x-mark variant="micro" class="size-3" />
+                                </button>
+                            </span>
+                        </div>
+                    @endforeach
+                </div>
+
+                @if ($activeFilePath)
+                    <div class="flex h-7 shrink-0 items-center gap-1 border-b border-zinc-200 bg-white px-3 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+                        <span>{{ $script->name }}</span>
+                        @foreach (explode('/', $activeFilePath) as $segment)
+                            <flux:icon.chevron-right variant="micro" class="size-3 text-zinc-400" />
+                            <span @class(['text-zinc-800 dark:text-zinc-200' => $loop->last])>{{ $segment }}</span>
+                        @endforeach
+                    </div>
+
+                    <x-code-editor
+                        name="script_content"
+                        wire:key="editor-{{ $script->id }}-{{ $activeFilePath }}"
+                        :value="$this->readFile($activeFilePath)"
+                        :language="$this->detectLanguage($activeFilePath)"
+                        height="100%"
+                        :editable="true"
+                        :save-path="$activeFilePath"
+                        class="min-h-0 flex-1 !rounded-none !border-0"
+                    />
+                @else
+                    <div class="flex flex-1 flex-col items-center justify-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                        <flux:icon.code-bracket class="size-8 text-zinc-300 dark:text-zinc-600" />
+                        Select a file from the explorer to start editing.
+                    </div>
+                @endif
             </div>
         @endif
 

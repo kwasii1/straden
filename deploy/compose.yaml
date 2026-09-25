@@ -1,0 +1,153 @@
+# Straden — self-hosted load testing powered by k6.
+#
+#   cp .env.example .env      # optional tweaks (domain, admin, passwords)
+#   docker compose up -d
+#   open http://localhost:8000
+#
+# Docs: docs/self-hosting.md
+
+name: straden
+
+x-straden: &straden
+  image: ${STRADEN_IMAGE:-ghcr.io/kwasii1/straden}:${STRADEN_VERSION:-latest}
+  restart: unless-stopped
+  env_file:
+    - path: .env
+      required: false
+  environment: &straden-env
+    APP_NAME: ${APP_NAME:-Straden}
+    APP_ENV: production
+    APP_DEBUG: ${APP_DEBUG:-false}
+    APP_URL: ${APP_URL:-http://localhost:8000}
+    STRADEN_DOMAIN: ${STRADEN_DOMAIN:-:80}
+    LOG_CHANNEL: stderr
+    LOG_LEVEL: ${LOG_LEVEL:-info}
+
+    DB_CONNECTION: pgsql
+    DB_HOST: postgres
+    DB_PORT: 5432
+    DB_DATABASE: ${DB_DATABASE:-straden}
+    DB_USERNAME: ${DB_USERNAME:-straden}
+    DB_PASSWORD: ${DB_PASSWORD:-straden}
+
+    REDIS_CLIENT: phpredis
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+    CACHE_STORE: redis
+    SESSION_DRIVER: redis
+    QUEUE_CONNECTION: redis
+
+    BROADCAST_CONNECTION: reverb
+    REVERB_HOST: reverb
+    REVERB_PORT: 8080
+    REVERB_SCHEME: http
+    REVERB_SERVER_PORT: 8080
+
+    INFLUXDB_HOST: influxdb
+    INFLUXDB_PORT: 8086
+    INFLUXDB_DB: k6
+  volumes:
+    - storage:/app/storage
+
+services:
+  app:
+    <<: *straden
+    environment:
+      <<: *straden-env
+      STRADEN_ROLE: app
+    ports:
+      - "${HTTP_PORT:-8000}:80"
+      - "${HTTPS_PORT:-8443}:443"
+    volumes:
+      - storage:/app/storage
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+
+  reverb:
+    <<: *straden
+    environment:
+      <<: *straden-env
+      STRADEN_ROLE: reverb
+    depends_on:
+      app:
+        condition: service_healthy
+
+  runner:
+    <<: *straden
+    environment:
+      <<: *straden-env
+      STRADEN_ROLE: runner
+    # Load tests are CPU/network heavy — cap them here if the host is shared.
+    # deploy:
+    #   resources:
+    #     limits: { cpus: "2", memory: 2g }
+    stop_grace_period: 60s
+    depends_on:
+      app:
+        condition: service_healthy
+
+  scheduler:
+    <<: *straden
+    environment:
+      <<: *straden-env
+      STRADEN_ROLE: scheduler
+    depends_on:
+      app:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-straden}
+      POSTGRES_USER: ${DB_USERNAME:-straden}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-straden}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  influxdb:
+    image: influxdb:1.8
+    restart: unless-stopped
+    environment:
+      INFLUXDB_DB: k6
+      INFLUXDB_HTTP_AUTH_ENABLED: "false"
+      INFLUXDB_REPORTING_DISABLED: "true"
+    volumes:
+      - influxdb:/var/lib/influxdb
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8086/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  storage:
+  postgres:
+  redis:
+  influxdb:
+  caddy-data:
+  caddy-config:

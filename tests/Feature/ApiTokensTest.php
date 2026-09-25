@@ -5,14 +5,14 @@ use App\Models\User;
 use Livewire\Livewire;
 
 test('api tokens page can be rendered', function () {
-    $this->actingAs(User::factory()->create())
+    $this->actingAs(User::factory()->admin()->create())
         ->get(route('settings.api-tokens'))
         ->assertOk()
         ->assertSee(['API Tokens', 'AI Integrations', 'AI Insights Model']);
 });
 
 test('users can create a token with selected abilities', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
 
     Livewire::actingAs($user)
         ->test('pages::settings.api-tokens')
@@ -31,7 +31,7 @@ test('users can create a token with selected abilities', function () {
 });
 
 test('users can revoke their tokens', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $token = $user->createToken('agent', ['mcp:read'])->accessToken;
 
     Livewire::actingAs($user)
@@ -42,9 +42,9 @@ test('users can revoke their tokens', function () {
 });
 
 test('users cannot revoke tokens belonging to others', function () {
-    $token = User::factory()->create()->createToken('agent')->accessToken;
+    $token = User::factory()->admin()->create()->createToken('agent')->accessToken;
 
-    Livewire::actingAs(User::factory()->create())
+    Livewire::actingAs(User::factory()->admin()->create())
         ->test('pages::settings.api-tokens')
         ->call('revokeToken', (string) $token->id);
 
@@ -52,7 +52,7 @@ test('users cannot revoke tokens belonging to others', function () {
 });
 
 test('settings pages offer a way back to the project page the user came from', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
     $projectUrl = route('projects.runs', ['project' => $project]);
 

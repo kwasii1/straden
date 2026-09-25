@@ -15,6 +15,11 @@ class CheckRunningTestsJob implements ShouldQueue
 
     public int $timeout = 300;
 
+    public function __construct()
+    {
+        $this->onQueue('runs');
+    }
+
     public function handle(): void
     {
         Run::query()

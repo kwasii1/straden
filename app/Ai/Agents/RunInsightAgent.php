@@ -62,7 +62,7 @@ Available tools:
 - Prometheus tools: If a Prometheus connector is configured, use PrometheusMetadataTool, PrometheusQueryTool, PrometheusQueryRangeTool, and PrometheusListMetricsTool to pull live infrastructure metrics (CPU, memory, network) to explain WHY a component was slow.
 - DatabaseMetricsTool / RedisMetricsTool: If database or Redis connectors are configured (and Prometheus is not), use them to fetch underlying database and cache health metrics.
 - File read tools (read-only) prefixed with "read_script_": Read the k6 test script files inside the script directory {$basePath}.
-- File read tools (read-only) prefixed with "repo_": Read files from the repositories linked to the project. Use these to inspect the actual application code behind the endpoints being tested so you can explain WHY something is slow and give concrete fixes.
+- File read tools (read-only) prefixed with "repo_": Read files from the repositories linked to this test (or every project repository when the test has none linked). Use these to inspect the actual application code behind the endpoints being tested so you can explain WHY something is slow and give concrete fixes.
 
 Follow this process:
 1. **Gather context**: Use RunContextTool to understand the run's overall result, metrics, thresholds, and configuration.
@@ -125,7 +125,7 @@ INSTRUCTIONS;
             $tools[] = new NamedTool($tool, 'read_script_'.class_basename($tool));
         }
 
-        foreach ($script->test->project->repositories as $repo) {
+        foreach ($script->test->contextRepositories() as $repo) {
             $repoDisk = 'repo_'.$repo->id;
 
             config(['filesystems.disks.'.$repoDisk => [

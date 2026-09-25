@@ -99,4 +99,22 @@ return [
 
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Browser Connection
+    |--------------------------------------------------------------------------
+    |
+    | Where browsers open the websocket. Leave empty (the Docker default) to
+    | connect to the same host/port/scheme the page was served from; the web
+    | server proxies /app to Reverb. Set these only when Reverb is exposed on a
+    | different address, e.g. `php artisan reverb:start` on port 8080 locally.
+    |
+    */
+
+    'client' => [
+        'host' => env('REVERB_CLIENT_HOST'),
+        'port' => env('REVERB_CLIENT_PORT'),
+        'scheme' => env('REVERB_CLIENT_SCHEME'),
+    ],
+
 ];

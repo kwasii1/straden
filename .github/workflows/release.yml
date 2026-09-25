@@ -1,0 +1,49 @@
+name: release
+
+# On every push to main:
+#   1. run the test suite;
+#   2. release-please updates (or merges into a release) the "chore: release"
+#      PR from Conventional Commits;
+#   3. publish the Docker image — `latest` always, plus `X.Y.Z` / `X.Y` tags
+#      when step 2 just created a release.
+#
+# The image is built here rather than on tag push because tags created with
+# GITHUB_TOKEN don't trigger other workflows.
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  packages: write
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+    secrets: inherit
+
+  release-please:
+    needs: tests
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  image:
+    needs: release-please
+    uses: ./.github/workflows/docker.yml
+    with:
+      push: true
+      version: ${{ needs.release-please.outputs.release_created == 'true' && needs.release-please.outputs.version || '' }}
+    secrets: inherit
