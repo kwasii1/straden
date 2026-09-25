@@ -2,7 +2,9 @@
 
 namespace Tests;
 
+use App\Http\Middleware\EnsureSetupComplete;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\Cache;
 use Laravel\Fortify\Features;
 
 abstract class TestCase extends BaseTestCase
@@ -33,6 +35,20 @@ abstract class TestCase extends BaseTestCase
         }
 
         return $app;
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Most tests don't care about the first-run setup wizard; treat the
+        // instance as set up. Setup wizard tests call markSetupIncomplete().
+        Cache::forever(EnsureSetupComplete::CACHE_KEY, true);
+    }
+
+    protected function markSetupIncomplete(): void
+    {
+        Cache::forget(EnsureSetupComplete::CACHE_KEY);
     }
 
     protected function skipUnlessFortifyHas(string $feature, ?string $message = null): void

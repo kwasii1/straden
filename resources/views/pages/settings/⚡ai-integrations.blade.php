@@ -10,6 +10,12 @@ new
 #[Layout('layouts::app')]
 class extends Component
 {
+    public function boot(): void
+    {
+        // Enforced on every Livewire request, not just the initial page load.
+        abort_unless(auth()->user()?->isAdmin(), 403);
+    }
+
     public string $activeProvider = '';
 
     public array $credentialValues = [];
@@ -487,7 +493,7 @@ class extends Component
         </div>
 
         {{-- Cards Grid --}}
-        <div x-ref="grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div x-ref="grid" class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4">
             @foreach ($this->providers as $provider)
                 <div
                     wire:key="provider-{{ $provider['slug'] }}"
@@ -498,7 +504,7 @@ class extends Component
                     <div class="p-4 space-y-3.5">
                         {{-- Top Meta: Logo, Name & Status --}}
                         <div class="flex items-start justify-between gap-x-3">
-                            <div class="flex items-center gap-x-3">
+                            <div class="flex min-w-0 items-center gap-x-3">
                                 <div @class([
                                     'flex size-9 shrink-0 items-center justify-center rounded-lg border p-1.5 transition-colors',
                                     $provider['logo'] === 'eleven-labs'
@@ -517,8 +523,8 @@ class extends Component
                                     </div>
                                 </div>
 
-                                <div>
-                                    <flux:heading class="font-medium text-sm text-zinc-900 dark:text-zinc-100 leading-tight">
+                                <div class="min-w-0">
+                                    <flux:heading class="truncate font-medium text-sm text-zinc-900 dark:text-zinc-100 leading-tight">
                                         {{ $provider['name'] }}
                                     </flux:heading>
                                     @if ($provider['website_url'])
@@ -530,14 +536,14 @@ class extends Component
                                 </div>
                             </div>
 
-                            <div>
+                            <div class="shrink-0">
                                 @if ($provider['is_connected'])
-                                    <span class="inline-flex items-center gap-x-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                    <span class="inline-flex items-center gap-x-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                                         <span class="size-1.5 rounded-full bg-emerald-500"></span>
                                         Connected
                                     </span>
                                 @else
-                                    <span class="inline-flex items-center rounded-full bg-zinc-100 dark:bg-zinc-800/80 px-2 py-0.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50">
+                                    <span class="inline-flex items-center rounded-full bg-zinc-100 dark:bg-zinc-800/80 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-zinc-500 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50">
                                         Not Configured
                                     </span>
                                 @endif

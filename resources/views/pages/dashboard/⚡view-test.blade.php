@@ -6,6 +6,7 @@ use App\Models\Script;
 use App\Models\Test;
 use Carbon\Carbon;
 use Flux\Flux;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -30,6 +31,13 @@ class extends Component
      */
     public array $testConnectors = [];
 
+    /**
+     * Repository IDs linked to this test (empty = all project repositories).
+     *
+     * @var array<int, string>
+     */
+    public array $testRepositories = [];
+
     public string $testName = '';
 
     public string $targetUrl = '';
@@ -41,6 +49,7 @@ class extends Component
         $this->project = $project;
         $this->test = $test;
         $this->testConnectors = $this->testConnectorIds();
+        $this->testRepositories = $this->testRepositoryIds();
     }
 
     public function startUpdate(): void
@@ -50,6 +59,7 @@ class extends Component
         $this->targetUrl = $this->test->target_url;
         $this->testDescription = $this->test->description ?? '';
         $this->testConnectors = $this->testConnectorIds();
+        $this->testRepositories = $this->testRepositoryIds();
     }
 
     public function updateTest(): void
@@ -60,6 +70,8 @@ class extends Component
             'testDescription' => 'nullable|string|max:2000',
             'testConnectors' => 'nullable|array',
             'testConnectors.*' => 'string',
+            'testRepositories' => 'nullable|array',
+            'testRepositories.*' => 'string',
         ]);
 
         $this->test->update([
@@ -70,9 +82,29 @@ class extends Component
 
         $this->test->syncConnectors($this->testConnectors);
         $this->testConnectors = $this->testConnectorIds();
+        $this->test->syncRepositories($this->testRepositories);
+        $this->testRepositories = $this->testRepositoryIds();
 
         Flux::modal('update-test')->close();
         Flux::toast(variant: 'success', text: 'Test updated successfully.');
+    }
+
+    /**
+     * IDs of the repositories linked to this test.
+     *
+     * @return array<int, string>
+     */
+    private function testRepositoryIds(): array
+    {
+        return $this->test->repositories()->pluck('repositories.id')->map(strval(...))->all();
+    }
+
+    /** @return Collection<int, array{value: string, label: string, hint: string}> */
+    #[Computed]
+    public function repositoryOptions(): Collection
+    {
+        return $this->project->repositories()->orderBy('name')->get()
+            ->map(fn ($repo) => ['value' => (string) $repo->id, 'label' => $repo->name, 'hint' => (string) $repo->type]);
     }
 
     /**
@@ -182,7 +214,7 @@ export const options = {
 };
 
 export default function () {
-  const res = http.get('__TARGET_URL__');
+  const res = http.get(__ENV.TARGET_URL);
   check(res, { 'status is 200': (r) => r.status === 200 });
   sleep(1);
 }
@@ -436,7 +468,7 @@ JS);
     <flux:modal class="md:w-1/2 space-y-5 scrollbar-none" name="update-test" flyout>
         <div>
             <flux:heading size="lg">Update Test</flux:heading>
-            <flux:text class="text-xs text-zinc-500">Edit this test's details and attached connectors.</flux:text>
+            <flux:text class="text-xs text-zinc-500">Edit this test's details, connectors and repositories.</flux:text>
         </div>
 
         <form wire:submit="updateTest" class="space-y-4">
@@ -451,6 +483,17 @@ JS);
             </div>
             <div>
                 <livewire:connector-picker wire:model="testConnectors" :project="$project" wire:key="update-test-connectors-{{ $this->test->id }}" />
+            </div>
+            <div>
+                <x-multi-combobox
+                    wire:model="testRepositories"
+                    label="Repositories"
+                    :options="$this->repositoryOptions"
+                    placeholder="All project repositories"
+                    search-placeholder="Search repositories..."
+                    empty-text="No repositories in this project yet."
+                    description="The AI agents only read code from these repositories. Leave empty to use every repository in the project."
+                />
             </div>
             <div class="flex justify-end gap-2 pt-2">
                 <flux:modal.close>

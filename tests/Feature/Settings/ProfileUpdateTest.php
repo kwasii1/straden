@@ -73,3 +73,30 @@ test('correct password must be provided to delete account', function () {
 
     expect($user->fresh())->not->toBeNull();
 });
+
+test('the only admin cannot delete their own account', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin);
+
+    Livewire::test('pages::settings.delete-user-modal')
+        ->set('password', 'password')
+        ->call('deleteUser')
+        ->assertHasErrors('password');
+
+    expect($admin->fresh())->not->toBeNull();
+});
+
+test('an admin can delete their account when another admin remains', function () {
+    $admin = User::factory()->admin()->create();
+    User::factory()->admin()->create();
+
+    $this->actingAs($admin);
+
+    Livewire::test('pages::settings.delete-user-modal')
+        ->set('password', 'password')
+        ->call('deleteUser')
+        ->assertHasNoErrors();
+
+    expect($admin->fresh())->toBeNull();
+});

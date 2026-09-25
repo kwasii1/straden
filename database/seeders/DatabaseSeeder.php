@@ -17,7 +17,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(InfluxDbConnectorSeeder::class);
 
-        User::factory()->create([
+        User::factory()->admin()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);

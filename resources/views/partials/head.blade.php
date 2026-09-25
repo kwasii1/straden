@@ -11,5 +11,17 @@
 
 @fonts
 
+{{-- Runtime (not build-time) websocket settings so one Docker image works on any host. --}}
+<script>
+    window.StradenConfig = {{ Js::from([
+        'reverb' => [
+            'key' => config('broadcasting.connections.reverb.key'),
+            'host' => config('reverb.client.host'),
+            'port' => config('reverb.client.port'),
+            'scheme' => config('reverb.client.scheme'),
+        ],
+    ]) }};
+</script>
+
 @vite(['resources/css/app.css', 'resources/js/app.js'])
 @fluxAppearance

@@ -14,18 +14,18 @@
             @dragover.prevent="dragOver = true"
             @dragleave="dragOver = false"
             @drop.prevent.stop="dragOver = false; $dispatch('tree-drop', { event: $event, targetDir: '{{ $currentPath }}' })"
-            :class="dragOver ? 'bg-blue-800/50 ring-1 ring-blue-500/50' : ''"
-            class="group/item flex items-center gap-1.5 py-1 px-2 hover:bg-zinc-800/50 rounded cursor-pointer text-sm select-none transition-colors"
+            :class="dragOver ? 'bg-blue-100 dark:bg-blue-500/15 ring-1 ring-blue-500/50' : ''"
+            class="group/item flex items-center gap-1.5 py-[5px] px-2 hover:bg-zinc-200/70 dark:hover:bg-white/5 rounded-md cursor-pointer text-sm select-none transition-colors"
             style="padding-left: {{ ($depth * 16) + 8 }}px"
         >
             <flux:icon.chevron-right
                 class="size-3 text-zinc-500 shrink-0 transition-transform"
                 ::class="expanded ? 'rotate-90' : ''" />
-            <flux:icon.folder class="size-3.5 text-amber-400 shrink-0" x-show="!expanded" x-cloak />
-            <flux:icon.folder-open class="size-3.5 text-amber-400 shrink-0" x-show="expanded" />
+            <flux:icon.folder class="size-3.5 text-amber-500 shrink-0" x-show="!expanded" x-cloak />
+            <flux:icon.folder-open class="size-3.5 text-amber-500 shrink-0" x-show="expanded" />
 
             <template x-if="!editing">
-                <span class="text-zinc-300 truncate flex-1 min-w-0">{{ $item['name'] }}</span>
+                <span class="text-zinc-700 dark:text-zinc-200 truncate flex-1 min-w-0">{{ $item['name'] }}</span>
             </template>
             <template x-if="editing">
                 <input
@@ -35,7 +35,7 @@
                     @keydown.escape="editing = false"
                     @blur="editing = false"
                     @click.stop
-                    class="flex-1 min-w-0 bg-zinc-700 border border-blue-500 rounded px-1 py-0 text-sm text-zinc-200 outline-none"
+                    class="flex-1 min-w-0 bg-white dark:bg-zinc-800 border border-blue-500 rounded px-1 py-0 text-sm text-zinc-800 dark:text-zinc-100 outline-none"
                     x-init="$el.focus(); $el.select()"
                 />
             </template>
@@ -46,7 +46,7 @@
                         <button
                             @click.stop="editing = true; newName = '{{ $item['name'] }}'"
                             title="Rename"
-                            class="rounded p-0.5 hover:bg-zinc-600 text-zinc-600 hover:text-zinc-300
+                            class="rounded p-0.5 hover:bg-zinc-300/70 dark:hover:bg-white/10 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200
                                    opacity-0 group-hover/item:opacity-100 transition-opacity"
                         >
                             <flux:icon.pencil class="size-3" />
@@ -56,7 +56,7 @@
                         <button
                             @click.stop="$wire.deleteItem('{{ $currentPath }}')"
                             title="Delete"
-                            class="rounded p-0.5 hover:bg-red-800/50 text-zinc-600 hover:text-red-400
+                            class="rounded p-0.5 hover:bg-red-100 dark:hover:bg-red-500/15 text-zinc-400 hover:text-red-600 dark:hover:text-red-400
                                    opacity-0 group-hover/item:opacity-100 transition-opacity"
                         >
                             <flux:icon.trash class="size-3" />
@@ -75,14 +75,14 @@
             :draggable="!editing"
             @dragstart="if (!editing) { event.dataTransfer.setData('text/plain', '{{ $currentPath }}'); event.dataTransfer.effectAllowed = 'move' } else { event.preventDefault() }"
             @click="if (!editing) $wire.selectFile('{{ $currentPath }}')"
-            class="group/item flex items-center gap-1.5 py-1 px-2 hover:bg-zinc-800/50 rounded cursor-pointer text-sm select-none {{ $activeFilePath === $currentPath ? 'bg-zinc-700/50' : '' }}"
+            class="group/item flex items-center gap-1.5 py-[5px] px-2 hover:bg-zinc-200/70 dark:hover:bg-white/5 rounded-md cursor-pointer text-sm select-none {{ $activeFilePath === $currentPath ? 'bg-zinc-200 dark:bg-white/10 font-medium' : '' }}"
             style="padding-left: {{ ($depth * 16) + 8 }}px"
         >
             <span class="w-3 shrink-0"></span>
-            <flux:icon.document-text class="size-3.5 text-blue-400 shrink-0" />
+            <x-file-icon :name="$item['name']" class="size-3.5" />
 
             <template x-if="!editing">
-                <span class="text-zinc-300 truncate flex-1 min-w-0">{{ $item['name'] }}</span>
+                <span class="text-zinc-700 dark:text-zinc-200 truncate flex-1 min-w-0">{{ $item['name'] }}</span>
             </template>
             <template x-if="editing">
                 <input
@@ -92,7 +92,7 @@
                     @keydown.escape="editing = false"
                     @blur="editing = false"
                     @click.stop
-                    class="flex-1 min-w-0 bg-zinc-700 border border-blue-500 rounded px-1 py-0 text-sm text-zinc-200 outline-none"
+                    class="flex-1 min-w-0 bg-white dark:bg-zinc-800 border border-blue-500 rounded px-1 py-0 text-sm text-zinc-800 dark:text-zinc-100 outline-none"
                     x-init="$el.focus(); $el.select()"
                 />
             </template>
@@ -103,7 +103,7 @@
                         <button
                             @click.stop="editing = true; newName = '{{ $item['name'] }}'"
                             title="Rename"
-                            class="rounded p-0.5 hover:bg-zinc-600 text-zinc-600 hover:text-zinc-300
+                            class="rounded p-0.5 hover:bg-zinc-300/70 dark:hover:bg-white/10 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200
                                    opacity-0 group-hover/item:opacity-100 transition-opacity"
                         >
                             <flux:icon.pencil class="size-3" />
@@ -113,7 +113,7 @@
                         <button
                             @click.stop="$wire.deleteItem('{{ $currentPath }}')"
                             title="Delete"
-                            class="rounded p-0.5 hover:bg-red-800/50 text-zinc-600 hover:text-red-400
+                            class="rounded p-0.5 hover:bg-red-100 dark:hover:bg-red-500/15 text-zinc-400 hover:text-red-600 dark:hover:text-red-400
                                    opacity-0 group-hover/item:opacity-100 transition-opacity"
                         >
                             <flux:icon.trash class="size-3" />

@@ -13,15 +13,23 @@
         <flux:heading size="lg" class="mb-3 px-3">{{ __('Settings') }}</flux:heading>
 
         <flux:navlist aria-label="{{ __('Settings') }}">
-            <flux:navlist.item icon="cpu-chip" :href="route('settings.ai-integrations')" :current="request()->routeIs('settings.ai-integrations')" wire:navigate>
-                {{ __('AI Integrations') }}
-            </flux:navlist.item>
-            <flux:navlist.item icon="sparkles" :href="route('settings.insights-model')" :current="request()->routeIs('settings.insights-model')" wire:navigate>
-                {{ __('AI Insights Model') }}
-            </flux:navlist.item>
             <flux:navlist.item icon="key" :href="route('settings.api-tokens')" :current="request()->routeIs('settings.api-tokens')" wire:navigate>
                 {{ __('API Tokens') }}
             </flux:navlist.item>
+
+            @if (auth()->user()?->isAdmin())
+                <flux:navlist.group :heading="__('Administration')" class="mt-4">
+                    <flux:navlist.item icon="cpu-chip" :href="route('settings.ai-integrations')" :current="request()->routeIs('settings.ai-integrations')" wire:navigate>
+                        {{ __('AI Integrations') }}
+                    </flux:navlist.item>
+                    <flux:navlist.item icon="sparkles" :href="route('settings.insights-model')" :current="request()->routeIs('settings.insights-model')" wire:navigate>
+                        {{ __('AI Insights Model') }}
+                    </flux:navlist.item>
+                    <flux:navlist.item icon="users" :href="route('settings.users')" :current="request()->routeIs('settings.users')" wire:navigate>
+                        {{ __('Users') }}
+                    </flux:navlist.item>
+                </flux:navlist.group>
+            @endif
         </flux:navlist>
     </div>
 

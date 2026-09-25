@@ -1,0 +1,13 @@
+# Build the image from this checkout instead of pulling it from GHCR:
+#   docker compose -f compose.yaml -f compose.build.yaml up -d --build
+x-build: &build
+  build:
+    context: ..
+    dockerfile: Dockerfile
+  image: straden:local
+
+services:
+  app: *build
+  reverb: *build
+  runner: *build
+  scheduler: *build

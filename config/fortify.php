@@ -161,7 +161,8 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // Public registration is disabled: the first admin is created via the
+        // setup wizard (or STRADEN_ADMIN_* env) and admins add further users.
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::twoFactorAuthentication([

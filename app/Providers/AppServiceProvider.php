@@ -2,17 +2,21 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use App\Services\AiCredentialManager;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\DevCommands;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Opcodes\LogViewer\Facades\LogViewer;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -33,6 +37,28 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDevCommands();
         $this->syncAiProviderCredentials();
         $this->configureRateLimiting();
+        $this->trackLogins();
+        $this->authorizeLogViewer();
+    }
+
+    /**
+     * Only admins may browse application logs.
+     */
+    protected function authorizeLogViewer(): void
+    {
+        LogViewer::auth(fn ($request) => (bool) $request->user()?->isAdmin());
+    }
+
+    /**
+     * Record when users last signed in, shown on the user management page.
+     */
+    protected function trackLogins(): void
+    {
+        Event::listen(Login::class, function (Login $event) {
+            if ($event->user instanceof User) {
+                $event->user->forceFill(['last_login_at' => now()])->saveQuietly();
+            }
+        });
     }
 
     /**

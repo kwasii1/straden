@@ -13,7 +13,7 @@ test('guests are redirected to login', function () {
 });
 
 test('authenticated users can view connectors page', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
 
     $this->actingAs($user)
@@ -22,7 +22,7 @@ test('authenticated users can view connectors page', function () {
 });
 
 test('empty state shows when no connectors configured', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
 
     $this->actingAs($user)
@@ -32,7 +32,7 @@ test('empty state shows when no connectors configured', function () {
 });
 
 test('seeded influxdb connector is shown as system', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
     Connector::factory()->influxDb()->create();
 
@@ -44,7 +44,7 @@ test('seeded influxdb connector is shown as system', function () {
 });
 
 test('user can add a database connector', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
 
     Livewire::actingAs($user)
@@ -63,7 +63,7 @@ test('user can add a database connector', function () {
 });
 
 test('user can add each observability connector type', function (string $type, int $port) {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
 
     Livewire::actingAs($user)
@@ -86,7 +86,7 @@ test('user can add each observability connector type', function (string $type, i
 ]);
 
 test('host is required for connection-based connectors', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
 
     Livewire::actingAs($user)
@@ -98,7 +98,7 @@ test('host is required for connection-based connectors', function () {
 });
 
 test('selecting a type pre-fills its default port', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
 
     $component = Livewire::actingAs($user)
@@ -109,7 +109,7 @@ test('selecting a type pre-fills its default port', function () {
 });
 
 test('redis database index must be an integer', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
 
     Livewire::actingAs($user)
@@ -124,7 +124,7 @@ test('redis database index must be an integer', function () {
 });
 
 test('observability connector types appear in the form', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
 
     $this->actingAs($user)
@@ -136,7 +136,7 @@ test('observability connector types appear in the form', function () {
 });
 
 test('connector type must be valid', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
 
     Livewire::actingAs($user)
@@ -148,7 +148,7 @@ test('connector type must be valid', function () {
 });
 
 test('user cannot delete system connector', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
     $connector = Connector::factory()->influxDb()->create();
 
@@ -160,7 +160,7 @@ test('user cannot delete system connector', function () {
 });
 
 test('user can delete non-system connector', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
     $connector = Connector::factory()->database()->create(['project_id' => $project->id]);
 
@@ -172,7 +172,7 @@ test('user can delete non-system connector', function () {
 });
 
 test('git providers page is accessible', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
 
     $this->actingAs($user)
@@ -182,7 +182,7 @@ test('git providers page is accessible', function () {
 });
 
 test('ai providers page is accessible', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
 
     $this->actingAs($user)
@@ -192,7 +192,7 @@ test('ai providers page is accessible', function () {
 });
 
 test('git providers list shows empty state', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
 
     Livewire::actingAs($user)
@@ -201,7 +201,7 @@ test('git providers list shows empty state', function () {
 });
 
 test('git providers list shows connected providers', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
     Connector::factory()->github()->create(['project_id' => $project->id]);
 
@@ -211,7 +211,7 @@ test('git providers list shows connected providers', function () {
 });
 
 test('user can delete git provider connector', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->admin()->create();
     $project = Project::factory()->create();
     $connector = Connector::factory()->github()->create(['project_id' => $project->id]);
 

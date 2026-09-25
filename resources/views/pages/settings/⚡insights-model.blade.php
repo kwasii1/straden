@@ -11,6 +11,12 @@ new
 #[Layout('layouts::app')]
 class extends Component
 {
+    public function boot(): void
+    {
+        // Enforced on every Livewire request, not just the initial page load.
+        abort_unless(auth()->user()?->isAdmin(), 403);
+    }
+
     public string $insightsProvider = '';
 
     public string $insightsModel = '';

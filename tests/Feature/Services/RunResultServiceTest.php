@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\CancelRunJob;
 use App\Models\Project;
 use App\Models\Run;
 use App\Models\Script;
@@ -10,6 +11,7 @@ use App\Services\RunResultService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
@@ -131,15 +133,20 @@ test('thresholds support OR and AND combined conditions', function () {
     ))->toBeTrue();
 });
 
-test('finalize maps signal termination to aborted', function () {
+test('finalize maps signal termination to aborted', function (int $exitCode) {
     $run = Run::factory()->running()->create();
-    writeRunArtifacts($run, 143, null);
+    writeRunArtifacts($run, $exitCode, null);
 
     RunResultService::finalize($run);
     $run->refresh();
 
     expect($run->status)->toBe('aborted');
-});
+})->with([
+    'k6 external abort (SIGTERM)' => 105,
+    'SIGINT' => 130,
+    'SIGKILL' => 137,
+    'SIGTERM' => 143,
+]);
 
 test('finalize marks a script error with a message', function () {
     $run = Run::factory()->running()->create();
@@ -387,4 +394,18 @@ test('finalize keeps teardown timeout with failed requests as error', function (
 
     expect($run->status)->toBe('error')
         ->and($run->error_message)->toStartWith('k6 exited with code 101');
+});
+
+test('cancelling a running run dispatches the cancel job to the runner queue', function () {
+    Queue::fake();
+
+    $run = Run::factory()->running()->create();
+
+    RunResultService::cancel($run);
+
+    Queue::assertPushedOn('runs', CancelRunJob::class, fn (CancelRunJob $job) => $job->run->is($run));
+});
+
+test('run artifacts live on the shared storage volume', function () {
+    expect(RunResultService::logFilePath('abc'))->toStartWith(storage_path('app/k6-runs/'));
 });

@@ -67,6 +67,12 @@ class DatabaseMetricsService
 
     public function testConnection(): bool
     {
+        // PHP has no PDO driver for MongoDB (and ext-mongodb isn't installed),
+        // so the best available check is that the server accepts connections.
+        if ($this->connector->type === ConnectorType::MongoDB) {
+            return $this->canOpenSocket();
+        }
+
         try {
             $this->pdo()->query('SELECT 1');
 
@@ -74,6 +80,22 @@ class DatabaseMetricsService
         } catch (\Throwable) {
             return false;
         }
+    }
+
+    private function canOpenSocket(): bool
+    {
+        $socket = @stream_socket_client(
+            sprintf('tcp://%s:%d', $this->connector->host, $this->connector->port ?? 27017),
+            timeout: (float) ($this->connector->timeout ?? 5),
+        );
+
+        if ($socket === false) {
+            return false;
+        }
+
+        fclose($socket);
+
+        return true;
     }
 
     /**

@@ -21,7 +21,9 @@ class RunTestJob implements ShouldQueue
 
     public function __construct(
         public Run $run,
-    ) {}
+    ) {
+        $this->onQueue('runs');
+    }
 
     public function handle(): void
     {
