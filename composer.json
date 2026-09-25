@@ -1,13 +1,16 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/livewire-starter-kit",
+    "name": "kwasii1/straden",
     "type": "project",
-    "description": "The official Laravel starter kit for Livewire.",
+    "description": "Self-hosted load testing platform powered by k6, with AI-assisted script authoring and run analysis.",
     "keywords": [
-        "laravel",
-        "framework"
+        "k6",
+        "load-testing",
+        "performance-testing",
+        "self-hosted",
+        "laravel"
     ],
-    "license": "MIT",
+    "license": "AGPL-3.0-only",
     "require": {
         "php": "^8.4",
         "aws/aws-sdk-php": "^3.397",

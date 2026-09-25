@@ -51,6 +51,7 @@ ARG K6_VERSION
 LABEL org.opencontainers.image.title="Straden" \
       org.opencontainers.image.description="Self-hosted load testing platform powered by k6" \
       org.opencontainers.image.source="https://github.com/kwasii1/straden" \
+      org.opencontainers.image.licenses="AGPL-3.0-only" \
       dev.straden.k6.version="${K6_VERSION}"
 
 RUN apt-get update \
