@@ -36,13 +36,13 @@ class DatabaseMetricsService
         return match ($this->driver()) {
             'mysql' => sprintf(
                 'mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4',
-                $this->connector->host,
+                $this->connector->connectionHost(),
                 $this->connector->port,
                 $this->connector->database,
             ),
             'pgsql' => sprintf(
                 'pgsql:host=%s;port=%d;dbname=%s;connect_timeout=%d',
-                $this->connector->host,
+                $this->connector->connectionHost(),
                 $this->connector->port,
                 $this->connector->database,
                 $this->connector->timeout ?? 5,
@@ -85,7 +85,7 @@ class DatabaseMetricsService
     private function canOpenSocket(): bool
     {
         $socket = @stream_socket_client(
-            sprintf('tcp://%s:%d', $this->connector->host, $this->connector->port ?? 27017),
+            sprintf('tcp://%s:%d', $this->connector->connectionHost(), $this->connector->port ?? 27017),
             timeout: (float) ($this->connector->timeout ?? 5),
         );
 

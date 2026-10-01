@@ -18,7 +18,7 @@ class RedisMetricsService
         $client = new Redis;
 
         $connected = $client->connect(
-            $this->connector->host,
+            $this->connector->connectionHost(),
             $this->connector->port,
             $this->connector->timeout ?? 5,
         );

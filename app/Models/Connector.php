@@ -95,6 +95,19 @@ class Connector extends Model
             ->firstOrFail();
     }
 
+    /**
+     * The host to dial. Inside Docker, "localhost" means the container itself, so
+     * loopback hosts are mapped to the Docker host where users run their services.
+     */
+    public function connectionHost(): ?string
+    {
+        if (in_array($this->host, ['localhost', '127.0.0.1', '::1'], true) && is_file('/.dockerenv')) {
+            return 'host.docker.internal';
+        }
+
+        return $this->host;
+    }
+
     public function isInfluxDb(): bool
     {
         return $this->type === ConnectorType::InfluxDb;

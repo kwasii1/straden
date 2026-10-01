@@ -14,7 +14,7 @@ class GrafanaService
         return sprintf(
             '%s://%s:%s',
             $this->connector->ssl_enabled ? 'https' : 'http',
-            $this->connector->host,
+            $this->connector->connectionHost(),
             $this->connector->port,
         );
     }
