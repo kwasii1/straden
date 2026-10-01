@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/kwasii1/straden/compare/straden-v1.1.0...straden-v1.2.0) (2026-10-01)
+
+
+### Features
+
+* add connectionHost method to Connector model and update service classes to use it; enhance tests for loopback host behavior and project-specific connector deletion ([19de552](https://github.com/kwasii1/straden/commit/19de55222a19c58214682c901a21a61d7bc1e4f8))
+* add connectionHost method to Connector model and update service… ([44aaff9](https://github.com/kwasii1/straden/commit/44aaff90e01d817e192f4161db8848e50a424627))
+
 ## [1.1.0](https://github.com/kwasii1/straden/compare/straden-v1.0.0...straden-v1.1.0) (2026-10-01)
 
 
