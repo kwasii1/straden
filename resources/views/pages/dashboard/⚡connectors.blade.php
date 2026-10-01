@@ -144,7 +144,9 @@ class extends Component
 
     public function deleteConnector(): void
     {
-        $connector = Connector::find($this->deletingConnectorId);
+        $connector = Connector::query()
+            ->where('project_id', $this->project->id)
+            ->find($this->deletingConnectorId);
 
         Flux::modal('delete-connector')->close();
         $this->deletingConnectorId = null;

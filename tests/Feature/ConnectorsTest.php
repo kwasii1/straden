@@ -260,3 +260,22 @@ test('user can delete git provider connector', function () {
 
     expect(Connector::find($connector->id))->toBeNull();
 });
+
+test('loopback hosts are not rewritten outside docker', function () {
+    $connector = Connector::factory()->make(['host' => 'localhost']);
+
+    expect($connector->connectionHost())->toBe(is_file('/.dockerenv') ? 'host.docker.internal' : 'localhost');
+});
+
+test('user cannot delete a connector from another project', function () {
+    $user = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $connector = Connector::factory()->database()->create(['project_id' => Project::factory()->create()->id]);
+
+    Livewire::actingAs($user)
+        ->test('pages::dashboard.connectors', ['project' => $project])
+        ->call('confirmDelete', $connector->id)
+        ->call('deleteConnector');
+
+    expect(Connector::find($connector->id))->not->toBeNull();
+});
