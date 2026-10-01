@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/kwasii1/straden/compare/straden-v1.2.0...straden-v1.3.0) (2026-10-01)
+
+
+### Features
+
+* implement logging for connection failures across services; add … ([dd6748b](https://github.com/kwasii1/straden/commit/dd6748b10147054f8daa6063406a88dfd6beb14f))
+* implement logging for connection failures across services; add LogsConnectionFailures trait ([a59b375](https://github.com/kwasii1/straden/commit/a59b375868a8237c5a7ff2b8cdeedad6b0a0a046))
+
 ## [1.2.0](https://github.com/kwasii1/straden/compare/straden-v1.1.0...straden-v1.2.0) (2026-10-01)
 
 
