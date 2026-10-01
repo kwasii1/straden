@@ -7,9 +7,12 @@ use App\Models\Connector;
 use App\Models\Project;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class PrometheusService
 {
+    public ?string $lastError = null;
+
     public function __construct(private readonly Connector $connector) {}
 
     private function baseUrl(): string
@@ -121,8 +124,15 @@ class PrometheusService
         try {
             $response = $this->http()->get($this->baseUrl().'/api/v1/status/buildinfo');
 
+            if (! $response->successful()) {
+                $this->lastError = 'HTTP '.$response->status().' from '.$this->baseUrl();
+            }
+
             return $response->successful();
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            $this->lastError = $e->getMessage();
+            Log::warning('Prometheus connection test failed', ['error' => $e->getMessage()]);
+
             return false;
         }
     }

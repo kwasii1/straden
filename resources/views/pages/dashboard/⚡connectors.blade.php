@@ -11,6 +11,7 @@ use App\Services\RedisMetricsService;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Illuminate\Support\Str;
 use Livewire\Component;
 
 new
@@ -42,6 +43,10 @@ class extends Component
     public string $token = '';
 
     public array $settings = [];
+
+    public ?string $editingConnectorId = null;
+
+    public ?string $deletingConnectorId = null;
 
     #[Computed]
     public function connectors()
@@ -75,17 +80,79 @@ class extends Component
             'settings' => $this->settings,
         ];
 
-        Connector::create($data);
+        if ($this->editingConnectorId !== null) {
+            $connector = $this->findEditableConnector($this->editingConnectorId);
+
+            $data = collect($data)->except(['project_id', 'type'])->all();
+            foreach (['username', 'password', 'token'] as $secret) {
+                if ($data[$secret] === null) {
+                    unset($data[$secret]);
+                }
+            }
+
+            $connector->update($data);
+            $message = 'Connector updated successfully.';
+        } else {
+            Connector::create($data);
+            $message = 'Connector added successfully.';
+        }
 
         Flux::modal('create-connector')->close();
 
-        Flux::toast(variant: 'success', text: 'Connector added successfully.');
+        Flux::toast(variant: 'success', text: $message);
 
         $this->resetConnectorForm();
     }
 
-    public function deleteConnector(Connector $connector): void
+    public function newConnector(): void
     {
+        $this->resetValidation();
+        $this->resetConnectorForm();
+        $this->editingConnectorId = null;
+
+        Flux::modal('create-connector')->show();
+    }
+
+    public function editConnector(string $connectorId): void
+    {
+        $connector = $this->findEditableConnector($connectorId);
+
+        $this->resetValidation();
+        $this->editingConnectorId = $connector->id;
+        $this->name = $connector->name;
+        $this->type = $connector->type->value;
+        $this->host = $connector->host ?? '';
+        $this->port = $connector->port;
+        $this->database = $connector->database;
+        $this->ssl_enabled = $connector->ssl_enabled;
+        $this->verify_ssl = $connector->verify_ssl;
+        $this->timeout = $connector->timeout ?? 5;
+        $this->username = '';
+        $this->password = '';
+        $this->token = '';
+        $this->settings = $connector->settings ?? [];
+
+        Flux::modal('create-connector')->show();
+    }
+
+    public function confirmDelete(string $connectorId): void
+    {
+        $this->deletingConnectorId = $connectorId;
+
+        Flux::modal('delete-connector')->show();
+    }
+
+    public function deleteConnector(): void
+    {
+        $connector = Connector::find($this->deletingConnectorId);
+
+        Flux::modal('delete-connector')->close();
+        $this->deletingConnectorId = null;
+
+        if ($connector === null) {
+            return;
+        }
+
         if ($connector->is_system) {
             Flux::toast(variant: 'error', text: 'System connectors cannot be deleted.');
 
@@ -99,17 +166,26 @@ class extends Component
 
     public function testConnection(Connector $connector): void
     {
+        $error = null;
+
         try {
             $success = match ($connector->type) {
                 ConnectorType::InfluxDb => (new InfluxDbService($connector))->testConnection(),
-                ConnectorType::Prometheus => (new PrometheusService($connector))->testConnection(),
+                ConnectorType::Prometheus => (function () use ($connector, &$error) {
+                    $service = new PrometheusService($connector);
+                    $result = $service->testConnection();
+                    $error = $service->lastError;
+
+                    return $result;
+                })(),
                 ConnectorType::MySQL, ConnectorType::Postgres, ConnectorType::MongoDB => (new DatabaseMetricsService($connector))->testConnection(),
                 ConnectorType::Redis => (new RedisMetricsService($connector))->testConnection(),
                 ConnectorType::Grafana => (new GrafanaService($connector))->testConnection(),
                 default => null,
             };
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
             $success = false;
+            $error = $e->getMessage();
         }
 
         if ($success === null) {
@@ -121,13 +197,13 @@ class extends Component
         $connector->update([
             'last_tested_at' => now(),
             'last_test_successful' => $success,
-            'last_test_error' => $success ? null : 'Connection failed.',
+            'last_test_error' => $success ? null : ($error ?: 'Connection failed.'),
         ]);
 
         if ($success) {
             Flux::toast(variant: 'success', text: 'Connection successful.');
         } else {
-            Flux::toast(variant: 'error', text: 'Connection failed.');
+            Flux::toast(variant: 'error', text: Str::limit($error ?: 'Connection failed.', 200));
         }
     }
 
@@ -194,9 +270,17 @@ class extends Component
         };
     }
 
+    private function findEditableConnector(string $connectorId): Connector
+    {
+        return Connector::query()
+            ->where('project_id', $this->project->id)
+            ->where('is_system', false)
+            ->findOrFail($connectorId);
+    }
+
     private function resetConnectorForm(): void
     {
-        $this->reset(['name', 'type', 'host', 'port', 'database', 'ssl_enabled', 'verify_ssl', 'timeout', 'username', 'password', 'token', 'settings']);
+        $this->reset(['editingConnectorId', 'name', 'type', 'host', 'port', 'database', 'ssl_enabled', 'verify_ssl', 'timeout', 'username', 'password', 'token', 'settings']);
         $this->timeout = 5;
     }
 };
@@ -209,9 +293,7 @@ class extends Component
     </div>
 
     <div class="flex w-full justify-end">
-        <flux:modal.trigger name="create-connector">
-            <flux:button variant="primary" icon="plus">Add Connector</flux:button>
-        </flux:modal.trigger>
+        <flux:button wire:click="newConnector" variant="primary" icon="plus">Add Connector</flux:button>
     </div>
 
     <div class="flex flex-col border rounded-xl divide-y dark:border-zinc-700 overflow-hidden">
@@ -241,7 +323,7 @@ class extends Component
                                     @if ($connector->last_test_successful)
                                         <flux:badge size="sm" variant="subtle" color="emerald">Connected</flux:badge>
                                     @else
-                                        <flux:badge size="sm" variant="subtle" color="red">Failed</flux:badge>
+                                        <flux:badge size="sm" variant="subtle" color="red" :title="$connector->last_test_error">Failed</flux:badge>
                                     @endif
                                 @endif
                             </div>
@@ -261,8 +343,14 @@ class extends Component
 
                     @unless ($connector->is_system)
                         <flux:button
-                            wire:click="deleteConnector('{{ $connector->id }}')"
-                            wire:confirm="Are you sure you want to remove this connector?"
+                            wire:click="editConnector('{{ $connector->id }}')"
+                            variant="ghost"
+                            size="sm"
+                            icon="pencil-square"
+                        />
+
+                        <flux:button
+                            wire:click="confirmDelete('{{ $connector->id }}')"
                             variant="ghost"
                             size="sm"
                             icon="trash"
@@ -289,15 +377,15 @@ class extends Component
     <flux:modal name="create-connector" class="md:w-lg" flyout>
         <div class="space-y-6">
             <div>
-                <flux:heading size="lg">Add Connector</flux:heading>
-                <flux:text class="mt-2">Connect an external service to Straden.</flux:text>
+                <flux:heading size="lg">{{ $editingConnectorId ? 'Edit Connector' : 'Add Connector' }}</flux:heading>
+                <flux:text class="mt-2">{{ $editingConnectorId ? 'Update this connector. Leave credentials blank to keep the current values.' : 'Connect an external service to Straden.' }}</flux:text>
             </div>
 
             <form wire:submit="addConnector" class="space-y-6">
                 <div class="grid grid-cols-2 gap-4">
                     <flux:input wire:model="name" label="Connector Name" placeholder="My Database" />
 
-                    <flux:select wire:model.live="type" label="Connector Type">
+                    <flux:select wire:model.live="type" label="Connector Type" :disabled="(bool) $editingConnectorId">
                         <flux:select.option value="">Select a type...</flux:select.option>
                         <flux:select.option value="prometheus">Prometheus</flux:select.option>
                         <flux:select.option value="mysql">MySQL</flux:select.option>
@@ -327,9 +415,26 @@ class extends Component
 
                 <div class="flex">
                     <flux:spacer />
-                    <flux:button type="submit" variant="primary">Add Connector</flux:button>
+                    <flux:button type="submit" variant="primary">{{ $editingConnectorId ? 'Save Changes' : 'Add Connector' }}</flux:button>
                 </div>
             </form>
+        </div>
+    </flux:modal>
+
+    <flux:modal name="delete-connector" class="min-w-[22rem]">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">Remove connector?</flux:heading>
+                <flux:text class="mt-2">This connector will be removed and can no longer be used by tests. This cannot be undone.</flux:text>
+            </div>
+
+            <div class="flex gap-2">
+                <flux:spacer />
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button wire:click="deleteConnector" variant="danger">Remove</flux:button>
+            </div>
         </div>
     </flux:modal>
 </div>

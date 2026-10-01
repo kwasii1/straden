@@ -154,7 +154,8 @@ test('user cannot delete system connector', function () {
 
     Livewire::actingAs($user)
         ->test('pages::dashboard.connectors', ['project' => $project])
-        ->call('deleteConnector', $connector->id);
+        ->call('confirmDelete', $connector->id)
+        ->call('deleteConnector');
 
     expect(Connector::find($connector->id))->not->toBeNull();
 });
@@ -166,9 +167,47 @@ test('user can delete non-system connector', function () {
 
     Livewire::actingAs($user)
         ->test('pages::dashboard.connectors', ['project' => $project])
-        ->call('deleteConnector', $connector->id);
+        ->call('confirmDelete', $connector->id)
+        ->call('deleteConnector');
 
     expect(Connector::find($connector->id))->toBeNull();
+});
+
+test('user can edit a connector and keeps existing credentials when left blank', function () {
+    $user = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $connector = Connector::factory()->database()->create([
+        'project_id' => $project->id,
+        'type' => 'mysql',
+        'port' => 3306,
+        'password' => 'secret',
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('pages::dashboard.connectors', ['project' => $project])
+        ->call('editConnector', $connector->id)
+        ->assertSet('name', $connector->name)
+        ->set('name', 'Renamed')
+        ->set('host', 'db.internal')
+        ->call('addConnector')
+        ->assertHasNoErrors();
+
+    $connector->refresh();
+
+    expect($connector->name)->toBe('Renamed')
+        ->and($connector->host)->toBe('db.internal')
+        ->and($connector->password)->toBe('secret');
+});
+
+test('user cannot edit a system connector', function () {
+    $user = User::factory()->admin()->create();
+    $project = Project::factory()->create();
+    $connector = Connector::factory()->influxDb()->create();
+
+    Livewire::actingAs($user)
+        ->test('pages::dashboard.connectors', ['project' => $project])
+        ->call('editConnector', $connector->id)
+        ->assertStatus(404);
 });
 
 test('git providers page is accessible', function () {
