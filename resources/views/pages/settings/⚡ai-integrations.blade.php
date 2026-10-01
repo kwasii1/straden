@@ -512,7 +512,7 @@ class extends Component
                                         : 'bg-zinc-50 dark:bg-zinc-800/80 border-zinc-100 dark:border-zinc-700/60 group-hover:border-zinc-300 dark:group-hover:border-zinc-600',
                                 ])>
                                     <img
-                                        src="/storage/images/providers/{{ $provider['logo'] }}.svg"
+                                        src="/images/providers/{{ $provider['logo'] }}.svg"
                                         alt="{{ $provider['name'] }} logo"
                                         loading="lazy"
                                         class="size-full object-contain dark:invert-0"
@@ -625,7 +625,7 @@ class extends Component
                         : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-100 dark:border-zinc-700',
                 ])>
                     <img
-                        src="/storage/images/providers/{{ $this->getActiveMeta()['logo'] ?? 'sparkles' }}.svg"
+                        src="/images/providers/{{ $this->getActiveMeta()['logo'] ?? 'sparkles' }}.svg"
                         alt=""
                         class="size-full object-contain"
                         onerror="this.style.display='none';"
@@ -678,7 +678,7 @@ class extends Component
                         : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-100 dark:border-zinc-700',
                 ])>
                     <img
-                        src="/storage/images/providers/{{ $this->getActiveMeta()['logo'] ?? 'sparkles' }}.svg"
+                        src="/images/providers/{{ $this->getActiveMeta()['logo'] ?? 'sparkles' }}.svg"
                         alt=""
                         class="size-full object-contain"
                         onerror="this.style.display='none';"
