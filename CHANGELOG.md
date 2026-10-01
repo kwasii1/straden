@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.0](https://github.com/kwasii1/straden/compare/straden-v1.5.0...straden-v1.6.0) (2026-10-01)
+
+
+### Features
+
+* enhance k6 command generation with Docker host mapping; add plo… ([798b159](https://github.com/kwasii1/straden/commit/798b159b7d9cbe569939686afd434d7b5f7feaca))
+* enhance k6 command generation with Docker host mapping; add plowing bull component for run status ([1f44b8e](https://github.com/kwasii1/straden/commit/1f44b8e712a32808b2056ce51d8b2b079684ebcd))
+
 ## [1.5.0](https://github.com/kwasii1/straden/compare/straden-v1.4.0...straden-v1.5.0) (2026-10-01)
 
 
