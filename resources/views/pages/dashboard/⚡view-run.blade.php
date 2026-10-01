@@ -987,10 +987,8 @@ class extends Component
     {{-- Waiting for run --}}
     @if ($this->run->status === 'queued' || $this->run->status === 'running')
         <div class="flex flex-col items-center justify-center gap-y-3 rounded-xl border border-[#EDEDED] bg-[#F1F1F1] py-16 dark:border-zinc-800 dark:bg-zinc-800/80" wire:poll.5s>
-            <div class="flex size-12 items-center justify-center rounded-lg bg-amber-50 text-amber-500 dark:bg-zinc-800">
-                <flux:icon.clock class="size-6 animate-spin" />
-            </div>
-            <flux:text class="text-zinc-500 dark:text-zinc-400">Waiting for test run to complete...</flux:text>
+            <x-plowing-bull />
+            <flux:text class="text-zinc-500 dark:text-zinc-400">Plowing through your test run...</flux:text>
         </div>
     @endif
 

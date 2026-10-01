@@ -231,7 +231,7 @@ JS);
 };
 ?>
 
-<div class="flex flex-col gap-y-8 p-1 sm:p-2">
+<div class="flex flex-col gap-y-8 p-1 sm:p-2" @agent-done.window="$wire.$refresh()" @agent-approval-requested.window="$wire.$refresh()">
     {{-- Header Section --}}
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
