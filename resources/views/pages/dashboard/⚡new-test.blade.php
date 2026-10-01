@@ -56,7 +56,7 @@ class extends Component
 
         Flux::toast(variant: 'success', text: 'Test Created Successfully');
 
-        $this->reset(['name', 'target_endpoint', 'repositoryIds', 'connectors', 'description']);
+        $this->redirectRoute('projects.tests', ['project' => $this->project], navigate: true);
     }
 };
 ?>

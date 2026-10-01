@@ -80,7 +80,7 @@ class extends Component
             return [];
         }
 
-        return AvailableModelMap::modelsFor($this->insightsProvider);
+        return AvailableModelMap::allModelsFor($this->insightsProvider);
     }
 
     #[Computed]

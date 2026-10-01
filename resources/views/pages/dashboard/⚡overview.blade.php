@@ -150,23 +150,6 @@ class extends Component
                 High-level summary of tests, runs, and load testing metrics for <span class="font-semibold text-zinc-800 dark:text-zinc-200">{{ $project->name }}</span>
             </flux:text>
         </div>
-
-        <div class="flex items-center gap-2 shrink-0">
-            <flux:dropdown>
-                <flux:button variant="subtle" icon="calendar-days" size="sm" class="rounded-lg border border-zinc-200 dark:border-zinc-700">
-                    This Week
-                </flux:button>
-                <flux:menu>
-                    <flux:menu.item>Today</flux:menu.item>
-                    <flux:menu.item>This Week</flux:menu.item>
-                    <flux:menu.item>This Month</flux:menu.item>
-                </flux:menu>
-            </flux:dropdown>
-
-            <flux:button variant="primary" icon="arrow-down-tray" size="sm" class="rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900">
-                Export Data
-            </flux:button>
-        </div>
     </div>
 
     {{-- Stat Cards --}}
@@ -277,10 +260,6 @@ class extends Component
                     <div>
                         <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Response Time Trend</flux:text>
                         <p class="text-xs text-[#919191] dark:text-zinc-400">p95 & p99 percentile latency over recent executions</p>
-                    </div>
-                    <div class="flex items-center gap-1 rounded-md bg-white dark:bg-zinc-900 p-0.5 text-xs font-medium text-zinc-600 border border-[#EDEDED] dark:border-zinc-700">
-                        <button class="rounded px-2 py-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800">7 Runs</button>
-                        <button class="rounded bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 font-semibold text-zinc-900 dark:text-white">15 Runs</button>
                     </div>
                 </div>
 

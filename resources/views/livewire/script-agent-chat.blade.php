@@ -462,12 +462,42 @@
                             {{ $selectedModel ?: 'Model' }}
                         </flux:button>
                         <flux:menu class="max-h-48 overflow-y-auto">
+                            <div
+                                wire:key="model-search-{{ $selectedProvider }}"
+                                x-data="{
+                                    search: '',
+                                    models: @js($this->allModels),
+                                    get results() {
+                                        const q = this.search.trim().toLowerCase();
+                                        return q === '' ? [] : this.models.filter(m => m.toLowerCase().includes(q)).slice(0, 50);
+                                    },
+                                }"
+                            >
+                                <input
+                                    type="search"
+                                    x-model="search"
+                                    x-on:keydown.stop
+                                    placeholder="Search all models…"
+                                    class="mb-1 w-full rounded-md border border-zinc-200 bg-transparent px-2 py-1 text-xs dark:border-zinc-700"
+                                />
+                                <template x-for="model in results" :key="model">
+                                    <button
+                                        type="button"
+                                        x-text="model"
+                                        x-on:click="$wire.set('selectedModel', model); search = ''"
+                                        class="block w-full truncate rounded-md px-2 py-1.5 text-start text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                                    ></button>
+                                </template>
+                                <p x-show="search.trim() !== '' && results.length === 0" class="px-2 py-1.5 text-xs text-zinc-400">No matching models.</p>
+                            <div x-show="search.trim() === ''">
                             <flux:menu.radio.group wire:model.live="selectedModel">
                                 <flux:menu.radio value="">Default model</flux:menu.radio>
                                 @foreach ($availableModels as $model)
                                     <flux:menu.radio value="{{ $model }}">{{ $model }}</flux:menu.radio>
                                 @endforeach
                             </flux:menu.radio.group>
+                            </div>
+                            </div>
                         </flux:menu>
                     </flux:dropdown>
                 </div>

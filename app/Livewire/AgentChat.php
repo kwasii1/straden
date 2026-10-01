@@ -16,6 +16,7 @@ use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Models\Conversation;
 use Laravel\Ai\Models\ConversationMessage;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
 
 class AgentChat extends Component
@@ -105,7 +106,7 @@ class AgentChat extends Component
 
         if ($this->selectedProvider === null) {
             $this->selectedModel = null;
-        } elseif (! in_array($this->selectedModel, $this->availableModels, true)) {
+        } elseif (! AvailableModelMap::isKnownModel($this->selectedProvider, $this->selectedModel)) {
             $this->selectedModel = $this->availableModels[0] ?? null;
         }
 
@@ -129,7 +130,7 @@ class AgentChat extends Component
             $this->selectedProvider = $provider;
             $this->buildAvailableModels();
 
-            if (! in_array($this->selectedModel, $this->availableModels, true)) {
+            if (! AvailableModelMap::isKnownModel($this->selectedProvider, $this->selectedModel)) {
                 $this->selectedModel = $this->availableModels[0] ?? null;
             }
         }
@@ -160,7 +161,7 @@ class AgentChat extends Component
 
         $models = AvailableModelMap::modelsFor($this->selectedProvider);
 
-        if (! in_array($this->selectedModel, $models, true)) {
+        if (! AvailableModelMap::isKnownModel($this->selectedProvider, $this->selectedModel)) {
             $this->selectedModel = $models[0] ?? null;
             $this->dispatch('agent-model-changed', model: $this->selectedModel);
         }
@@ -487,6 +488,19 @@ class AgentChat extends Component
                 'created_at' => $conversation->created_at->diffForHumans(),
             ])
             ->all();
+    }
+
+    /**
+     * Every searchable model for the selected provider.
+     *
+     * @return array<int, string>
+     */
+    #[Computed]
+    public function allModels(): array
+    {
+        return $this->selectedProvider
+            ? AvailableModelMap::allModelsFor($this->selectedProvider)
+            : [];
     }
 
     public function render(): View

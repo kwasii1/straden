@@ -87,6 +87,10 @@ class extends Component
 ?>
 
 <div class="mx-auto max-w-4xl space-y-6">
+    <flux:button variant="subtle" size="sm" icon="arrow-left" x-on:click="history.length > 1 ? history.back() : Livewire.navigate('{{ route('dashboard') }}')">
+        Back
+    </flux:button>
+
     {{-- Page Header --}}
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
