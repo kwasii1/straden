@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Ai\Approvals\Decisions;
 use Laravel\Ai\Attributes\WithoutBroadcasting;
@@ -67,6 +68,14 @@ class ChatAgentJob implements ShouldQueue
         try {
             $this->agent->stream($this->prompt, $this->attachments, $this->provider, $this->model)
                 ->each(function (StreamEvent $event) use ($channels, $without): void {
+                    if ($event instanceof Error) {
+                        Log::warning('Chat agent stream returned an error event', [
+                            'test_id' => $this->testId,
+                            'type' => $event->type,
+                            'message' => $event->message,
+                        ]);
+                    }
+
                     if (WithoutBroadcasting::excludes($without, $event)) {
                         return;
                     }
@@ -87,6 +96,14 @@ class ChatAgentJob implements ShouldQueue
                     }
                 })
                 ->then(function (StreamedAgentResponse $response): void {
+                    Log::info('Chat agent run finished', [
+                        'test_id' => $this->testId,
+                        'conversation_id' => $response->conversationId,
+                        'user_message_id' => $response->userMessageId,
+                        'assistant_message_id' => $response->assistantMessageId,
+                        'has_participant' => $response->conversationUser !== null,
+                    ]);
+
                     // The SDK's RememberConversation middleware persists the
                     // conversation messages before this callback runs, so the
                     // UI only reloads once the final content is actually stored.
