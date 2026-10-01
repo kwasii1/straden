@@ -101,10 +101,8 @@ trait PersistsChatMessages
     /**
      * Remove the placeholder message once the SDK has persisted the real one.
      *
-     * When the placeholder reused an existing conversation only the single
-     * message is removed; a freshly created placeholder conversation is
-     * removed entirely. Placeholders written before the reuse flag existed
-     * fall back to the previous behaviour.
+     * Only the placeholder message is removed. The conversation is kept
+     * because the agent continues it and stores its real messages there.
      *
      * @param  array{conversation_id: string, message_id: string, is_new_conversation?: bool}|null  $placeholder
      */
@@ -114,14 +112,13 @@ trait PersistsChatMessages
             return;
         }
 
-        if (($placeholder['is_new_conversation'] ?? true) === false) {
-            ConversationMessage::where('id', $placeholder['message_id'])->delete();
+        ConversationMessage::where('id', $placeholder['message_id'])->delete();
 
-            return;
+        // The agent continues the placeholder's conversation, so it now holds the
+        // real messages. Only drop the conversation if nothing else was stored.
+        if (! ConversationMessage::where('conversation_id', $placeholder['conversation_id'])->exists()) {
+            Conversation::where('id', $placeholder['conversation_id'])->delete();
         }
-
-        ConversationMessage::where('conversation_id', $placeholder['conversation_id'])->delete();
-        Conversation::where('id', $placeholder['conversation_id'])->delete();
     }
 
     /**
