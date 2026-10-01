@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/kwasii1/straden/compare/straden-v1.0.0...straden-v1.1.0) (2026-10-01)
+
+
+### Features
+
+* enhance connector management with edit and delete confirmation, improve logging, and update Docker configuration ([77af9bd](https://github.com/kwasii1/straden/commit/77af9bdfe3fed1ad47064de02e4a39c550a68c8f))
+* enhance connector management with edit and delete confirmation,… ([3fe5ca8](https://github.com/kwasii1/straden/commit/3fe5ca8da8ab32f356edcc086f57e10ae94c5709))
+
 ## 1.0.0 (2026-09-25)
 
 
