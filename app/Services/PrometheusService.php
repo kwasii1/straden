@@ -2,16 +2,16 @@
 
 namespace App\Services;
 
+use App\Concerns\LogsConnectionFailures;
 use App\Enums\ConnectorType;
 use App\Models\Connector;
 use App\Models\Project;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class PrometheusService
 {
-    public ?string $lastError = null;
+    use LogsConnectionFailures;
 
     public function __construct(private readonly Connector $connector) {}
 
@@ -125,13 +125,12 @@ class PrometheusService
             $response = $this->http()->get($this->baseUrl().'/api/v1/status/buildinfo');
 
             if (! $response->successful()) {
-                $this->lastError = 'HTTP '.$response->status().' from '.$this->baseUrl();
+                $this->logConnectionFailure('HTTP '.$response->status());
             }
 
             return $response->successful();
         } catch (\Throwable $e) {
-            $this->lastError = $e->getMessage();
-            Log::warning('Prometheus connection test failed', ['error' => $e->getMessage()]);
+            $this->logConnectionException($e);
 
             return false;
         }

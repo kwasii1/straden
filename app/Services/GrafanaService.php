@@ -2,11 +2,14 @@
 
 namespace App\Services;
 
+use App\Concerns\LogsConnectionFailures;
 use App\Models\Connector;
 use Illuminate\Support\Facades\Http;
 
 class GrafanaService
 {
+    use LogsConnectionFailures;
+
     public function __construct(private readonly Connector $connector) {}
 
     private function baseUrl(): string
@@ -31,8 +34,14 @@ class GrafanaService
 
             $response = $client->get($this->baseUrl().'/api/health');
 
+            if (! $response->successful()) {
+                $this->logConnectionFailure('HTTP '.$response->status());
+            }
+
             return $response->successful() && ($response->json('database') ?? 'ok') === 'ok';
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            $this->logConnectionException($e);
+
             return false;
         }
     }

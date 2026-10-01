@@ -2,11 +2,14 @@
 
 namespace App\Services;
 
+use App\Concerns\LogsConnectionFailures;
 use App\Models\Connector;
 use Redis;
 
 class RedisMetricsService
 {
+    use LogsConnectionFailures;
+
     public function __construct(private readonly Connector $connector) {}
 
     private function client(): ?Redis
@@ -43,8 +46,16 @@ class RedisMetricsService
         try {
             $client = $this->client();
 
-            return $client !== null && $client->ping() !== false;
-        } catch (\Throwable) {
+            if ($client === null) {
+                $this->logConnectionFailure('Redis client unavailable or connection refused');
+
+                return false;
+            }
+
+            return $client->ping() !== false;
+        } catch (\Throwable $e) {
+            $this->logConnectionException($e);
+
             return false;
         }
     }
