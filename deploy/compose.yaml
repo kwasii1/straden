@@ -20,7 +20,8 @@ x-straden: &straden
     APP_DEBUG: ${APP_DEBUG:-false}
     APP_URL: ${APP_URL:-http://localhost:8000}
     STRADEN_DOMAIN: ${STRADEN_DOMAIN:-:80}
-    LOG_CHANNEL: stderr
+    LOG_CHANNEL: stack
+    LOG_STACK: single,stderr
     LOG_LEVEL: ${LOG_LEVEL:-info}
 
     DB_CONNECTION: pgsql
@@ -46,6 +47,8 @@ x-straden: &straden
     INFLUXDB_HOST: influxdb
     INFLUXDB_PORT: 8086
     INFLUXDB_DB: k6
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
   volumes:
     - storage:/app/storage
 

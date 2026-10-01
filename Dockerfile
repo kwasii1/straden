@@ -84,7 +84,8 @@ RUN composer dump-autoload --optimize --classmap-authoritative --no-dev \
 ENV STRADEN_ROLE=app \
     APP_ENV=production \
     APP_DEBUG=false \
-    LOG_CHANNEL=stderr \
+    LOG_CHANNEL=stack \
+    LOG_STACK=single,stderr \
     HOME=/app/storage/app/.home \
     XDG_CONFIG_HOME=/config \
     XDG_DATA_HOME=/data
