@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.0](https://github.com/kwasii1/straden/compare/straden-v1.4.0...straden-v1.5.0) (2026-10-01)
+
+
+### Features
+
+* update placeholder message handling to retain agent-stored mess… ([c8c7bd4](https://github.com/kwasii1/straden/commit/c8c7bd4611479ba954ab32bf2f0cd4cc0b987f8e))
+* update placeholder message handling to retain agent-stored messages; add tests for new behavior ([df053e1](https://github.com/kwasii1/straden/commit/df053e16b4a85e37abcb33a261f3b2f3ab80f85b))
+
 ## [1.4.0](https://github.com/kwasii1/straden/compare/straden-v1.3.0...straden-v1.4.0) (2026-10-01)
 
 
