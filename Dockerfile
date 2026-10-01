@@ -57,7 +57,7 @@ LABEL org.opencontainers.image.title="Straden" \
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git curl ca-certificates procps \
     && rm -rf /var/lib/apt/lists/* \
-    && install-php-extensions pdo_pgsql redis pcntl posix intl zip bcmath opcache
+    && install-php-extensions pdo_pgsql pdo_mysql redis pcntl posix intl zip bcmath opcache
 
 COPY --from=k6 /usr/bin/k6 /usr/local/bin/k6
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer

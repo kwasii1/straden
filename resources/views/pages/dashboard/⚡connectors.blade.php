@@ -11,7 +11,6 @@ use App\Services\RedisMetricsService;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
-use Illuminate\Support\Str;
 use Livewire\Component;
 
 new
@@ -168,26 +167,17 @@ class extends Component
 
     public function testConnection(Connector $connector): void
     {
-        $error = null;
-
         try {
             $success = match ($connector->type) {
                 ConnectorType::InfluxDb => (new InfluxDbService($connector))->testConnection(),
-                ConnectorType::Prometheus => (function () use ($connector, &$error) {
-                    $service = new PrometheusService($connector);
-                    $result = $service->testConnection();
-                    $error = $service->lastError;
-
-                    return $result;
-                })(),
+                ConnectorType::Prometheus => (new PrometheusService($connector))->testConnection(),
                 ConnectorType::MySQL, ConnectorType::Postgres, ConnectorType::MongoDB => (new DatabaseMetricsService($connector))->testConnection(),
                 ConnectorType::Redis => (new RedisMetricsService($connector))->testConnection(),
                 ConnectorType::Grafana => (new GrafanaService($connector))->testConnection(),
                 default => null,
             };
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             $success = false;
-            $error = $e->getMessage();
         }
 
         if ($success === null) {
@@ -199,13 +189,13 @@ class extends Component
         $connector->update([
             'last_tested_at' => now(),
             'last_test_successful' => $success,
-            'last_test_error' => $success ? null : ($error ?: 'Connection failed.'),
+            'last_test_error' => $success ? null : 'Connection failed.',
         ]);
 
         if ($success) {
             Flux::toast(variant: 'success', text: 'Connection successful.');
         } else {
-            Flux::toast(variant: 'error', text: Str::limit($error ?: 'Connection failed.', 200));
+            Flux::toast(variant: 'error', text: 'Connection failed.');
         }
     }
 
@@ -325,7 +315,7 @@ class extends Component
                                     @if ($connector->last_test_successful)
                                         <flux:badge size="sm" variant="subtle" color="emerald">Connected</flux:badge>
                                     @else
-                                        <flux:badge size="sm" variant="subtle" color="red" :title="$connector->last_test_error">Failed</flux:badge>
+                                        <flux:badge size="sm" variant="subtle" color="red">Failed</flux:badge>
                                     @endif
                                 @endif
                             </div>

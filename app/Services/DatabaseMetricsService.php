@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Concerns\LogsConnectionFailures;
 use App\Enums\ConnectorType;
 use App\Models\Connector;
 use PDO;
@@ -9,6 +10,8 @@ use PDOStatement;
 
 class DatabaseMetricsService
 {
+    use LogsConnectionFailures;
+
     public function __construct(private readonly Connector $connector) {}
 
     /** @return 'mysql'|'pgsql' */
@@ -77,7 +80,9 @@ class DatabaseMetricsService
             $this->pdo()->query('SELECT 1');
 
             return true;
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            $this->logConnectionException($e);
+
             return false;
         }
     }
@@ -90,6 +95,8 @@ class DatabaseMetricsService
         );
 
         if ($socket === false) {
+            $this->logConnectionFailure('Unable to open a TCP connection');
+
             return false;
         }
 
