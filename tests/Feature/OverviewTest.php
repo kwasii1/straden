@@ -157,3 +157,15 @@ test('overview shows last run as none when no runs exist', function () {
         ->assertSee('Last Execution')
         ->assertSee('None');
 });
+
+test('recent executions link to the run detail page', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $script = Script::factory()->for(Test::factory()->for($project)->create())->create();
+    $run = Run::factory()->for($script)->passed()->create();
+
+    $this->actingAs($user)
+        ->get(route('projects.overview', $project))
+        ->assertOk()
+        ->assertSee(route('projects.runs.view', ['project' => $project, 'run' => $run]), false);
+});

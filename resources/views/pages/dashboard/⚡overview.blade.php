@@ -412,7 +412,12 @@ class extends Component
                     </thead>
                     <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                         @foreach ($this->recentRuns as $run)
-                            <tr class="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40 transition">
+                            @php($runUrl = route('projects.runs.view', ['project' => $project, 'run' => $run['slug']]))
+                            <tr
+                                wire:key="recent-run-{{ $run['id'] }}"
+                                x-on:click="Livewire.navigate('{{ $runUrl }}')"
+                                class="cursor-pointer hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40 transition"
+                            >
                                 <td class="px-5 py-3.5 whitespace-nowrap">
                                     <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium
                                         {{ match($run['status']) {
@@ -429,9 +434,9 @@ class extends Component
 
                                 <td class="px-5 py-3.5 whitespace-nowrap">
                                     <div class="flex flex-col">
-                                        <span class="font-semibold text-zinc-900 dark:text-white">
+                                        <a href="{{ $runUrl }}" wire:navigate x-on:click.stop class="font-semibold text-zinc-900 hover:underline dark:text-white">
                                             {{ $run['script']['test']['name'] ?? 'Unknown Test' }}
-                                        </span>
+                                        </a>
                                         <span class="text-[11px] text-[#919191]">
                                             {{ $run['script']['name'] ?? 'Unknown Script' }}
                                         </span>

@@ -4,7 +4,7 @@
         @include('partials.head')
     </head>
     <body class="min-h-screen bg-white dark:bg-zinc-800">
-        <flux:sidebar sticky collapsible class="border-e border-zinc-200 bg-[#F1F1F1] dark:border-zinc-700 dark:bg-zinc-900">
+        <flux:sidebar sticky collapsible class="lg:sticky lg:top-0 lg:h-dvh lg:self-start border-e border-zinc-200 bg-[#F1F1F1] dark:border-zinc-700 dark:bg-zinc-900">
             <flux:sidebar.item icon="arrow-left" :href="route('projects')" wire:navigate>
                 {{ __('Projects') }}
             </flux:sidebar.item>
@@ -21,9 +21,6 @@
             <flux:sidebar.nav>
                 <flux:sidebar.item icon="squares-2x2" :href="route('projects.overview', ['project' => $project])" :current="request()->routeIs('projects.overview')" wire:navigate>
                     {{ __('Overview') }}
-                </flux:sidebar.item>
-                <flux:sidebar.item icon="plus" :href="route('projects.new-test', ['project' => $project])" :current="request()->routeIs('projects.new-test')" wire:navigate>
-                    {{ __('Create Test') }}
                 </flux:sidebar.item>
                 <flux:sidebar.item icon="beaker" :href="route('projects.tests', ['project' => $project])" :current="request()->routeIs('projects.tests')" wire:navigate>
                     {{ __('Tests') }}

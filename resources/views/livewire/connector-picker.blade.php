@@ -8,6 +8,8 @@
             <div
                 x-data="{
                     open: false,
+                    up: false,
+                    listMax: 256,
                     search: '',
                     options: @js($options),
                     selected: @js($selected),
@@ -15,6 +17,13 @@
                         const q = this.search.trim().toLowerCase();
                         if (q === '') return this.options;
                         return this.options.filter((o) => o.name.toLowerCase().includes(q) || o.type.toLowerCase().includes(q));
+                    },
+                    place() {
+                        const rect = $refs.trigger.getBoundingClientRect();
+                        const below = window.innerHeight - rect.bottom - 16;
+                        const above = rect.top - 16;
+                        this.up = below < 320 && above > below;
+                        this.listMax = Math.max(120, Math.min(256, (this.up ? above : below) - 64));
                     },
                     get selectedCount() { return this.selected.length; },
                     isSelected(id) { return this.selected.includes(id); },
@@ -29,7 +38,8 @@
             >
                 <button
                     type="button"
-                    x-on:click="open = !open; if (open) $nextTick(() => $refs.search.focus())"
+                    x-ref="trigger"
+                    x-on:click="if (! open) place(); open = !open; if (open) $nextTick(() => $refs.search.focus())"
                     class="flex h-10 w-full items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-left text-sm text-zinc-900 shadow-xs transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
                 >
                     <flux:icon.circle-stack class="size-4 shrink-0 text-zinc-400" />
@@ -44,7 +54,8 @@
                     x-show="open"
                     x-cloak
                     x-on:click.outside="open = false"
-                    class="absolute right-0 z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
+                    x-bind:class="up ? 'bottom-full mb-1.5' : 'mt-1.5'"
+                    class="absolute right-0 z-50 w-full overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
                 >
                     <div class="border-b border-zinc-100 p-2 dark:border-zinc-800">
                         <input
@@ -55,7 +66,7 @@
                             class="w-full rounded-lg bg-zinc-100 px-2.5 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500"
                         />
                     </div>
-                    <ul class="max-h-64 overflow-y-auto p-1">
+                    <ul x-bind:style="`max-height: ${listMax}px`" class="overflow-y-auto p-1">
                         <template x-for="option in filtered" :key="option.id">
                             <li>
                                 <button

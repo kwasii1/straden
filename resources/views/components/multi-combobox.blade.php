@@ -19,6 +19,8 @@
 <div
     x-data="{
         open: false,
+        up: false,
+        listMax: 256,
         search: '',
         active: 0,
         selected: $wire.entangle(@js($model->value()), @js($model->hasModifier('live'))),
@@ -41,7 +43,15 @@
                 ? current.filter(v => v !== item.value)
                 : [...current, item.value];
         },
+        place() {
+            const rect = this.$refs.trigger.getBoundingClientRect();
+            const below = window.innerHeight - rect.bottom - 16;
+            const above = rect.top - 16;
+            this.up = below < 320 && above > below;
+            this.listMax = Math.max(120, Math.min(256, (this.up ? above : below) - 56));
+        },
         show() {
+            this.place();
             this.open = true;
             this.search = '';
             this.active = 0;
@@ -88,7 +98,8 @@
         x-show="open"
         x-transition.opacity.duration.100ms
         x-cloak
-        class="absolute z-50 mt-1 w-full overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-600 dark:bg-zinc-700"
+        x-bind:class="up ? 'bottom-full mb-1' : 'mt-1'"
+        class="absolute z-50 w-full overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-600 dark:bg-zinc-700"
     >
         <div class="flex items-center gap-2 border-b border-zinc-200 px-3 dark:border-zinc-600">
             <flux:icon.magnifying-glass variant="mini" class="size-4 shrink-0 text-zinc-400" />
@@ -107,7 +118,7 @@
             />
         </div>
 
-        <ul x-ref="list" role="listbox" aria-multiselectable="true" class="max-h-64 overflow-y-auto p-1">
+        <ul x-ref="list" role="listbox" aria-multiselectable="true" x-bind:style="`max-height: ${listMax}px`" class="overflow-y-auto p-1">
             <template x-for="(item, index) in filtered" :key="item.value">
                 <li
                     role="option"
