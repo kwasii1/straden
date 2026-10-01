@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/kwasii1/straden/compare/straden-v1.3.0...straden-v1.4.0) (2026-10-01)
+
+
+### Features
+
+* add logging for error events in ChatAgentJob and log completion details; update Redis queue retry duration ([f921dca](https://github.com/kwasii1/straden/commit/f921dca820a3eb3a774aa617ab2552ba8cb1a82a))
+
 ## [1.3.0](https://github.com/kwasii1/straden/compare/straden-v1.2.0...straden-v1.3.0) (2026-10-01)
 
 
