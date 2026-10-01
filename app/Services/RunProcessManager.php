@@ -61,12 +61,41 @@ class RunProcessManager
             .' --summary-trend-stats='.escapeshellarg('avg,min,med,max,p(90),p(95),p(99)')
             .' --summary-mode=full';
 
+        $configPath = $this->writeDockerHostsConfig($runId);
+        if ($configPath !== null) {
+            $k6Command .= ' --config '.escapeshellarg($configPath);
+        }
+
         $influxOutput = $this->buildInfluxOutput($run);
         if ($influxOutput !== null) {
             $k6Command .= ' '.$influxOutput;
         }
 
         return $k6Command;
+    }
+
+    /**
+     * Inside Docker "localhost" is the runner container, not the machine the
+     * user's app is running on. Map it to the Docker host through a k6 config
+     * file so scripts that target localhost reach services published on the host.
+     */
+    private function writeDockerHostsConfig(string $runId): ?string
+    {
+        if (! is_file('/.dockerenv')) {
+            return null;
+        }
+
+        $ip = gethostbyname('host.docker.internal');
+
+        if ($ip === 'host.docker.internal') {
+            return null;
+        }
+
+        $path = RunResultService::runArtifactsDirectory().'/k6-config-'.$runId.'.json';
+
+        file_put_contents($path, json_encode(['hosts' => ['localhost' => $ip]]));
+
+        return $path;
     }
 
     private function buildInfluxOutput(Run $run): ?string
