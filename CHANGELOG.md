@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.7.0](https://github.com/kwasii1/straden/compare/straden-v1.6.0...straden-v1.7.0) (2026-10-02)
+
+
+### Features
+
+* Add "Create Test" option in project sidebar and enhance model selection UI ([d95717a](https://github.com/kwasii1/straden/commit/d95717a8c59b815073949eaa20e44463ec1d24b6))
+* add shared chart theme and components for UI consistency ([ad87ca1](https://github.com/kwasii1/straden/commit/ad87ca122607d6fbf2fc83aeeab59ee74a170214))
+* Enhance combobox and multi-combobox components with dynamic positioning and max height adjustments; update connector picker for improved usability; add test for recent executions linking to run detail page ([5e117be](https://github.com/kwasii1/straden/commit/5e117be33cce8b1615332856166b465b03340416))
+* Enhance project tracking and optimization ([0f5f6ed](https://github.com/kwasii1/straden/commit/0f5f6edab5416c1b7c77760f3f78fdfc2aecbc94))
+* remove project doughnut chart implementation ([ca3d642](https://github.com/kwasii1/straden/commit/ca3d642ccea85562a0bf29eb0e3bf82396d993e1))
+
+
+### Bug Fixes
+
+* improve error handling for AI model catalog response and ensure valid JSON structure ([91572d9](https://github.com/kwasii1/straden/commit/91572d9479bd13393df0baead15165868c2c2b0a))
+
 ## [1.6.0](https://github.com/kwasii1/straden/compare/straden-v1.5.0...straden-v1.6.0) (2026-10-01)
 
 
