@@ -134,7 +134,7 @@ class extends Component
     #[Computed]
     public function recentProjects()
     {
-        return Project::withCount(['tests', 'scripts'])->latest()->limit(3)->get();
+        return Project::withCount(['tests', 'scripts'])->orderByDesc('last_accessed_at')->latest()->limit(3)->get();
     }
 };
 ?>

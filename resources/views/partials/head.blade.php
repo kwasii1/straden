@@ -24,4 +24,5 @@
 </script>
 
 @vite(['resources/css/app.css', 'resources/js/app.js'])
+<script>try { localStorage.setItem('flux.appearance', 'light'); } catch (e) {}</script>
 @fluxAppearance
