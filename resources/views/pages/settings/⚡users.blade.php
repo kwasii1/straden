@@ -175,83 +175,94 @@ class extends Component {
 }; ?>
 
 <x-pages::settings.ai-layout>
-    <div class="flex flex-col gap-y-6">
-        <div class="flex flex-col gap-4 border-b border-zinc-200 pb-5 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
+    <div>
+        <section class="grid gap-x-8 gap-y-5 border-t border-zinc-200 py-8 first:border-t-0 first:pt-0 lg:grid-cols-[18rem_1fr]">
             <div>
-                <flux:heading size="xl" class="font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Users') }}</flux:heading>
-                <flux:text class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{{ __('Manage who can sign in to this Straden instance.') }}</flux:text>
+                <h2 class="text-sm font-medium text-zinc-900">{{ __('Users') }}</h2>
+                <p class="mt-1 text-sm text-zinc-500">{{ __('Manage who can sign in to this Straden instance.') }}</p>
             </div>
 
-            <flux:button wire:click="startCreate" variant="primary" size="sm" icon="plus">{{ __('Add user') }}</flux:button>
-        </div>
+            <div class="ui-panel min-w-0 overflow-hidden">
+                <header class="ui-panel-header">
+                    <h3 class="ui-panel-title tabular-nums">{{ trans_choice(':count user|:count users', $this->users->count()) }}</h3>
+                    <flux:button wire:click="startCreate" variant="primary" size="sm" icon="plus">{{ __('Add user') }}</flux:button>
+                </header>
 
-        <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
-            <table class="w-full text-left text-sm">
-                <thead class="bg-zinc-50 text-xs text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
-                    <tr>
-                        <th class="px-4 py-3 font-medium">{{ __('User') }}</th>
-                        <th class="px-4 py-3 font-medium">{{ __('Role') }}</th>
-                        <th class="px-4 py-3 font-medium">{{ __('Two-factor') }}</th>
-                        <th class="px-4 py-3 font-medium">{{ __('Last sign-in') }}</th>
-                        <th class="px-4 py-3"></th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
-                    @foreach ($this->users as $user)
-                        <tr wire:key="user-{{ $user->id }}">
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-3">
-                                    <flux:avatar size="sm" :name="$user->name" :initials="$user->initials()" />
-                                    <div class="min-w-0">
-                                        <div class="truncate font-medium text-zinc-900 dark:text-zinc-100">
-                                            {{ $user->name }}
-                                            @if ($user->is(auth()->user()))
-                                                <span class="text-xs font-normal text-zinc-400">({{ __('you') }})</span>
-                                            @endif
+                <div class="overflow-x-auto">
+                    <table class="ui-table">
+                        <thead>
+                            <tr>
+                                <th>{{ __('User') }}</th>
+                                <th>{{ __('Role') }}</th>
+                                <th>{{ __('Two-factor') }}</th>
+                                <th class="text-right!">{{ __('Last sign-in') }}</th>
+                                <th><span class="sr-only">{{ __('Actions') }}</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($this->users as $user)
+                                <tr wire:key="user-{{ $user->id }}">
+                                    <td class="h-14!">
+                                        <div class="flex items-center gap-3">
+                                            <flux:avatar size="sm" :name="$user->name" :initials="$user->initials()" />
+                                            <div class="min-w-0">
+                                                <div class="truncate font-medium text-zinc-900">
+                                                    {{ $user->name }}
+                                                    @if ($user->is(auth()->user()))
+                                                        <span class="font-normal text-zinc-500">({{ __('you') }})</span>
+                                                    @endif
+                                                </div>
+                                                <div class="truncate text-xs text-zinc-500">{{ $user->email }}</div>
+                                            </div>
                                         </div>
-                                        <div class="truncate text-xs text-zinc-500">{{ $user->email }}</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3">
-                                @if ($user->is_admin)
-                                    <flux:badge size="sm" color="zinc">{{ __('Admin') }}</flux:badge>
-                                @else
-                                    <span class="text-xs text-zinc-500">{{ __('Member') }}</span>
-                                @endif
-                            </td>
-                            <td class="px-4 py-3 text-xs text-zinc-500">
-                                {{ $user->two_factor_confirmed_at ? __('Enabled') : __('Off') }}
-                            </td>
-                            <td class="px-4 py-3 text-xs text-zinc-500">
-                                {{ $user->last_login_at?->diffForHumans() ?? __('Never') }}
-                            </td>
-                            <td class="px-4 py-3 text-right">
-                                <flux:dropdown align="end">
-                                    <flux:button size="sm" variant="ghost" icon="ellipsis-horizontal" :aria-label="__('Actions')" />
+                                    </td>
+                                    <td>
+                                        @if ($user->is_admin)
+                                            <flux:badge size="sm" color="zinc">{{ __('Admin') }}</flux:badge>
+                                        @else
+                                            <span class="text-zinc-500">{{ __('Member') }}</span>
+                                        @endif
+                                    </td>
+                                    <td class="whitespace-nowrap">
+                                        @if ($user->two_factor_confirmed_at)
+                                            <x-status-badge status="active" :label="__('Enabled')" />
+                                        @else
+                                            <span class="text-zinc-500">{{ __('Off') }}</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-right whitespace-nowrap text-zinc-500">
+                                        {{ $user->last_login_at?->diffForHumans() ?? __('Never') }}
+                                    </td>
+                                    <td class="w-px text-right">
+                                        <flux:dropdown align="end">
+                                            <button type="button" class="ui-icon-button" aria-label="{{ __('Actions') }}" title="{{ __('Actions') }}">
+                                                <flux:icon.ellipsis-horizontal variant="micro" />
+                                            </button>
 
-                                    <flux:menu>
-                                        <flux:menu.item icon="pencil-square" wire:click="startEdit('{{ $user->id }}')">{{ __('Edit') }}</flux:menu.item>
-                                        <flux:menu.item icon="key" wire:click="resetPassword('{{ $user->id }}')" wire:confirm="{{ __('Generate a new password for :name? Their current password stops working immediately.', ['name' => $user->name]) }}">{{ __('Reset password') }}</flux:menu.item>
-                                        @unless ($user->is(auth()->user()))
-                                            <flux:menu.separator />
-                                            <flux:menu.item icon="trash" variant="danger" wire:click="deleteUser('{{ $user->id }}')" wire:confirm="{{ __('Delete :name? This cannot be undone.', ['name' => $user->name]) }}">{{ __('Delete') }}</flux:menu.item>
-                                        @endunless
-                                    </flux:menu>
-                                </flux:dropdown>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
+                                            <flux:menu>
+                                                <flux:menu.item icon="pencil-square" wire:click="startEdit('{{ $user->id }}')">{{ __('Edit') }}</flux:menu.item>
+                                                <flux:menu.item icon="key" wire:click="resetPassword('{{ $user->id }}')" wire:confirm="{{ __('Generate a new password for :name? Their current password stops working immediately.', ['name' => $user->name]) }}">{{ __('Reset password') }}</flux:menu.item>
+                                                @unless ($user->is(auth()->user()))
+                                                    <flux:menu.separator />
+                                                    <flux:menu.item icon="trash" variant="danger" wire:click="deleteUser('{{ $user->id }}')" wire:confirm="{{ __('Delete :name? This cannot be undone.', ['name' => $user->name]) }}">{{ __('Delete') }}</flux:menu.item>
+                                                @endunless
+                                            </flux:menu>
+                                        </flux:dropdown>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
     </div>
 
-    <flux:modal name="user-form" class="md:w-lg">
-        <form wire:submit="save" class="space-y-5">
+    <flux:modal name="user-form" class="md:w-[28rem]">
+        <form wire:submit="save" class="flex flex-col gap-6">
             <div>
                 <flux:heading size="lg">{{ $editingId ? __('Edit user') : __('Add user') }}</flux:heading>
-                <flux:text class="mt-1 text-xs">{{ $editingId ? __('Update this user\'s details and role.') : __('The user can sign in straight away with the email and password below.') }}</flux:text>
+                <flux:text class="mt-2">{{ $editingId ? __('Update this user\'s details and role.') : __('The user can sign in straight away with the email and password below.') }}</flux:text>
             </div>
 
             <flux:input wire:model="name" :label="__('Name')" required />
@@ -273,27 +284,27 @@ class extends Component {
                 <flux:error name="isAdmin" />
             </flux:field>
 
-            <div class="flex justify-end gap-2 pt-2">
+            <div class="flex justify-end gap-2">
                 <flux:modal.close>
-                    <flux:button variant="ghost" size="sm">{{ __('Cancel') }}</flux:button>
+                    <flux:button variant="ghost">{{ __('Cancel') }}</flux:button>
                 </flux:modal.close>
-                <flux:button type="submit" variant="primary" size="sm">{{ $editingId ? __('Save changes') : __('Create user') }}</flux:button>
+                <flux:button type="submit" variant="primary">{{ $editingId ? __('Save changes') : __('Create user') }}</flux:button>
             </div>
         </form>
     </flux:modal>
 
-    <flux:modal name="user-password" class="md:w-lg">
-        <div class="space-y-5">
+    <flux:modal name="user-password" class="md:w-[28rem]">
+        <div class="flex flex-col gap-6">
             <div>
                 <flux:heading size="lg">{{ __('Password for :email', ['email' => $revealedFor]) }}</flux:heading>
-                <flux:text class="mt-1 text-xs">{{ __('Share this password securely. It won\'t be shown again — the user can change it under Settings → Security.') }}</flux:text>
+                <flux:text class="mt-2">{{ __('Share this password securely. It won\'t be shown again. The user can change it on the Security settings page.') }}</flux:text>
             </div>
 
             <flux:input :value="$revealedPassword" readonly copyable />
 
             <div class="flex justify-end">
                 <flux:modal.close>
-                    <flux:button variant="primary" size="sm">{{ __('Done') }}</flux:button>
+                    <flux:button variant="primary">{{ __('Done') }}</flux:button>
                 </flux:modal.close>
             </div>
         </div>

@@ -61,52 +61,46 @@ class extends Component
 };
 ?>
 
-<div class="flex flex-col gap-y-10">
-    <div class="flex flex-col">
-        <flux:heading size="xl">New Test</flux:heading>
-        <flux:text>Initialize a high-performance load simulation. Define your targets and orchestration parameters.</flux:text>
-    </div>
-    <div class="flex w-full justify-center">
-        <form wire:submit="submit" class="w-5/6">
-            <div class="flex w-full flex-col gap-y-5">
-                <div class="grid grid-cols-2 gap-4 w-full">
-                    <div>
-                        <flux:input wire:model="name" label="Test Identification" />
-                    </div>
-                    <div>
-                        <flux:input wire:model="target_endpoint" label="Target Endpoint" />
-                    </div>
-                </div>
-                <div class="w-full">
-                    <flux:textarea placeholder="Smoke test for project kodak" class="w-full min-w-full" wire:model="description" label="Description" />
-                </div>
-                <div class="grid grid-cols-2 gap-4 w-full">
-                    <div>
-                        <x-multi-combobox
-                            wire:model="repositoryIds"
-                            label="Repositories"
-                            :options="$repositories->map(fn ($repo) => ['value' => $repo->id, 'label' => $repo->name, 'hint' => $repo->type])"
-                            placeholder="All project repositories"
-                            search-placeholder="Search repositories..."
-                            empty-text="No repositories in this project yet."
-                            description="The AI agents only read code from these repositories. Leave empty to use every repository in the project."
-                        />
-                    </div>
-                    <div>
-                        <livewire:connector-picker wire:model="connectors" :project="$project" wire:key="new-test-connectors" />
-                    </div>
-                </div>
-                <div class="flex justify-between">
-                    <div class="flex items-center">
-                        <flux:icon.information-circle class="size-4" />
-                        <flux:text>Test configuration is immutable once running</flux:text>
-                    </div>
-                    <div class="flex items-center gap-x-2">
-                        <flux:button type="button" variant="ghost">Cancel</flux:button>
-                        <flux:button type="submit" variant="primary">Create Test</flux:button>
-                    </div>
-                </div>
+<div class="flex flex-col gap-8">
+    <x-page-header title="New test" description="Name the test and point it at the endpoint you want to put under load.">
+        <x-slot:breadcrumbs>
+            <span class="flex items-center gap-1.5">
+                <a href="{{ route('projects.tests', ['project' => $project]) }}" wire:navigate class="hover:text-zinc-900">Tests</a>
+                <flux:icon.chevron-right variant="micro" class="text-zinc-300" />
+                <span class="text-zinc-700">New test</span>
+            </span>
+        </x-slot:breadcrumbs>
+    </x-page-header>
+
+    <form wire:submit="submit" class="flex w-full max-w-2xl flex-col gap-6">
+        <flux:input wire:model="name" label="Name" placeholder="Checkout flow" />
+
+        <flux:input wire:model="target_endpoint" label="Target endpoint" placeholder="https://api.example.com" />
+
+        <flux:textarea wire:model="description" label="Description" placeholder="What this test covers, for example checkout under peak traffic" rows="3" />
+
+        <x-multi-combobox
+            wire:model="repositoryIds"
+            label="Repositories"
+            :options="$repositories->map(fn ($repo) => ['value' => $repo->id, 'label' => $repo->name, 'hint' => $repo->type])"
+            placeholder="All project repositories"
+            search-placeholder="Search repositories..."
+            empty-text="No repositories in this project yet."
+            description="The AI agents only read code from these repositories. Leave empty to use every repository in the project."
+        />
+
+        <livewire:connector-picker wire:model="connectors" :project="$project" wire:key="new-test-connectors" />
+
+        <div class="flex flex-col gap-4 border-t border-zinc-200 pt-6">
+            <p class="flex items-center gap-1.5 text-xs text-zinc-500">
+                <flux:icon.information-circle variant="micro" class="text-zinc-400" />
+                Test configuration can't be changed while it's running.
+            </p>
+
+            <div class="flex items-center gap-2">
+                <flux:button type="submit" variant="primary">Create test</flux:button>
+                <flux:button :href="route('projects.tests', ['project' => $project])" wire:navigate variant="ghost">Cancel</flux:button>
             </div>
-        </form>
-    </div>
+        </div>
+    </form>
 </div>

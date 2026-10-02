@@ -363,6 +363,31 @@ class ScriptAgentChat extends Component
         $this->dispatch('chat-scroll-bottom');
     }
 
+    /**
+     * Permanently delete one of this chat's past conversations.
+     */
+    public function deleteConversation(string $conversationId): void
+    {
+        $conversation = Conversation::query()
+            ->where('id', $conversationId)
+            ->where('participant_type', $this->script->getMorphClass())
+            ->where('participant_id', $this->script->getKey())
+            ->first();
+
+        if (! $conversation) {
+            return;
+        }
+
+        $conversation->messages()->delete();
+        $conversation->delete();
+
+        if ($this->conversationId === $conversationId) {
+            $this->newConversation();
+        }
+
+        $this->loadConversations();
+    }
+
     public function newConversation(): void
     {
         $this->conversationId = null;

@@ -96,170 +96,147 @@ class extends Component
 };
 ?>
 
-<div class="flex flex-col gap-y-6">
-    {{-- Header --}}
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-            <flux:heading size="xl">Projects</flux:heading>
-            <flux:text class="mt-1">Manage your load testing projects</flux:text>
-        </div>
-        <flux:modal.trigger name="create-project">
-            <flux:button variant="primary" icon="plus">Create project</flux:button>
-        </flux:modal.trigger>
-    </div>
+<div class="flex flex-col gap-8">
+    <x-page-header title="Projects" description="Each project groups the tests, scripts and runs for one system.">
+        <x-slot:actions>
+            <flux:modal.trigger name="create-project">
+                <flux:button variant="primary" icon="plus">Create project</flux:button>
+            </flux:modal.trigger>
+        </x-slot:actions>
+    </x-page-header>
 
-    {{-- Search + count --}}
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div class="relative w-full sm:max-w-xs">
-            <flux:icon.magnifying-glass class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
-            <input
-                type="text"
-                wire:model.live.debounce.300ms="search"
-                placeholder="Search projects..."
-                class="w-full rounded-lg border border-[#EDEDED] bg-white py-2 pl-9 pr-3 text-sm text-zinc-700 placeholder:text-zinc-400 focus:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:placeholder:text-zinc-500 dark:focus:ring-zinc-800"
-            />
-        </div>
+    <section class="ui-panel overflow-hidden">
+        @if ($this->totalProjects > 0)
+            <header class="ui-panel-header">
+                <flux:input
+                    wire:model.live.debounce.300ms="search"
+                    size="sm"
+                    icon="magnifying-glass"
+                    placeholder="Search projects"
+                    aria-label="Search projects"
+                    class="sm:max-w-xs"
+                />
 
-        <flux:text class="text-xs text-[#919191]">
-            {{ $this->projects->count() }} of {{ $this->totalProjects }} {{ Str::plural('project', $this->totalProjects) }}
-        </flux:text>
-    </div>
+                <span class="shrink-0 text-xs text-zinc-500 tabular-nums">
+                    {{ $this->projects->count() }} of {{ $this->totalProjects }} {{ Str::plural('project', $this->totalProjects) }}
+                </span>
+            </header>
+        @endif
 
-    {{-- Project Grid (Stat Card Style) --}}
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        @forelse ($this->projects as $project)
-            <div wire:key="{{ $project->id }}" class="group overflow-hidden rounded-xl border border-[#EDEDED] bg-[#F1F1F1] transition hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-800/40 dark:hover:border-zinc-700">
-
-                {{-- Inner Top Card Section --}}
-                <div class="flex flex-col bg-white p-5 dark:bg-zinc-900">
-                    <a href="{{ route('projects.overview', ['project' => $project]) }}" wire:navigate class="block">
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="flex min-w-0 items-center gap-3">
-                                <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-500 text-xs font-bold text-white shadow-sm">
-                                    {{ strtoupper(substr($project->name, 0, 2)) }}
-                                </div>
-                                <div class="min-w-0">
-                                    <h3 class="truncate text-sm font-semibold text-zinc-900 transition group-hover:text-blue-600 dark:text-white dark:group-hover:text-blue-400">
-                                        {{ $project->name }}
-                                    </h3>
-                                    <p class="mt-0.5 line-clamp-1 text-xs text-[#919191]">
-                                        {{ $project->description ?? 'No description' }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Stats Badges with White Outlined Icon --}}
-                        <div class="mt-4 flex items-center gap-3">
-                            {{-- Tests --}}
-                            <div class="flex items-center gap-2 rounded-lg bg-zinc-50 px-2.5 py-1.5 border border-zinc-100 dark:bg-zinc-800/60 dark:border-zinc-800">
-                                <div class="flex size-5 shrink-0 items-center justify-center rounded-md bg-emerald-500 text-white shadow-sm outline outline-2 outline-white dark:outline-zinc-900">
-                                    <flux:icon.beaker class="size-3" />
-                                </div>
-                                <span class="text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-                                    {{ $project->tests_count }} {{ Str::plural('Test', $project->tests_count) }}
-                                </span>
-                            </div>
-
-                            {{-- Scripts --}}
-                            <div class="flex items-center gap-2 rounded-lg bg-zinc-50 px-2.5 py-1.5 border border-zinc-100 dark:bg-zinc-800/60 dark:border-zinc-800">
-                                <div class="flex size-5 shrink-0 items-center justify-center rounded-md bg-purple-500 text-white shadow-sm outline outline-2 outline-white dark:outline-zinc-900">
-                                    <flux:icon.code-bracket class="size-3" />
-                                </div>
-                                <span class="text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-                                    {{ $project->scripts_count }} {{ Str::plural('Script', $project->scripts_count) }}
-                                </span>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-
-                {{-- Bottom Stat-Style Bar (Hosts Actions in place of % trends) --}}
-                <div class="flex items-center justify-between px-4 py-2.5 dark:bg-zinc-800/80">
-                    <span class="text-[11px] text-[#919191]">
-                        Created {{ $project->created_at?->diffForHumans() ?? 'recently' }}
-                    </span>
-
-                    {{-- Actions (Edit & Delete Icons) --}}
-                    <div class="flex items-center gap-1">
-                        <button
-                            type="button"
-                            wire:click="edit('{{ $project->id }}')"
-                            class="rounded-md p-1 text-zinc-400 transition hover:bg-zinc-200/60 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
-                            title="Edit Project"
-                        >
-                            <flux:icon.pencil-square class="size-3.5" />
-                        </button>
-                        <button
-                            type="button"
-                            wire:click="delete('{{ $project->id }}')"
-                            wire:confirm="Are you sure you want to delete this project? All tests, scripts, runs, and repositories will be permanently removed."
-                            class="rounded-md p-1 text-zinc-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
-                            title="Delete Project"
-                        >
-                            <flux:icon.trash class="size-3.5" />
-                        </button>
-                    </div>
-                </div>
-            </div>
-        @empty
+        @if ($this->projects->isEmpty())
             @if ($search)
-                <div class="col-span-full flex flex-col items-center justify-center gap-y-3 rounded-xl border border-dashed border-zinc-200 py-16 dark:border-zinc-700">
-                    <flux:icon.magnifying-glass class="size-10 text-zinc-300 dark:text-zinc-600" />
-                    <flux:text class="text-zinc-500 dark:text-zinc-400">No projects match "{{ $search }}"</flux:text>
+                <x-empty-state icon="magnifying-glass" title="No matching projects" :description="'Nothing matches “'.$search.'”. Try a different name.'">
                     <flux:button variant="ghost" size="sm" wire:click="$set('search', '')">Clear search</flux:button>
-                </div>
+                </x-empty-state>
             @else
-                <div class="col-span-full flex flex-col items-center justify-center gap-y-3 rounded-xl border border-dashed border-zinc-200 py-16 dark:border-zinc-700">
-                    <flux:icon.folder-open class="size-12 text-zinc-300 dark:text-zinc-600" />
-                    <flux:text class="text-zinc-500 dark:text-zinc-400">No projects created yet.</flux:text>
+                <x-empty-state icon="folder-open" title="No projects yet" description="Create a project to start writing tests and running them.">
                     <flux:modal.trigger name="create-project">
-                        <flux:button variant="primary" size="sm">Create your first project</flux:button>
+                        <flux:button size="sm" icon="plus">Create project</flux:button>
                     </flux:modal.trigger>
-                </div>
+                </x-empty-state>
             @endif
-        @endforelse
-    </div>
+        @else
+            <div class="overflow-x-auto">
+                <table class="ui-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th class="text-right!">Tests</th>
+                            <th class="text-right!">Scripts</th>
+                            <th class="text-right!">Created</th>
+                            <th class="w-20"><span class="sr-only">Actions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($this->projects as $project)
+                            @php
+                                $projectUrl = route('projects.overview', ['project' => $project]);
+                            @endphp
+                            <tr wire:key="{{ $project->id }}" class="ui-table-row-link" x-on:click="Livewire.navigate(@js($projectUrl))">
+                                <td class="py-2.5">
+                                    <div class="flex min-w-0 items-center gap-3">
+                                        <span class="ui-monogram size-8">{{ strtoupper(substr($project->name, 0, 2)) }}</span>
+                                        <div class="min-w-0">
+                                            <a href="{{ $projectUrl }}" wire:navigate x-on:click.stop class="block max-w-xs truncate font-medium text-zinc-900">{{ $project->name }}</a>
+                                            <p class="max-w-xs truncate text-xs text-zinc-500">{{ $project->description ?: 'No description' }}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="text-right tabular-nums">{{ $project->tests_count }}</td>
+                                <td class="text-right tabular-nums">{{ $project->scripts_count }}</td>
+                                <td class="text-right whitespace-nowrap text-zinc-500">{{ $project->created_at?->diffForHumans() ?? '—' }}</td>
+                                <td class="text-right">
+                                    <div class="flex items-center justify-end gap-0.5">
+                                        <button
+                                            type="button"
+                                            wire:click="edit('{{ $project->id }}')"
+                                            x-on:click.stop
+                                            class="ui-icon-button"
+                                            aria-label="Edit project"
+                                            title="Edit project"
+                                        >
+                                            <flux:icon.pencil-square variant="micro" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            wire:click="delete('{{ $project->id }}')"
+                                            wire:confirm="Are you sure you want to delete this project? All tests, scripts, runs, and repositories will be permanently removed."
+                                            x-on:click.stop
+                                            class="ui-icon-button hover:bg-red-50 hover:text-red-600"
+                                            aria-label="Delete project"
+                                            title="Delete project"
+                                        >
+                                            <flux:icon.trash variant="micro" />
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </section>
 
-    {{-- Modal: Create Project --}}
-    <flux:modal name="create-project" class="md:w-96">
-        <div class="space-y-6">
+    {{-- Modal: Create project --}}
+    <flux:modal name="create-project" class="md:w-[28rem]">
+        <form wire:submit="submit" class="flex flex-col gap-6">
             <div>
                 <flux:heading size="lg">Create project</flux:heading>
-                <flux:text class="mt-2">Enter a project name and description to create a project.</flux:text>
+                <flux:text class="mt-1">Give it a name you will recognise in the project switcher.</flux:text>
             </div>
 
-            <form wire:submit="submit" class="space-y-6">
-                <flux:input wire:model="name" label="Name" placeholder="Project name" />
+            <flux:input wire:model="name" label="Name" placeholder="Checkout API" />
 
-                <flux:textarea wire:model="description" label="Description" placeholder="Project description" />
+            <flux:textarea wire:model="description" label="Description" placeholder="What this project load tests" rows="3" />
 
-                <div class="flex">
-                    <flux:spacer />
-                    <flux:button type="submit" variant="primary">Create Project</flux:button>
-                </div>
-            </form>
-        </div>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">Create project</flux:button>
+            </div>
+        </form>
     </flux:modal>
 
-    {{-- Modal: Edit Project --}}
-    <flux:modal name="edit-project" class="md:w-96">
-        <div class="space-y-6">
+    {{-- Modal: Edit project --}}
+    <flux:modal name="edit-project" class="md:w-[28rem]">
+        <form wire:submit="update" class="flex flex-col gap-6">
             <div>
                 <flux:heading size="lg">Edit project</flux:heading>
-                <flux:text class="mt-2">Update project details.</flux:text>
+                <flux:text class="mt-1">Update the name and description.</flux:text>
             </div>
 
-            <form wire:submit="update" class="space-y-6">
-                <flux:input wire:model="editName" label="Name" placeholder="Project name" />
+            <flux:input wire:model="editName" label="Name" placeholder="Project name" />
 
-                <flux:textarea wire:model="editDescription" label="Description" placeholder="Project description" />
+            <flux:textarea wire:model="editDescription" label="Description" placeholder="What this project load tests" rows="3" />
 
-                <div class="flex">
-                    <flux:spacer />
-                    <flux:button type="submit" variant="primary">Save Changes</flux:button>
-                </div>
-            </form>
-        </div>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">Save changes</flux:button>
+            </div>
+        </form>
     </flux:modal>
 </div>

@@ -25,6 +25,8 @@ document.addEventListener('alpine:init', () => {
                     existing.destroy();
                 }
 
+                const { status, ink } = window.StradenCharts;
+
                 chart = new Chart(canvas.getContext('2d'), {
                     type: 'line',
 
@@ -35,22 +37,22 @@ document.addEventListener('alpine:init', () => {
                             {
                                 label: 'Passed',
                                 data: payload.passed,
-                                borderColor: '#10b981',
-                                borderWidth: 2,
+                                borderColor: status.good,
+                                backgroundColor: status.good,
+                                pointBackgroundColor: status.good,
+                                pointHoverBorderColor: ink.surface,
+                                pointHoverBorderWidth: 2,
                                 fill: false,
-                                tension: 0.35,
-                                pointRadius: 0,
-                                pointHoverRadius: 4,
                             },
                             {
                                 label: 'Failed',
                                 data: payload.failed,
-                                borderColor: '#f43f5e',
-                                borderWidth: 2,
+                                borderColor: status.critical,
+                                backgroundColor: status.critical,
+                                pointBackgroundColor: status.critical,
+                                pointHoverBorderColor: ink.surface,
+                                pointHoverBorderWidth: 2,
                                 fill: false,
-                                tension: 0.35,
-                                pointRadius: 0,
-                                pointHoverRadius: 4,
                             },
                         ],
                     },
@@ -67,41 +69,24 @@ document.addEventListener('alpine:init', () => {
                         scales: {
                             y: {
                                 beginAtZero: true,
-                                grid: {
-                                    color: 'rgba(161, 161, 170, 0.1)',
-                                },
+                                border: { display: false },
                                 ticks: {
-                                    color: '#a1a1aa',
-                                    font: { size: 11 },
+                                    maxTicksLimit: 5,
                                     precision: 0,
                                 },
                             },
                             x: {
                                 grid: { display: false },
-                                ticks: {
-                                    color: '#a1a1aa',
-                                    font: { size: 11 },
-                                    maxTicksLimit: 8,
-                                },
+                                border: { display: false },
+                                ticks: { maxTicksLimit: 8 },
                             },
                         },
 
                         plugins: {
-                            legend: {
-                                display: true,
-                                position: 'bottom',
-                                labels: {
-                                    padding: 12,
-                                    usePointStyle: true,
-                                    pointStyle: 'line',
-                                    color: '#a1a1aa',
-                                },
-                            },
+                            legend: { position: 'bottom', align: 'start' },
                             tooltip: {
                                 enabled: false,
-                                external: (context) => {
-                                    this.externalTooltip(context);
-                                },
+                                external: (context) => this.externalTooltip(context),
                             },
                         },
                     },
@@ -121,7 +106,7 @@ document.addEventListener('alpine:init', () => {
                 this.tooltip = {
                     show: true,
                     x: tooltipModel.caretX,
-                    y: tooltipModel.caretY - 12,
+                    y: tooltipModel.caretY,
                     label: points[0]?.label ?? '',
                     rows: points.map((p) => ({
                         label: p.dataset.label,

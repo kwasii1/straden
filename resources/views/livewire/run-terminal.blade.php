@@ -45,21 +45,20 @@
     @modal-close.window="if ($event.detail.name === 'run-logs') stopPolling()"
     class="flex flex-col"
 >
-    <div class="overflow-hidden rounded-none border border-zinc-800 bg-[#0B0B0B] dark:border-zinc-800">
-        {{-- Terminal title bar --}}
-        <div class="flex items-center gap-2 border-b border-zinc-800 bg-[#141414] px-4 py-2.5">
-            <span class="size-3 rounded-full bg-[#FF5F57]"></span>
-            <span class="size-3 rounded-full bg-[#FEBC2E]"></span>
-            <span class="size-3 rounded-full bg-[#28C840]"></span>
-            <span class="ml-2 font-mono text-xs text-zinc-500">k6 — {{ $run->slug }}</span>
+    <div class="overflow-hidden border-t border-zinc-800 bg-zinc-950">
+        {{-- Title bar --}}
+        <div class="flex items-center gap-2 border-b border-zinc-800 bg-zinc-900 px-4 py-2.5">
+            <flux:icon.command-line variant="micro" class="text-zinc-500" />
+            <span class="text-xs font-medium text-zinc-300">k6 output</span>
+            <span class="truncate font-mono text-xs text-zinc-500">{{ $run->slug }}</span>
         </div>
 
         {{-- Log output --}}
         <div
             x-ref="log"
-            class="h-80 overflow-y-auto px-4 py-3 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words text-green-400/90 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            class="h-80 overflow-y-auto px-4 py-3 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words text-zinc-300 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         >
-            <span x-show="output === ''" class="text-zinc-600">Waiting for k6 output…</span>
+            <span x-show="output === ''" class="text-zinc-500">Waiting for k6 output…</span>
             <span x-show="output !== ''" x-text="output"></span>
         </div>
     </div>

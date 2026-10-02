@@ -116,350 +116,204 @@ class extends Component
             ->toArray();
     }
 
-    public function statusColor(string $status): string
-    {
-        return match ($status) {
-            'passed' => 'emerald',
-            'failed' => 'rose',
-            'running' => 'sky',
-            'error' => 'amber',
-            default => 'zinc',
-        };
-    }
-
     public function statusHex(string $status): string
     {
         return match ($status) {
-            'passed' => '#10b981',
-            'failed' => '#f43f5e',
-            'running' => '#0284c7',
-            'queued' => '#64748b',
-            'error' => '#f59e0b',
-            default => '#94a3b8',
+            'passed' => '#0ca30c',
+            'failed' => '#d03b3b',
+            'running' => '#3d5bdb',
+            'queued' => '#a1a1aa',
+            'error' => '#fab219',
+            default => '#a1a1aa',
         };
     }
 };
 ?>
 
-<div class="flex flex-col gap-y-8 p-1 sm:p-2">
-    {{-- Dashboard Header --}}
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-            <flux:heading size="xl" class="font-bold tracking-tight">Overview</flux:heading>
-            <flux:text class="text-xs text-zinc-500 dark:text-zinc-400">
-                High-level summary of tests, runs, and load testing metrics for <span class="font-semibold text-zinc-800 dark:text-zinc-200">{{ $project->name }}</span>
-            </flux:text>
+<div class="flex flex-col gap-8">
+    <x-page-header title="Overview" description="High-level summary of tests, runs, and load testing metrics for {{ $project->name }}." />
+
+    {{-- Headline numbers --}}
+    <div class="ui-panel grid grid-cols-2 gap-px overflow-hidden bg-zinc-200 lg:grid-cols-4 [&>*]:bg-white">
+        <x-stat label="Total tests" :value="number_format($this->totalTests)" :hint="trans_choice('Across :count linked script|Across :count linked scripts', $this->totalScripts)" />
+
+        <x-stat label="Total runs" :value="number_format($this->totalRuns)">
+            <x-slot:footer>
+                Avg error rate
+                <span @class(['font-medium tabular-nums', 'text-red-700' => ($this->avgErrorRate ?? 0) > 1, 'text-zinc-900' => ($this->avgErrorRate ?? 0) <= 1])>{{ number_format($this->avgErrorRate ?? 0, 1) }}%</span>
+            </x-slot:footer>
+        </x-stat>
+
+        <x-stat label="Runs this week" :value="number_format($this->runsThisWeek)" hint="Since Monday" />
+
+        <div class="min-w-0 px-4 py-3.5">
+            <p class="truncate text-sm text-zinc-500">Last execution</p>
+            @if ($this->lastRun)
+                <div class="mt-1 flex h-8 items-center">
+                    <x-status-badge :status="$this->lastRun->status" />
+                </div>
+                <p class="mt-1 truncate text-xs text-zinc-500">{{ $this->lastRun->created_at?->diffForHumans() }}</p>
+            @else
+                <p class="ui-metric mt-1">None</p>
+                <p class="mt-1 truncate text-xs text-zinc-500">No executions recorded</p>
+            @endif
         </div>
     </div>
 
-    {{-- Stat Cards --}}
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {{-- Card 1: Total Tests --}}
-        <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
-            <div class="flex flex-col bg-white dark:bg-zinc-900 rounded-xl pb-3.5">
-                <div class="flex items-center gap-3 px-4 py-3.5">
-                    <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500 text-white">
-                        <flux:icon.beaker class="size-4" />
-                    </div>
-                    <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">Total Tests</flux:text>
-                </div>
-                <div class="px-4">
-                    <p class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ $this->totalTests }}</p>
-                </div>
-            </div>
-            <div class="px-4 py-2.5">
-                <p class="text-xs text-[#919191] dark:text-zinc-400">across {{ $this->totalScripts }} linked scripts</p>
-            </div>
-        </div>
-
-        {{-- Card 2: Total Runs --}}
-        <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
-            <div class="flex flex-col bg-white dark:bg-zinc-900 rounded-xl pb-3.5">
-                <div class="flex items-center gap-3 px-4 py-3.5">
-                    <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-500 text-white">
-                        <flux:icon.play class="size-4" />
-                    </div>
-                    <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">Total Runs</flux:text>
-                </div>
-                <div class="px-4">
-                    <p class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ number_format($this->totalRuns) }}</p>
-                </div>
-            </div>
-            <div class="px-4 py-2.5">
-                <p class="text-xs text-[#919191] dark:text-zinc-400">
-                    avg error rate: <span class="font-medium {{ ($this->avgErrorRate ?? 0) > 1 ? 'text-rose-500' : 'text-emerald-600' }}">{{ number_format($this->avgErrorRate ?? 0, 1) }}%</span>
-                </p>
-            </div>
-        </div>
-
-        {{-- Card 3: Runs This Week --}}
-        <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
-            <div class="flex flex-col bg-white dark:bg-zinc-900 rounded-xl pb-3.5">
-                <div class="flex items-center gap-3 px-4 py-3.5">
-                    <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white">
-                        <flux:icon.calendar-days class="size-4" />
-                    </div>
-                    <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">Runs This Week</flux:text>
-                </div>
-                <div class="px-4">
-                    <p class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ $this->runsThisWeek }}</p>
-                </div>
-            </div>
-            <div class="px-4 py-2.5">
-                <p class="text-xs text-[#919191] dark:text-zinc-400">executions active during week</p>
-            </div>
-        </div>
-
-        {{-- Card 4: Last Execution --}}
-        <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
-            <div class="flex flex-col bg-white dark:bg-zinc-900 rounded-xl pb-3.5">
-                <div class="flex items-center gap-3 px-4 py-3.5">
-                    <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500 text-white">
-                        <flux:icon.clock class="size-4" />
-                    </div>
-                    <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">Last Execution</flux:text>
-                </div>
-                <div class="px-4">
-                    @if ($this->lastRun)
-                        <p class="text-2xl font-semibold text-zinc-900 dark:text-white capitalize flex items-center gap-2">
-                            <span class="size-2.5 rounded-full bg-{{ $this->statusColor($this->lastRun->status) }}-500"></span>
-                            {{ $this->lastRun->status }}
-                        </p>
-                    @else
-                        <p class="text-2xl font-semibold text-zinc-900 dark:text-white">None</p>
-                    @endif
-                </div>
-            </div>
-            <div class="px-4 py-2.5">
-                <p class="text-xs text-[#919191] dark:text-zinc-400">
-                    {{ $this->lastRun ? \Carbon\Carbon::parse($this->lastRun->created_at)->diffForHumans() : 'No executions recorded' }}
-                </p>
-            </div>
-        </div>
-    </div>
-
-    {{-- Empty State --}}
     @if ($this->totalRuns === 0)
-        <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
-            <div class="flex flex-col items-center justify-center bg-white dark:bg-zinc-900 rounded-xl py-16 gap-y-3">
-                <div class="flex size-12 items-center justify-center rounded-lg bg-blue-50 dark:bg-zinc-800 text-blue-500">
-                    <flux:icon.chart-bar class="size-6" />
-                </div>
-                <p class="text-sm font-medium text-zinc-600 dark:text-zinc-400">No run data available for this project yet.</p>
-                <flux:button href="{{ route('projects.tests', $project) }}" variant="primary" size="sm" class="mt-1">
-                    Create your first test
-                </flux:button>
-            </div>
-        </div>
+        <section class="ui-panel">
+            <x-empty-state icon="chart-bar" title="No run data available for this project yet." description="Create a test and run it to see latency trends and results here.">
+                <flux:button :href="route('projects.tests', $project)" variant="primary" size="sm">Create your first test</flux:button>
+            </x-empty-state>
+        </section>
     @else
-        {{-- Charts Row --}}
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {{-- Performance Trend Card --}}
-            <div class="lg:col-span-7 rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2 flex flex-col gap-y-5">
-                <div class="flex items-center justify-between px-3 py-2.5">
-                    <div>
-                        <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Response Time Trend</flux:text>
-                        <p class="text-xs text-[#919191] dark:text-zinc-400">p95 & p99 percentile latency over recent executions</p>
+        {{-- Charts --}}
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            <section
+                wire:ignore
+                x-data="performanceTrend(@js($this->performanceTrend))"
+                class="ui-panel lg:col-span-7"
+            >
+                <header class="ui-panel-header">
+                    <div class="min-w-0">
+                        <h2 class="ui-panel-title">Response time trend</h2>
+                        <p class="text-xs text-zinc-500">p95 and p99 latency over the last 20 completed runs</p>
+                    </div>
+
+                    {{-- p95 / p99 series toggles --}}
+                    <div class="flex shrink-0 items-center gap-1">
+                        <button
+                            type="button"
+                            @click="toggle('p95')"
+                            :aria-pressed="visible.p95.toString()"
+                            class="ui-pressable inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-zinc-100"
+                            :class="visible.p95 ? 'text-zinc-700' : 'text-zinc-400'"
+                        >
+                            <span class="size-2 rounded-[2px]" :style="`background-color: ${colors.p95}`" :class="!visible.p95 && 'opacity-30'"></span>
+                            p95
+                        </button>
+                        <button
+                            type="button"
+                            @click="toggle('p99')"
+                            :aria-pressed="visible.p99.toString()"
+                            class="ui-pressable inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs hover:bg-zinc-100"
+                            :class="visible.p99 ? 'text-zinc-700' : 'text-zinc-400'"
+                        >
+                            <span class="size-2 rounded-[2px]" :style="`background-color: ${colors.p99}`" :class="!visible.p99 && 'opacity-30'"></span>
+                            p99
+                        </button>
+                    </div>
+                </header>
+
+                <div class="p-4">
+                    <div class="relative h-72 w-full">
+                        <canvas x-ref="canvas" role="img" aria-label="p95 and p99 response time over recent runs"></canvas>
+                        <x-chart-tooltip />
                     </div>
                 </div>
+            </section>
 
-                <div class="bg-white dark:bg-zinc-900 rounded-xl p-4">
-                    <div
-                        wire:ignore
-                        x-data="performanceTrend(@js($this->performanceTrend))"
-                    >
-                        {{-- p95 / p99 toggle filters --}}
-                        <div class="mb-3 flex items-center gap-2">
-                            <button
-                                type="button"
-                                @click="toggle('p95')"
-                                class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition"
-                                :class="visible.p95
-                                    ? 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-400'
-                                    : 'border-[#EDEDED] bg-white text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900'"
-                            >
-                                <span class="size-1.5 rounded-full bg-sky-500" :class="!visible.p95 && 'opacity-30'"></span>
-                                p95
-                            </button>
-                            <button
-                                type="button"
-                                @click="toggle('p99')"
-                                class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition"
-                                :class="visible.p99
-                                    ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-400'
-                                    : 'border-[#EDEDED] bg-white text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900'"
-                            >
-                                <span class="size-1.5 rounded-full bg-rose-500" :class="!visible.p99 && 'opacity-30'"></span>
-                                p99
-                            </button>
-                        </div>
-
-                        <div class="relative h-72 w-full">
-                            <canvas x-ref="canvas"></canvas>
-
-                            <div
-                                x-show="tooltip.show"
-                                x-transition.opacity.duration.100ms
-                                x-cloak
-                                class="pointer-events-none absolute z-50 w-40 -translate-x-1/2 -translate-y-full overflow-hidden rounded-lg border border-zinc-100 bg-white shadow-lg dark:border-zinc-700"
-                                :style="`left: ${tooltip.x}px; top: ${tooltip.y}px;`"
-                            >
-                                <div class="bg-[#F5F5F5] px-3 py-1.5 dark:bg-zinc-800">
-                                    <span class="text-[11px] font-medium text-zinc-500 dark:text-zinc-400" x-text="tooltip.label"></span>
-                                </div>
-                                <template x-for="row in tooltip.rows" :key="row.label">
-                                    <div class="flex items-center justify-between px-3 py-1.5">
-                                        <span class="flex items-center gap-1.5 text-xs text-zinc-500">
-                                            <span class="size-1.5 rounded-full" :style="`background-color: ${row.color}`"></span>
-                                            <span x-text="row.label"></span>
-                                        </span>
-                                        <span class="text-xs font-semibold text-zinc-900 dark:text-white" x-text="row.value"></span>
-                                    </div>
-                                </template>
-                                <div class="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-zinc-100 bg-white dark:border-zinc-700"></div>
-                            </div>
-                        </div>
+            <section class="ui-panel flex flex-col lg:col-span-5">
+                <header class="ui-panel-header">
+                    <div class="min-w-0">
+                        <h2 class="ui-panel-title">Status distribution</h2>
+                        <p class="text-xs text-zinc-500">How every run in this project ended</p>
                     </div>
-                </div>
-            </div>
+                </header>
 
-            {{-- Status Distribution Card --}}
-            <div class="lg:col-span-5 rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2 flex flex-col justify-between">
-                <div class="flex items-center justify-between px-3 py-2.5">
-                    <div>
-                        <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Status Distribution</flux:text>
-                        <p class="text-xs text-[#919191] dark:text-zinc-400">Breakdown of execution results</p>
-                    </div>
-                </div>
-
-                <div class="bg-white dark:bg-zinc-900 rounded-xl p-4 flex flex-col justify-between h-full">
-                    <div class="relative my-2 flex items-center justify-center">
+                <div class="flex flex-1 flex-col gap-4 p-4">
+                    <div class="flex justify-center py-2">
                         <div
                             wire:ignore
                             x-data="statusDoughnut(@js($this->statusDistribution))"
-                            class="relative h-44 w-44"
+                            class="relative size-44"
                         >
-                            <canvas x-ref="canvas"></canvas>
+                            <canvas x-ref="canvas" role="img" aria-label="Runs by status"></canvas>
 
-                            <div
-                                x-show="tooltip.show"
-                                x-transition.opacity.duration.100ms
-                                x-cloak
-                                class="pointer-events-none absolute z-50 w-36 -translate-x-1/2 -translate-y-full overflow-hidden rounded-lg border border-zinc-100 bg-white shadow-lg dark:border-zinc-700"
-                                :style="`left: ${tooltip.x}px; top: ${tooltip.y}px;`"
-                            >
-                                <div class="flex items-center gap-1.5 bg-[#F5F5F5] px-3 py-1.5 dark:bg-zinc-800">
-                                    <span class="size-1.5 rounded-full" :style="`background-color: ${tooltip.color}`"></span>
-                                    <span class="text-[11px] font-medium text-zinc-500 dark:text-zinc-400" x-text="tooltip.label"></span>
-                                </div>
-                                <div class="flex items-center justify-between px-3 py-2 text-xs">
-                                    <span class="text-zinc-500">Runs</span>
-                                    <span class="font-semibold text-zinc-900 dark:text-white" x-text="tooltip.value"></span>
-                                </div>
-                                <div class="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-zinc-100 bg-white dark:border-zinc-700"></div>
+                            <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                                <span class="ui-metric">{{ number_format($this->statusDistribution['total']) }}</span>
+                                <span class="text-xs text-zinc-500">Total runs</span>
                             </div>
 
-                            <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                                <span class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
-                                    {{ number_format($this->statusDistribution['total']) }}
-                                </span>
-                                <span class="text-[10px] uppercase tracking-wider text-zinc-400 font-medium">Total Runs</span>
-                            </div>
+                            <x-chart-tooltip />
                         </div>
                     </div>
 
-                    <div class="mt-2 flex flex-col divide-y divide-zinc-100 dark:divide-zinc-800">
+                    <ul class="ui-list">
                         @foreach ($this->statusDistribution['items'] as $item)
-                            <div class="flex items-center justify-between py-2 text-xs">
-                                <div class="flex items-center gap-2">
-                                    <span class="size-2 rounded-full" style="background-color: {{ $this->statusHex($item['status']) }}"></span>
-                                    <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ $item['label'] }}</span>
-                                </div>
-                                <div class="flex items-center gap-3">
-                                    <span class="font-semibold text-zinc-900 dark:text-white tabular-nums">{{ $item['count'] }}</span>
-                                    <span class="w-8 text-right text-zinc-400 tabular-nums">{{ $item['percentage'] }}%</span>
-                                </div>
-                            </div>
+                            <li class="flex items-center justify-between py-2 text-sm">
+                                <span class="flex items-center gap-2">
+                                    <span class="size-2 rounded-[2px]" style="background-color: {{ $this->statusHex($item['status']) }}"></span>
+                                    <span class="text-zinc-700">{{ $item['label'] }}</span>
+                                </span>
+                                <span class="flex items-center gap-3 tabular-nums">
+                                    <span class="font-medium text-zinc-900">{{ $item['count'] }}</span>
+                                    <span class="w-9 text-right text-zinc-500">{{ $item['percentage'] }}%</span>
+                                </span>
+                            </li>
                         @endforeach
-                    </div>
+                    </ul>
                 </div>
-            </div>
+            </section>
         </div>
 
-        {{-- Recent Executions Section --}}
-        <div class="rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
-            <div class="flex items-center justify-between px-3 py-2.5">
-                <div>
-                    <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Recent Executions</flux:text>
-                    <p class="text-xs text-[#919191] dark:text-zinc-400">Latest test execution records and statuses</p>
-                </div>
-                <flux:button variant="ghost" size="sm" icon-trailing="arrow-right" class="text-xs font-medium text-zinc-600 dark:text-zinc-300">
-                    View All
-                </flux:button>
-            </div>
+        {{-- Recent executions --}}
+        <section class="ui-panel overflow-hidden">
+            <header class="ui-panel-header">
+                <h2 class="ui-panel-title">Recent executions</h2>
+                <flux:button :href="route('projects.runs', $project)" wire:navigate variant="ghost" size="sm">View all</flux:button>
+            </header>
 
-            <div class="p-2 bg-white dark:bg-zinc-900 rounded-xl overflow-x-auto">
-                <table class="w-full border-separate border-spacing-0 bg-white dark:bg-zinc-900">
+            <div class="overflow-x-auto">
+                <table class="ui-table">
                     <thead>
-                        <tr class="text-left">
-                            <th class="rounded-l-xl bg-[#F5F5F5] dark:bg-zinc-800/60 px-5 py-3 text-xs font-medium text-[#959595] dark:text-zinc-400">Status</th>
-                            <th class="bg-[#F5F5F5] dark:bg-zinc-800/60 px-5 py-3 text-xs font-medium text-[#959595] dark:text-zinc-400">Test / Script</th>
-                            <th class="bg-[#F5F5F5] dark:bg-zinc-800/60 px-5 py-3 text-xs font-medium text-[#959595] dark:text-zinc-400">Triggered By</th>
-                            <th class="bg-[#F5F5F5] dark:bg-zinc-800/60 px-5 py-3 text-xs font-medium text-[#959595] dark:text-zinc-400">Duration</th>
-                            <th class="bg-[#F5F5F5] dark:bg-zinc-800/60 px-5 py-3 text-xs font-medium text-[#959595] dark:text-zinc-400">Error Rate</th>
-                            <th class="rounded-r-xl bg-[#F5F5F5] dark:bg-zinc-800/60 px-5 py-3 text-xs font-medium text-[#959595] dark:text-zinc-400 text-right">Executed</th>
+                        <tr>
+                            <th>Status</th>
+                            <th>Test</th>
+                            <th>Triggered by</th>
+                            <th class="text-right!">Duration</th>
+                            <th class="text-right!">Error rate</th>
+                            <th class="text-right!">Executed</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                    <tbody>
                         @foreach ($this->recentRuns as $run)
                             @php($runUrl = route('projects.runs.view', ['project' => $project, 'run' => $run['slug']]))
                             <tr
                                 wire:key="recent-run-{{ $run['id'] }}"
                                 x-on:click="Livewire.navigate('{{ $runUrl }}')"
-                                class="cursor-pointer hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40 transition"
+                                class="ui-table-row-link"
                             >
-                                <td class="px-5 py-3.5 whitespace-nowrap">
-                                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium
-                                        {{ match($run['status']) {
-                                            'passed' => 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400',
-                                            'failed' => 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400',
-                                            'running' => 'bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-400',
-                                            'error' => 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400',
-                                            default => 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
-                                        } }}">
-                                        <span class="size-1.5 rounded-full bg-current"></span>
-                                        {{ ucfirst($run['status']) }}
+                                <td class="whitespace-nowrap">
+                                    <x-status-badge :status="$run['status']" />
+                                </td>
+
+                                <td class="max-w-72">
+                                    <a href="{{ $runUrl }}" wire:navigate x-on:click.stop class="block truncate font-medium text-zinc-900 decoration-zinc-300 underline-offset-[3px] hover:underline">
+                                        {{ $run['script']['test']['name'] ?? 'Unknown test' }}
+                                    </a>
+                                    <span class="block truncate text-xs text-zinc-500">
+                                        {{ $run['script']['name'] ?? 'Unknown script' }}
                                     </span>
                                 </td>
 
-                                <td class="px-5 py-3.5 whitespace-nowrap">
-                                    <div class="flex flex-col">
-                                        <a href="{{ $runUrl }}" wire:navigate x-on:click.stop class="font-semibold text-zinc-900 hover:underline dark:text-white">
-                                            {{ $run['script']['test']['name'] ?? 'Unknown Test' }}
-                                        </a>
-                                        <span class="text-[11px] text-[#919191]">
-                                            {{ $run['script']['name'] ?? 'Unknown Script' }}
-                                        </span>
-                                    </div>
-                                </td>
-
-                                <td class="px-5 py-3.5 whitespace-nowrap text-zinc-500">
+                                <td class="whitespace-nowrap text-zinc-500">
                                     @if ($run['triggered_by_user_id'])
-                                        <span class="inline-flex items-center gap-1">
-                                            <flux:icon.user class="size-3 text-zinc-400" /> User
+                                        <span class="inline-flex items-center gap-1.5">
+                                            <flux:icon.user variant="micro" class="text-zinc-400" /> User
                                         </span>
                                     @else
                                         <span class="capitalize">{{ $run['triggered_by'] ?? 'System' }}</span>
                                     @endif
                                 </td>
 
-                                <td class="px-5 py-3.5 whitespace-nowrap tabular-nums text-zinc-600 dark:text-zinc-400">
+                                <td class="text-right whitespace-nowrap tabular-nums">
                                     {{ isset($run['duration_seconds']) ? $run['duration_seconds'].'s' : '—' }}
                                 </td>
 
-                                <td class="px-5 py-3.5 whitespace-nowrap tabular-nums">
+                                <td class="text-right whitespace-nowrap tabular-nums">
                                     @if (isset($run['error_rate']))
-                                        <span class="font-semibold {{ $run['error_rate'] > 1 ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400' }}">
+                                        <span @class(['font-medium text-red-700' => $run['error_rate'] > 1])>
                                             {{ number_format($run['error_rate'], 1) }}%
                                         </span>
                                     @else
@@ -467,7 +321,7 @@ class extends Component
                                     @endif
                                 </td>
 
-                                <td class="px-5 py-3.5 whitespace-nowrap text-right text-[#919191] tabular-nums">
+                                <td class="text-right whitespace-nowrap text-zinc-500">
                                     {{ \Carbon\Carbon::parse($run['created_at'])->diffForHumans() }}
                                 </td>
                             </tr>
@@ -475,6 +329,6 @@ class extends Component
                     </tbody>
                 </table>
             </div>
-        </div>
+        </section>
     @endif
 </div>

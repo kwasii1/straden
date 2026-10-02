@@ -5,6 +5,11 @@
     $currentPath = $path ? $path.'/'.$item['name'] : $item['name'];
     $isRenamable = ! ($path === '' && $item['name'] === 'script.js');
     $isDeletable = ! ($path === '' && $item['name'] === 'script.js');
+    $isActive = ! $isFolder && $activeFilePath === $currentPath;
+    $rowClasses = 'group/item flex h-7 cursor-pointer items-center gap-1.5 rounded-md pr-1 text-[13px] select-none';
+    $renameInputClasses = 'h-5 min-w-0 flex-1 rounded border border-zinc-300 bg-white px-1 text-[13px] text-zinc-900 outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-900/8';
+    $renameButtonClasses = 'inline-flex size-5 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity duration-100 group-hover/item:opacity-100 hover:bg-zinc-200 hover:text-zinc-900';
+    $deleteButtonClasses = 'inline-flex size-5 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity duration-100 group-hover/item:opacity-100 hover:bg-red-50 hover:text-red-600';
 @endphp
 
 <div x-data="{ expanded: true, dragOver: false, editing: false, newName: '' }">
@@ -14,18 +19,19 @@
             @dragover.prevent="dragOver = true"
             @dragleave="dragOver = false"
             @drop.prevent.stop="dragOver = false; $dispatch('tree-drop', { event: $event, targetDir: '{{ $currentPath }}' })"
-            :class="dragOver ? 'bg-blue-100 dark:bg-blue-500/15 ring-1 ring-blue-500/50' : ''"
-            class="group/item flex items-center gap-1.5 py-[5px] px-2 hover:bg-zinc-200/70 dark:hover:bg-white/5 rounded-md cursor-pointer text-sm select-none transition-colors"
-            style="padding-left: {{ ($depth * 16) + 8 }}px"
+            :class="dragOver ? 'bg-zinc-200/70 ring-1 ring-inset ring-zinc-400' : 'hover:bg-zinc-100'"
+            class="{{ $rowClasses }} text-zinc-700"
+            style="padding-left: {{ ($depth * 12) + 6 }}px"
         >
             <flux:icon.chevron-right
-                class="size-3 text-zinc-500 shrink-0 transition-transform"
+                variant="micro"
+                class="size-3.5 shrink-0 text-zinc-400"
                 ::class="expanded ? 'rotate-90' : ''" />
-            <flux:icon.folder class="size-3.5 text-amber-500 shrink-0" x-show="!expanded" x-cloak />
-            <flux:icon.folder-open class="size-3.5 text-amber-500 shrink-0" x-show="expanded" />
+            <flux:icon.folder variant="micro" class="size-3.5 shrink-0 text-zinc-400" x-show="!expanded" x-cloak />
+            <flux:icon.folder-open variant="micro" class="size-3.5 shrink-0 text-zinc-400" x-show="expanded" />
 
             <template x-if="!editing">
-                <span class="text-zinc-700 dark:text-zinc-200 truncate flex-1 min-w-0">{{ $item['name'] }}</span>
+                <span class="min-w-0 flex-1 truncate">{{ $item['name'] }}</span>
             </template>
             <template x-if="editing">
                 <input
@@ -35,31 +41,33 @@
                     @keydown.escape="editing = false"
                     @blur="editing = false"
                     @click.stop
-                    class="flex-1 min-w-0 bg-white dark:bg-zinc-800 border border-blue-500 rounded px-1 py-0 text-sm text-zinc-800 dark:text-zinc-100 outline-none"
+                    class="{{ $renameInputClasses }}"
                     x-init="$el.focus(); $el.select()"
                 />
             </template>
 
             <template x-if="!editing">
-                <div class="flex items-center gap-0.5 shrink-0">
+                <div class="flex shrink-0 items-center gap-0.5">
                     @if ($isRenamable)
                         <button
+                            type="button"
                             @click.stop="editing = true; newName = '{{ $item['name'] }}'"
                             title="Rename"
-                            class="rounded p-0.5 hover:bg-zinc-300/70 dark:hover:bg-white/10 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200
-                                   opacity-0 group-hover/item:opacity-100 transition-opacity"
+                            aria-label="Rename {{ $item['name'] }}"
+                            class="{{ $renameButtonClasses }}"
                         >
-                            <flux:icon.pencil class="size-3" />
+                            <flux:icon.pencil variant="micro" class="size-3" />
                         </button>
                     @endif
                     @if ($isDeletable)
                         <button
+                            type="button"
                             @click.stop="$wire.deleteItem('{{ $currentPath }}')"
                             title="Delete"
-                            class="rounded p-0.5 hover:bg-red-100 dark:hover:bg-red-500/15 text-zinc-400 hover:text-red-600 dark:hover:text-red-400
-                                   opacity-0 group-hover/item:opacity-100 transition-opacity"
+                            aria-label="Delete {{ $item['name'] }}"
+                            class="{{ $deleteButtonClasses }}"
                         >
-                            <flux:icon.trash class="size-3" />
+                            <flux:icon.trash variant="micro" class="size-3" />
                         </button>
                     @endif
                 </div>
@@ -75,14 +83,19 @@
             :draggable="!editing"
             @dragstart="if (!editing) { event.dataTransfer.setData('text/plain', '{{ $currentPath }}'); event.dataTransfer.effectAllowed = 'move' } else { event.preventDefault() }"
             @click="if (!editing) $wire.selectFile('{{ $currentPath }}')"
-            class="group/item flex items-center gap-1.5 py-[5px] px-2 hover:bg-zinc-200/70 dark:hover:bg-white/5 rounded-md cursor-pointer text-sm select-none {{ $activeFilePath === $currentPath ? 'bg-zinc-200 dark:bg-white/10 font-medium' : '' }}"
-            style="padding-left: {{ ($depth * 16) + 8 }}px"
+            @class([
+                $rowClasses,
+                'bg-zinc-200/70 text-zinc-900' => $isActive,
+                'text-zinc-700 hover:bg-zinc-100' => ! $isActive,
+            ])
+            style="padding-left: {{ ($depth * 12) + 6 }}px"
+            @if ($isActive) aria-current="true" @endif
         >
-            <span class="w-3 shrink-0"></span>
-            <x-file-icon :name="$item['name']" class="size-3.5" />
+            <span class="w-3.5 shrink-0"></span>
+            <x-file-icon :name="$item['name']" :class="$isActive ? 'size-3.5 text-zinc-600!' : 'size-3.5'" />
 
             <template x-if="!editing">
-                <span class="text-zinc-700 dark:text-zinc-200 truncate flex-1 min-w-0">{{ $item['name'] }}</span>
+                <span class="min-w-0 flex-1 truncate">{{ $item['name'] }}</span>
             </template>
             <template x-if="editing">
                 <input
@@ -92,31 +105,33 @@
                     @keydown.escape="editing = false"
                     @blur="editing = false"
                     @click.stop
-                    class="flex-1 min-w-0 bg-white dark:bg-zinc-800 border border-blue-500 rounded px-1 py-0 text-sm text-zinc-800 dark:text-zinc-100 outline-none"
+                    class="{{ $renameInputClasses }}"
                     x-init="$el.focus(); $el.select()"
                 />
             </template>
 
             <template x-if="!editing">
-                <div class="flex items-center gap-0.5 shrink-0">
+                <div class="flex shrink-0 items-center gap-0.5">
                     @if ($isRenamable)
                         <button
+                            type="button"
                             @click.stop="editing = true; newName = '{{ $item['name'] }}'"
                             title="Rename"
-                            class="rounded p-0.5 hover:bg-zinc-300/70 dark:hover:bg-white/10 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200
-                                   opacity-0 group-hover/item:opacity-100 transition-opacity"
+                            aria-label="Rename {{ $item['name'] }}"
+                            class="{{ $renameButtonClasses }}"
                         >
-                            <flux:icon.pencil class="size-3" />
+                            <flux:icon.pencil variant="micro" class="size-3" />
                         </button>
                     @endif
                     @if ($isDeletable)
                         <button
+                            type="button"
                             @click.stop="$wire.deleteItem('{{ $currentPath }}')"
                             title="Delete"
-                            class="rounded p-0.5 hover:bg-red-100 dark:hover:bg-red-500/15 text-zinc-400 hover:text-red-600 dark:hover:text-red-400
-                                   opacity-0 group-hover/item:opacity-100 transition-opacity"
+                            aria-label="Delete {{ $item['name'] }}"
+                            class="{{ $deleteButtonClasses }}"
                         >
-                            <flux:icon.trash class="size-3" />
+                            <flux:icon.trash variant="micro" class="size-3" />
                         </button>
                     @endif
                 </div>

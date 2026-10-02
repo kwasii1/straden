@@ -128,3 +128,53 @@ test('test agent chat rejects an empty message', function () {
         ->call('submitMessage')
         ->assertHasErrors('input');
 });
+
+test('agent chat deletes a past conversation and its messages', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $test = Test::factory()->create(['project_id' => $project->id]);
+
+    TestAgent::fake(['Response']);
+
+    $component = Livewire::actingAs($user)
+        ->test(AgentChat::class, ['project' => $project, 'test' => $test])
+        ->set('input', 'Create a smoke test')
+        ->call('submitMessage');
+
+    $conversation = Conversation::query()
+        ->where('participant_type', $test->getMorphClass())
+        ->where('participant_id', $test->getKey())
+        ->firstOrFail();
+
+    $component->set('conversationId', $conversation->id)
+        ->call('deleteConversation', $conversation->id)
+        ->assertSet('conversationId', null)
+        ->assertSet('conversations', []);
+
+    expect(Conversation::find($conversation->id))->toBeNull()
+        ->and(ConversationMessage::where('conversation_id', $conversation->id)->exists())->toBeFalse();
+});
+
+test('agent chat cannot delete a conversation that belongs to another test', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $test = Test::factory()->create(['project_id' => $project->id]);
+    $otherTest = Test::factory()->create(['project_id' => $project->id]);
+
+    TestAgent::fake(['Response']);
+
+    Livewire::actingAs($user)
+        ->test(AgentChat::class, ['project' => $project, 'test' => $otherTest])
+        ->set('input', 'Create a smoke test')
+        ->call('submitMessage');
+
+    $conversation = Conversation::query()
+        ->where('participant_id', $otherTest->getKey())
+        ->firstOrFail();
+
+    Livewire::actingAs($user)
+        ->test(AgentChat::class, ['project' => $project, 'test' => $test])
+        ->call('deleteConversation', $conversation->id);
+
+    expect(Conversation::find($conversation->id))->not->toBeNull();
+});

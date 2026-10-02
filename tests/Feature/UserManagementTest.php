@@ -149,7 +149,7 @@ test('members still manage their own API tokens and only see them in settings', 
     $this->actingAs(User::factory()->create())
         ->get(route('settings.api-tokens'))
         ->assertOk()
-        ->assertSee('API Tokens')
-        ->assertDontSee('AI Integrations')
+        ->assertSee('API tokens')
+        ->assertDontSee('AI integrations')
         ->assertDontSee(route('horizon.index'));
 });

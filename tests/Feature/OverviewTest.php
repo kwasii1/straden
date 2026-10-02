@@ -37,8 +37,8 @@ test('overview shows correct stat counts with data', function () {
     $this->actingAs($user)
         ->get(route('projects.overview', $project))
         ->assertOk()
-        ->assertSee('Total Tests')
-        ->assertSee('Total Runs')
+        ->assertSee('Total tests')
+        ->assertSee('Total runs')
         ->assertSee('1')   // Total Tests count
         ->assertSee('4')   // Total Runs count
         ->assertSee('Passed')  // Last run status
@@ -69,7 +69,7 @@ test('overview shows recent runs in correct order', function () {
     $this->actingAs($user)
         ->get(route('projects.overview', $project))
         ->assertOk()
-        ->assertSee('Recent Executions')
+        ->assertSee('Recent executions')
         ->assertSee('Passed')
         ->assertSee('Failed');
 });
@@ -89,7 +89,7 @@ test('overview shows correct runs this week count', function () {
         ->get(route('projects.overview', $project))
         ->assertOk();
 
-    $response->assertSee('Runs This Week')
+    $response->assertSee('Runs this week')
         ->assertSee('2'); // Only 2 runs this week
 });
 
@@ -131,8 +131,8 @@ test('overview passes status distribution data for charts', function () {
     $this->actingAs($user)
         ->get(route('projects.overview', $project))
         ->assertOk()
-        ->assertSee('Status Distribution')
-        ->assertSee('Response Time Trend');
+        ->assertSee('Status distribution')
+        ->assertSee('Response time trend');
 });
 
 test('overview handles project with zero tests gracefully', function () {
@@ -142,7 +142,7 @@ test('overview handles project with zero tests gracefully', function () {
     $this->actingAs($user)
         ->get(route('projects.overview', $project))
         ->assertOk()
-        ->assertSee('Total Tests')
+        ->assertSee('Total tests')
         ->assertSee('0')
         ->assertSee('No run data available for this project yet.');
 });
@@ -154,7 +154,7 @@ test('overview shows last run as none when no runs exist', function () {
     $this->actingAs($user)
         ->get(route('projects.overview', $project))
         ->assertOk()
-        ->assertSee('Last Execution')
+        ->assertSee('Last execution')
         ->assertSee('None');
 });
 

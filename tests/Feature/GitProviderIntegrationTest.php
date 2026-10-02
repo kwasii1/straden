@@ -14,7 +14,7 @@ test('user can visit repository picker page', function () {
     $this->actingAs($user)
         ->get(route('projects.repository-picker', ['project' => $project, 'connector' => $connector]))
         ->assertOk()
-        ->assertSee('Browse Repositories');
+        ->assertSee('Browse repositories');
 });
 
 test('repository picker shows cached repos', function () {
@@ -34,8 +34,8 @@ test('git providers page is accessible', function () {
 
     Livewire::actingAs($user)
         ->test('pages::dashboard.git-providers', ['project' => $project])
-        ->assertSee('No Git Providers Connected')
-        ->assertSee('Add Git Provider');
+        ->assertSee('No git providers connected')
+        ->assertSee('Add git provider');
 });
 
 test('git connector form shows token label per provider', function () {

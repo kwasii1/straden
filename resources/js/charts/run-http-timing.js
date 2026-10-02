@@ -25,13 +25,16 @@ document.addEventListener('alpine:init', () => {
                     existing.destroy();
                 }
 
-                const series = [
-                    { key: 'blocked', label: 'Blocked', borderColor: '#a78bfa', backgroundColor: 'rgba(167, 139, 250, 0.55)' },
-                    { key: 'connecting', label: 'Connecting', borderColor: '#60a5fa', backgroundColor: 'rgba(96, 165, 250, 0.55)' },
-                    { key: 'tls', label: 'TLS', borderColor: '#22d3ee', backgroundColor: 'rgba(34, 211, 238, 0.55)' },
-                    { key: 'sending', label: 'Sending', borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.55)' },
-                    { key: 'waiting', label: 'Waiting', borderColor: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.55)' },
-                    { key: 'receiving', label: 'Receiving', borderColor: '#f87171', backgroundColor: 'rgba(248, 113, 113, 0.55)' },
+                const { series, fill, ink } = window.StradenCharts;
+
+                // Request phases in fixed categorical order, stacked bottom-up.
+                const groups = [
+                    { key: 'blocked', label: 'Blocked', color: series[0] },
+                    { key: 'connecting', label: 'Connecting', color: series[1] },
+                    { key: 'tls', label: 'TLS', color: series[2] },
+                    { key: 'sending', label: 'Sending', color: series[3] },
+                    { key: 'waiting', label: 'Waiting', color: series[4] },
+                    { key: 'receiving', label: 'Receiving', color: series[5] },
                 ];
 
                 chart = new Chart(canvas.getContext('2d'), {
@@ -40,16 +43,16 @@ document.addEventListener('alpine:init', () => {
                     data: {
                         labels: payload.labels,
 
-                        datasets: series.map((s) => ({
-                            label: s.label,
-                            data: payload[s.key] ?? [],
-                            borderColor: s.borderColor,
-                            backgroundColor: s.backgroundColor,
-                            borderWidth: 1,
-                            fill: true,
-                            tension: 0.3,
-                            pointRadius: 0,
-                            pointHoverRadius: 4,
+                        datasets: groups.map((group, index) => ({
+                            label: group.label,
+                            data: payload[group.key] ?? [],
+                            borderColor: group.color,
+                            backgroundColor: fill(group.color),
+                            pointBackgroundColor: group.color,
+                            pointHoverBorderColor: ink.surface,
+                            pointHoverBorderWidth: 2,
+                            // Fill each band down to the one below it so stacked areas never overlap.
+                            fill: index === 0 ? 'origin' : '-1',
                         })),
                     },
 
@@ -66,26 +69,22 @@ document.addEventListener('alpine:init', () => {
                             y: {
                                 stacked: true,
                                 beginAtZero: true,
-                                grid: { color: 'rgba(161, 161, 170, 0.1)' },
+                                border: { display: false },
                                 ticks: {
-                                    color: '#a1a1aa',
-                                    font: { size: 11 },
+                                    maxTicksLimit: 5,
                                     callback: (value) => `${value} ms`,
                                 },
                             },
                             x: {
                                 stacked: true,
                                 grid: { display: false },
-                                ticks: { color: '#a1a1aa', font: { size: 11 }, maxTicksLimit: 8 },
+                                border: { display: false },
+                                ticks: { maxTicksLimit: 8 },
                             },
                         },
 
                         plugins: {
-                            legend: {
-                                display: true,
-                                position: 'bottom',
-                                labels: { padding: 12, usePointStyle: true, pointStyle: 'line', color: '#a1a1aa' },
-                            },
+                            legend: { position: 'bottom', align: 'start' },
                             tooltip: {
                                 enabled: false,
                                 external: (context) => this.externalTooltip(context),
@@ -108,7 +107,7 @@ document.addEventListener('alpine:init', () => {
                 this.tooltip = {
                     show: true,
                     x: tooltipModel.caretX,
-                    y: tooltipModel.caretY - 12,
+                    y: tooltipModel.caretY,
                     label: points[0]?.label ?? '',
                     rows: points.map((p) => ({
                         label: p.dataset.label,

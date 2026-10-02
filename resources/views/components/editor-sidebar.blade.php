@@ -1,35 +1,41 @@
 <div
     x-data="{ activeTab: 'chat' }"
-    {{ $attributes->merge(['class' => 'flex flex-col border border-zinc-800 bg-zinc-950 overflow-hidden']) }}
+    {{ $attributes->merge(['class' => 'flex flex-col overflow-hidden border-l border-zinc-200 bg-white']) }}
 >
-    <div class="grid grid-cols-2 border-b border-zinc-800 shrink-0">
+    <div class="flex h-10 shrink-0 items-center gap-0.5 border-b border-zinc-200 bg-zinc-50 px-1.5" role="tablist">
         <button
+            type="button"
+            role="tab"
             @click="activeTab = 'chat'"
+            :aria-selected="activeTab === 'chat'"
             :class="activeTab === 'chat'
-                ? 'bg-zinc-800 text-zinc-100'
-                : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50'"
-            class="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition-colors"
+                ? 'bg-zinc-200/70 text-zinc-900'
+                : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'"
+            class="flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium"
         >
-            <flux:icon.sparkles class="size-4" />
-            AI Chat
+            <flux:icon.sparkles variant="micro" class="size-3.5" />
+            Chat
         </button>
         <button
+            type="button"
+            role="tab"
             @click="activeTab = 'files'"
+            :aria-selected="activeTab === 'files'"
             :class="activeTab === 'files'
-                ? 'bg-zinc-800 text-zinc-100'
-                : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50'"
-            class="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition-colors"
+                ? 'bg-zinc-200/70 text-zinc-900'
+                : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'"
+            class="flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium"
         >
-            <flux:icon.folder-tree class="size-4" />
-            File Tree
+            <flux:icon.folder variant="micro" class="size-3.5" />
+            Files
         </button>
     </div>
 
-    <div x-show="activeTab === 'chat'" class="flex-1 flex flex-col min-h-0">
+    <div x-show="activeTab === 'chat'" class="flex min-h-0 flex-1 flex-col">
         <x-chat-panel />
     </div>
 
-    <div x-show="activeTab === 'files'" class="flex-1 flex flex-col min-h-0 overflow-y-auto">
+    <div x-show="activeTab === 'files'" class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-zinc-50">
         <x-file-tree-panel :tree="[
             [
                 'name' => 'test-script',

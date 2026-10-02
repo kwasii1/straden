@@ -82,12 +82,14 @@
         x-on:keydown.down.prevent="show()"
         aria-haspopup="listbox"
         x-bind:aria-expanded="open"
-        class="flex min-h-10 w-full flex-wrap items-center gap-1.5 rounded-lg border border-zinc-200 border-b-zinc-300/80 bg-white px-2 py-1.5 text-start text-sm shadow-xs dark:border-white/10 dark:bg-white/10"
+        class="flex min-h-10 w-full flex-wrap items-center gap-1.5 rounded-lg border border-zinc-200 border-b-zinc-300/80 bg-white px-2 py-1.5 text-start text-sm shadow-xs transition-[border-color,box-shadow] duration-150 hover:border-zinc-300 aria-expanded:border-zinc-400 aria-expanded:ring-3 aria-expanded:ring-zinc-900/8"
     >
         <template x-for="item in chosen" :key="item.value">
-            <span class="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
+            <span class="inline-flex h-6 items-center gap-1 rounded-md bg-zinc-100 pr-0.5 pl-2 text-xs text-zinc-700 ring-1 ring-zinc-200 ring-inset">
                 <span x-text="item.label"></span>
-                <span role="button" tabindex="-1" x-on:click.stop="toggle(item)" class="text-zinc-400 hover:text-zinc-700 dark:hover:text-white" aria-label="Remove">&times;</span>
+                <span role="button" tabindex="-1" x-on:click.stop="toggle(item)" class="inline-flex size-5 items-center justify-center rounded text-zinc-400 transition-colors duration-100 hover:bg-zinc-200 hover:text-zinc-700" aria-label="Remove">
+                    <flux:icon.x-mark variant="micro" class="size-3" />
+                </span>
             </span>
         </template>
         <span x-show="chosen.length === 0" class="px-1 text-zinc-400">{{ $placeholder }}</span>
@@ -96,12 +98,17 @@
 
     <div
         x-show="open"
-        x-transition.opacity.duration.100ms
+        x-transition:enter="transition ease-snappy duration-150"
+        x-transition:enter-start="opacity-0 scale-[0.97]"
+        x-transition:enter-end="opacity-100 scale-100"
+        x-transition:leave="transition ease-out duration-100"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
         x-cloak
-        x-bind:class="up ? 'bottom-full mb-1' : 'mt-1'"
-        class="absolute z-50 w-full overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-600 dark:bg-zinc-700"
+        x-bind:class="up ? 'bottom-full mb-1 origin-bottom' : 'mt-1 origin-top'"
+        class="absolute z-50 w-full overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-md shadow-zinc-900/5"
     >
-        <div class="flex items-center gap-2 border-b border-zinc-200 px-3 dark:border-zinc-600">
+        <div class="flex items-center gap-2 border-b border-zinc-200 px-3">
             <flux:icon.magnifying-glass variant="mini" class="size-4 shrink-0 text-zinc-400" />
             <input
                 type="text"
@@ -114,7 +121,7 @@
                 x-on:keydown.tab="close()"
                 placeholder="{{ $searchPlaceholder }}"
                 autocomplete="off"
-                class="h-10 w-full border-0 bg-transparent p-0 text-sm text-zinc-800 placeholder-zinc-400 focus:ring-0 focus:outline-none dark:text-zinc-100"
+                class="h-10 w-full border-0 bg-transparent p-0 text-sm text-zinc-800 placeholder:text-zinc-400 focus:ring-0 focus:outline-none"
             />
         </div>
 
@@ -126,18 +133,18 @@
                     x-bind:aria-selected="isSelected(item.value)"
                     x-on:click="toggle(item)"
                     x-on:mousemove="active = index"
-                    x-bind:class="active === index ? 'bg-zinc-100 dark:bg-zinc-600' : ''"
-                    class="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-zinc-800 dark:text-zinc-100"
+                    x-bind:class="active === index ? 'bg-zinc-100' : ''"
+                    class="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-zinc-800"
                 >
                     <span class="flex min-w-0 items-center gap-2">
                         <span x-text="item.label" class="truncate"></span>
-                        <span x-show="item.hint" x-text="item.hint" class="shrink-0 text-xs text-zinc-400"></span>
+                        <span x-show="item.hint" x-text="item.hint" class="shrink-0 text-xs text-zinc-500"></span>
                     </span>
-                    <flux:icon.check x-show="isSelected(item.value)" variant="micro" class="size-4 shrink-0 text-zinc-600 dark:text-zinc-300" />
+                    <flux:icon.check x-show="isSelected(item.value)" variant="micro" class="size-4 shrink-0 text-zinc-900" />
                 </li>
             </template>
 
-            <li x-show="filtered.length === 0" class="px-2 py-3 text-center text-sm text-zinc-400">{{ $emptyText }}</li>
+            <li x-show="filtered.length === 0" class="px-2 py-3 text-center text-sm text-zinc-500">{{ $emptyText }}</li>
         </ul>
     </div>
 

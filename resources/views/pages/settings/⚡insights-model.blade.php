@@ -118,78 +118,83 @@ class extends Component
 ?>
 
 <x-pages::settings.ai-layout>
-    <div class="flex flex-col gap-y-6">
-        <div class="border-b border-zinc-200 pb-5 dark:border-zinc-800">
-            <flux:heading size="xl" class="font-semibold text-zinc-900 dark:text-zinc-100">AI Insights Model</flux:heading>
-            <flux:text class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Choose which provider and model powers load-test insight reports.</flux:text>
-        </div>
+    <div>
+        <section class="grid gap-x-8 gap-y-5 border-t border-zinc-200 py-8 first:border-t-0 first:pt-0 lg:grid-cols-[18rem_1fr]">
+            <div>
+                <h2 class="text-sm font-medium text-zinc-900">AI insights model</h2>
+                <p class="mt-1 text-sm text-zinc-500">Choose which provider and model powers load-test insight reports.</p>
+            </div>
 
-        <div class="rounded-xl border border-zinc-200/80 bg-white/60 p-4 backdrop-blur-xs sm:p-5 dark:border-zinc-800 dark:bg-zinc-900/60">
-            <flux:text class="text-xs font-medium text-zinc-500">Current model</flux:text>
+            <div class="flex w-full max-w-xl flex-col gap-6">
+                <div class="ui-inset flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                    <div class="min-w-0">
+                        <p class="text-xs text-zinc-500">Current model</p>
+                        @if ($this->insightsSelection)
+                            <p class="mt-0.5 truncate text-sm text-zinc-900">
+                                <span class="font-mono">{{ $this->insightsSelection['model'] }}</span>
+                                <span class="text-zinc-500">via {{ $this->insightsSelection['provider_label'] }}</span>
+                            </p>
+                        @else
+                            <p class="mt-0.5 text-sm text-zinc-500">No model selected</p>
+                        @endif
+                    </div>
 
-            <div class="mt-2">
-                @if ($this->insightsSelection)
-                    @if ($this->insightsSelection['usable'])
-                        <span class="inline-flex items-center gap-x-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                            <span class="size-1.5 rounded-full bg-emerald-500"></span>
-                            {{ $this->insightsSelection['model'] }} via {{ $this->insightsSelection['provider_label'] }}
-                        </span>
-                    @else
-                        <span class="inline-flex items-center gap-x-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                            <span class="size-1.5 rounded-full bg-amber-500"></span>
-                            {{ $this->insightsSelection['model'] }} — {{ $this->insightsSelection['provider_label'] }} not connected
-                        </span>
-                        <flux:text class="mt-2 text-xs">
-                            Connect the provider in
-                            <flux:link wire:navigate :href="route('settings.ai-integrations')">AI Integrations</flux:link>
-                            or pick another model.
-                        </flux:text>
+                    @if ($this->insightsSelection)
+                        @if ($this->insightsSelection['usable'])
+                            <x-status-badge status="connected" />
+                        @else
+                            <x-status-badge status="warning" label="Provider not connected" />
+                        @endif
                     @endif
-                @else
-                    <span class="inline-flex items-center rounded-full border border-zinc-200/50 bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500 dark:border-zinc-700/50 dark:bg-zinc-800/80 dark:text-zinc-400">
-                        No model selected
-                    </span>
+                </div>
+
+                @if ($this->insightsSelection && ! $this->insightsSelection['usable'])
+                    <p class="-mt-3 text-sm text-zinc-500">
+                        Connect {{ $this->insightsSelection['provider_label'] }} in
+                        <a wire:navigate href="{{ route('settings.ai-integrations') }}" class="ui-link">AI integrations</a>
+                        or pick another model.
+                    </p>
                 @endif
+
+                <form wire:submit="saveInsightsModel" class="flex flex-col gap-6">
+                    <flux:field>
+                        <flux:label>Provider</flux:label>
+                        <x-combobox
+                            wire:model.live="insightsProvider"
+                            :options="collect($this->insightProviderOptions)->map(fn ($option) => [
+                                'value' => $option['value'],
+                                'label' => $option['label'],
+                                'hint' => $option['connected'] ? null : 'not connected',
+                            ])"
+                            placeholder="Choose provider..."
+                            search-placeholder="Search providers..."
+                            empty-text="No matching providers."
+                        />
+                        <flux:error name="insightsProvider" />
+                    </flux:field>
+
+                    <flux:field>
+                        <flux:label>Model</flux:label>
+                        <x-combobox
+                            wire:model="insightsModel"
+                            wire:key="insights-model-{{ $insightsProvider }}"
+                            :options="$this->insightModelSuggestions"
+                            :placeholder="$this->insightsModelPlaceholder"
+                            search-placeholder="Search or type a model name..."
+                            empty-text="Type a model name to use it."
+                            :allow-custom="true"
+                            :disabled="$insightsProvider === ''"
+                        />
+                        <flux:description>Pick a suggested model or type any model name your provider supports.</flux:description>
+                        <flux:error name="insightsModel" />
+                    </flux:field>
+
+                    <div class="flex items-center gap-2">
+                        <flux:button type="submit" variant="primary">Save model</flux:button>
+                        <flux:button wire:click="resetForm" variant="ghost">Reset</flux:button>
+                    </div>
+                </form>
             </div>
-        </div>
-
-        <form wire:submit="saveInsightsModel" class="max-w-lg space-y-4">
-            <flux:field>
-                <flux:label class="text-xs">Provider</flux:label>
-                <x-combobox
-                    wire:model.live="insightsProvider"
-                    :options="collect($this->insightProviderOptions)->map(fn ($option) => [
-                        'value' => $option['value'],
-                        'label' => $option['label'],
-                        'hint' => $option['connected'] ? null : 'not connected',
-                    ])"
-                    placeholder="Choose provider..."
-                    search-placeholder="Search providers..."
-                    empty-text="No matching providers."
-                />
-                <flux:error name="insightsProvider" />
-            </flux:field>
-
-            <flux:field>
-                <flux:label class="text-xs">Model</flux:label>
-                <x-combobox
-                    wire:model="insightsModel"
-                    wire:key="insights-model-{{ $insightsProvider }}"
-                    :options="$this->insightModelSuggestions"
-                    :placeholder="$this->insightsModelPlaceholder"
-                    search-placeholder="Search or type a model name..."
-                    empty-text="Type a model name to use it."
-                    :allow-custom="true"
-                    :disabled="$insightsProvider === ''"
-                />
-                <flux:description class="text-xs">Pick a suggested model or type any model name your provider supports.</flux:description>
-                <flux:error name="insightsModel" />
-            </flux:field>
-
-            <div class="flex items-center gap-2 pt-2">
-                <flux:button type="submit" variant="primary" size="sm">Save Model</flux:button>
-                <flux:button wire:click="resetForm" variant="ghost" size="sm">Reset</flux:button>
-            </div>
-        </form>
+        </section>
     </div>
 </x-pages::settings.ai-layout>

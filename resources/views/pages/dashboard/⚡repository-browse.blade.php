@@ -109,38 +109,42 @@ class extends Component
 };
 ?>
 
-<div class="flex flex-col h-full">
-    <div class="flex h-12 shrink-0 items-center gap-x-3 border-b border-zinc-200 px-4 dark:border-zinc-800">
+<div class="flex h-full flex-col">
+    <div class="flex h-12 shrink-0 items-center gap-3 border-b border-zinc-200 px-4">
         <a
             wire:navigate
             href="{{ route('projects.repositories', ['project' => $this->project]) }}"
-            class="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition"
+            class="ui-icon-button -ml-1.5"
+            aria-label="Back to repositories"
+            title="Back to repositories"
         >
-            <flux:icon.arrow-left class="size-4" />
+            <flux:icon.arrow-left variant="micro" />
         </a>
 
-        @if ($repository->type === 'git')
-            <flux:icon.folder-git-2 class="size-4 text-zinc-400" />
-        @else
-            <flux:icon.folder class="size-4 text-zinc-400" />
-        @endif
+        <div class="flex min-w-0 items-center gap-2">
+            @if ($repository->type === 'git')
+                <flux:icon.folder-git-2 variant="micro" class="text-zinc-400" />
+            @else
+                <flux:icon.folder variant="micro" class="text-zinc-400" />
+            @endif
 
-        <flux:heading>{{ $repository->name }}</flux:heading>
+            <h1 class="truncate text-sm font-medium text-zinc-900">{{ $repository->name }}</h1>
+        </div>
 
         @if ($this->selectedFilePath)
-            <div class="flex min-w-0 items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+            <div class="flex min-w-0 items-center gap-1 font-mono text-xs text-zinc-500">
                 @foreach (explode('/', $this->selectedFilePath) as $segment)
-                    <flux:icon.chevron-right variant="micro" class="size-3 shrink-0 text-zinc-400" />
-                    <span @class(['truncate', 'text-zinc-800 dark:text-zinc-200' => $loop->last])>{{ $segment }}</span>
+                    <flux:icon.chevron-right variant="micro" class="size-3.5 shrink-0 text-zinc-300" />
+                    <span @class(['truncate', 'text-zinc-900' => $loop->last])>{{ $segment }}</span>
                 @endforeach
             </div>
         @endif
     </div>
 
-    <div class="flex flex-1 min-h-0">
-        <aside class="flex w-72 shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
-            <div class="flex h-9 shrink-0 items-center border-b border-zinc-200 px-3 dark:border-zinc-800">
-                <span class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Explorer</span>
+    <div class="flex min-h-0 flex-1">
+        <aside class="flex w-72 shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-zinc-50">
+            <div class="flex h-9 shrink-0 items-center border-b border-zinc-200 px-3">
+                <h2 class="text-sm font-medium text-zinc-900">Files</h2>
             </div>
             @if ($fileTree)
                 <div class="flex-1 overflow-y-auto p-1.5">
@@ -149,16 +153,13 @@ class extends Component
                     @endforeach
                 </div>
             @else
-                <div class="flex flex-col items-center justify-center h-full p-4 gap-y-2">
-                    <flux:icon.folder-open class="size-8 text-zinc-400" />
-                    <flux:text class="text-center text-sm">No file tree available. Sync the repository to index its files.</flux:text>
-                </div>
+                <x-empty-state compact icon="folder-open" title="No file tree available" description="Sync the repository to index its files." class="flex-1" />
             @endif
         </aside>
 
-        <div class="flex-1 min-w-0 flex flex-col min-h-0">
+        <div class="flex min-h-0 min-w-0 flex-1 flex-col">
             @if ($this->selectedFilePath)
-                <div class="flex-1 min-h-0">
+                <div class="min-h-0 flex-1">
                     <x-code-editor
                         name="file_content"
                         :value="$fileContent"
@@ -169,10 +170,7 @@ class extends Component
                     />
                 </div>
             @else
-                <div class="flex flex-col items-center justify-center h-full gap-y-3">
-                    <flux:icon.document-text class="size-12 text-zinc-300 dark:text-zinc-600" />
-                    <flux:text class="text-zinc-500">Select a file from the tree to view its contents.</flux:text>
-                </div>
+                <x-empty-state icon="document-text" title="No file selected" description="Select a file from the tree to view its contents." class="flex-1" />
             @endif
         </div>
     </div>

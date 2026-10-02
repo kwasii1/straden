@@ -213,28 +213,6 @@ class extends Component
         }
     }
 
-    public function statusVariant(string $status): array
-    {
-        return match ($status) {
-            'passed' => ['label' => 'Passed', 'class' => 'text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10'],
-            'running' => ['label' => 'Running', 'class' => 'text-blue-700 bg-blue-50 dark:text-blue-400 dark:bg-blue-500/10'],
-            'queued' => ['label' => 'Queued', 'class' => 'text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/10'],
-            'failed', 'error' => ['label' => ucfirst($status), 'class' => 'text-red-700 bg-red-50 dark:text-red-400 dark:bg-red-500/10'],
-            default => ['label' => ucfirst($status), 'class' => 'text-zinc-600 bg-zinc-100 dark:text-zinc-400 dark:bg-zinc-800'],
-        };
-    }
-
-    public function statusDot(string $status): string
-    {
-        return match ($status) {
-            'passed' => 'bg-emerald-500',
-            'running' => 'bg-blue-500',
-            'queued' => 'bg-amber-500',
-            'failed', 'error' => 'bg-red-500',
-            default => 'bg-zinc-400',
-        };
-    }
-
     public function formatDuration(?int $seconds): string
     {
         if ($seconds === null) {
@@ -270,96 +248,69 @@ class extends Component
 };
 ?>
 
-<div class="flex flex-col gap-y-6">
-    {{-- Header --}}
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-            <flux:heading size="xl">Run Detail</flux:heading>
-            <flux:text class="mt-1">View test run results and performance metrics.</flux:text>
-        </div>
-        <flux:modal.trigger name="run-insights">
-            <flux:button variant="primary" icon="sparkles">AI Insights</flux:button>
-        </flux:modal.trigger>
-    </div>
+<div class="flex flex-col gap-8">
+    @php
+        $runTest = $this->run->script->test;
+        $runScript = $this->run->script;
+        $isRunActive = $this->isActive();
+        $triggeredBy = $this->run->triggered_by_user_id
+            ? 'Triggered by '.($this->run->triggeredByUser?->name ?? 'Unknown').' ('.$this->run->triggered_by.')'
+            : 'Triggered by '.$this->run->triggered_by;
+    @endphp
 
-    {{-- Breadcrumb --}}
-    <nav class="flex items-center gap-x-2 text-sm text-zinc-500">
-        <a wire:navigate href="{{ route('projects.overview', ['project' => $this->project]) }}" class="transition-colors hover:text-zinc-300">
-            {{ $this->project->name }}
-        </a>
-        <flux:icon.chevron-right class="size-3" />
-        <a wire:navigate href="{{ route('projects.view-test', ['project' => $this->project, 'test' => $this->run->script->test]) }}" class="transition-colors hover:text-zinc-300">
-            {{ $this->run->script->test->name }}
-        </a>
-        <flux:icon.chevron-right class="size-3" />
-        <a wire:navigate href="{{ route('projects.view-test-script', ['project' => $this->project, 'test' => $this->run->script->test, 'script' => $this->run->script]) }}" class="transition-colors hover:text-zinc-300">
-            {{ $this->run->script->name }}
-        </a>
-        <flux:icon.chevron-right class="size-3" />
-        <span class="text-zinc-300">{{ $this->run->slug }}</span>
-    </nav>
+    <x-page-header :title="$this->run->slug" :description="$triggeredBy">
+        <x-slot:breadcrumbs>
+            <nav class="flex min-w-0 items-center gap-1.5" aria-label="Breadcrumb">
+                <a wire:navigate href="{{ route('projects.overview', ['project' => $this->project]) }}" class="truncate transition-colors hover:text-zinc-900">{{ $this->project->name }}</a>
+                <flux:icon.chevron-right variant="micro" class="shrink-0 text-zinc-300" />
+                <a wire:navigate href="{{ route('projects.view-test', ['project' => $this->project, 'test' => $runTest]) }}" class="truncate transition-colors hover:text-zinc-900">{{ $runTest->name }}</a>
+                <flux:icon.chevron-right variant="micro" class="shrink-0 text-zinc-300" />
+                <a wire:navigate href="{{ route('projects.view-test-script', ['project' => $this->project, 'test' => $runTest, 'script' => $runScript]) }}" class="truncate transition-colors hover:text-zinc-900">{{ $runScript->name }}</a>
+            </nav>
+        </x-slot:breadcrumbs>
 
-    {{-- Run meta card --}}
-    @php $runStatus = $this->statusVariant($this->run->status); @endphp
-    <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
-        <div class="flex flex-col bg-white dark:bg-zinc-900">
-            <div class="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div class="flex flex-col gap-2.5">
-                    <div class="flex items-center gap-3">
-                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $runStatus['class'] }}">
-                            <span class="size-1.5 rounded-full {{ $this->statusDot($this->run->status) }}"></span>
-                            {{ $runStatus['label'] }}
-                        </span>
-                        <flux:text class="text-sm font-medium text-zinc-700 dark:text-zinc-200">{{ $this->run->slug }}</flux:text>
-                    </div>
-                    <flux:text class="text-xs text-[#919191]">
-                        @if ($this->run->triggered_by_user_id)
-                            Triggered by {{ $this->run->triggeredByUser?->name ?? 'Unknown' }} ({{ $this->run->triggered_by }})
-                        @else
-                            Triggered by {{ $this->run->triggered_by }}
-                        @endif
-                    </flux:text>
+        <x-slot:actions>
+            <flux:button :href="route('projects.runs', ['project' => $this->project])" wire:navigate variant="ghost" size="sm" icon="arrow-left">All runs</flux:button>
+
+            @if ($this->hasLog())
+                <flux:modal.trigger name="run-logs">
+                    <flux:button size="sm" icon="command-line" title="View run logs" aria-label="View run logs" />
+                </flux:modal.trigger>
+            @endif
+
+            @if ($isRunActive)
+                <flux:button wire:click="cancelRun" variant="danger" size="sm">Cancel run</flux:button>
+            @endif
+
+            <flux:modal.trigger name="run-insights">
+                <flux:button variant="primary" size="sm" icon="sparkles">AI insights</flux:button>
+            </flux:modal.trigger>
+        </x-slot:actions>
+    </x-page-header>
+
+    {{-- Run summary --}}
+    <div class="ui-panel grid grid-cols-2 gap-px overflow-hidden bg-zinc-200 lg:grid-cols-4 [&>*]:bg-white">
+            <div class="flex min-w-0 items-center justify-between gap-3 px-4 py-3.5">
+                <div class="min-w-0">
+                    <p class="truncate text-sm text-zinc-500">Status</p>
+                    <div class="mt-1.5"><x-status-badge :status="$this->run->status" /></div>
                 </div>
-
-                <div class="flex items-center gap-3">
-                    @if ($this->isActive())
-                        @php $progress = $this->progressPercent(); @endphp
-                        <x-run-progress :percent="$progress" />
-                    @endif
-
-                    @if ($this->hasLog())
-                        <flux:modal.trigger name="run-logs">
-                            <flux:button size="sm" icon="command-line" title="View run logs" aria-label="View run logs" />
-                        </flux:modal.trigger>
-                    @endif
-
-                    @if ($this->isActive())
-                        <flux:button wire:click="cancelRun" variant="danger" size="sm">Cancel Run</flux:button>
-                    @endif
-                </div>
+                @if ($isRunActive)
+                    <x-run-progress :percent="$this->progressPercent()" />
+                @endif
             </div>
-
-            <div class="grid grid-cols-1 divide-y divide-zinc-100 border-t border-zinc-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0 dark:divide-zinc-800 dark:border-zinc-800">
-                <div class="flex flex-col gap-y-1 px-5 py-4">
-                    <flux:text class="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">Started At</flux:text>
-                    <flux:text class="text-sm font-semibold text-zinc-900 dark:text-white">
-                        {{ $this->run->started_at?->format('M j, Y H:i:s') ?? 'N/A' }}
-                    </flux:text>
-                </div>
-                <div class="flex flex-col gap-y-1 px-5 py-4">
-                    <flux:text class="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">Completed At</flux:text>
-                    <flux:text class="text-sm font-semibold text-zinc-900 dark:text-white">
-                        {{ $this->run->completed_at?->format('M j, Y H:i:s') ?? 'N/A' }}
-                    </flux:text>
-                </div>
-                <div class="flex flex-col gap-y-1 px-5 py-4">
-                    <flux:text class="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">Duration</flux:text>
-                    <flux:text class="text-sm font-semibold text-zinc-900 dark:text-white">
-                        {{ $this->formatDuration($this->run->duration_seconds) }}
-                    </flux:text>
-                </div>
+            <div class="min-w-0 px-4 py-3.5">
+                <p class="truncate text-sm text-zinc-500">Started</p>
+                <p class="mt-1.5 truncate text-sm font-medium text-zinc-900 tabular-nums">{{ $this->run->started_at?->format('M j, Y H:i:s') ?? 'N/A' }}</p>
             </div>
-        </div>
+            <div class="min-w-0 px-4 py-3.5">
+                <p class="truncate text-sm text-zinc-500">Completed</p>
+                <p class="mt-1.5 truncate text-sm font-medium text-zinc-900 tabular-nums">{{ $this->run->completed_at?->format('M j, Y H:i:s') ?? 'N/A' }}</p>
+            </div>
+            <div class="min-w-0 px-4 py-3.5">
+                <p class="truncate text-sm text-zinc-500">Duration</p>
+                <p class="mt-1.5 truncate text-sm font-medium text-zinc-900 tabular-nums">{{ $this->formatDuration($this->run->duration_seconds) }}</p>
+            </div>
     </div>
 
     {{-- Error / warning message (collapsed by default, chevron to expand) --}}
@@ -367,30 +318,37 @@ class extends Component
         @php
             $errorSummary = Str::limit(trim((string) strtok($this->run->error_message, "\n")), 140);
             $isRunWarning = $this->run->status !== 'error';
+            $errorTone = $isRunWarning
+                ? ['icon' => 'text-amber-600', 'title' => 'text-amber-900', 'summary' => 'text-amber-800/80', 'pre' => 'text-amber-900 ring-amber-200']
+                : ['icon' => 'text-red-600', 'title' => 'text-red-900', 'summary' => 'text-red-800/80', 'pre' => 'text-red-900 ring-red-200'];
         @endphp
         <div
             x-data="{ open: false }"
-            class="overflow-hidden rounded-xl border {{ $isRunWarning ? 'border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/30' : 'border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-950/30' }}"
+            @class([
+                'overflow-hidden rounded-xl border',
+                'border-amber-200 bg-amber-50/60' => $isRunWarning,
+                'border-red-200 bg-red-50/60' => ! $isRunWarning,
+            ])
         >
             <button
                 type="button"
                 x-on:click="open = !open"
                 :aria-expanded="open.toString()"
-                class="flex w-full items-center gap-2 px-5 py-4 text-left"
+                class="flex w-full items-center gap-2.5 px-4 py-3 text-left"
             >
-                <flux:icon.exclamation-triangle class="size-4 shrink-0 {{ $isRunWarning ? 'text-amber-500 dark:text-amber-400' : 'text-red-500 dark:text-red-400' }}" />
-                <flux:heading size="sm" class="shrink-0 {{ $isRunWarning ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400' }}">{{ $isRunWarning ? 'Warning' : 'Error' }}</flux:heading>
-                <span x-show="!open" class="min-w-0 flex-1 truncate font-mono text-xs {{ $isRunWarning ? 'text-amber-700/80 dark:text-amber-300/80' : 'text-red-700/80 dark:text-red-300/80' }}">{{ $errorSummary }}</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
-                    class="shrink-0 transition-transform duration-200 {{ $isRunWarning ? 'text-amber-500 dark:text-amber-400' : 'text-red-500 dark:text-red-400' }}"
-                    :style="open ? 'transform: rotate(0deg)' : 'transform: rotate(-90deg)'">
-                    <path d="M6 9l6 6 6-6" />
-                </svg>
+                <flux:icon.exclamation-triangle variant="mini" class="size-4 shrink-0 {{ $errorTone['icon'] }}" />
+                <span class="shrink-0 text-sm font-medium {{ $errorTone['title'] }}">{{ $isRunWarning ? 'Warning' : 'Error' }}</span>
+                <span x-show="!open" class="min-w-0 flex-1 truncate font-mono text-xs {{ $errorTone['summary'] }}">{{ $errorSummary }}</span>
+                <flux:icon.chevron-down
+                    variant="micro"
+                    class="ml-auto shrink-0 transition-transform duration-200 ease-snappy {{ $errorTone['icon'] }}"
+                    x-bind:class="open ? 'rotate-0' : '-rotate-90'"
+                />
             </button>
-            <div x-cloak class="grid transition-[grid-template-rows,opacity] duration-300"
+            <div x-cloak class="grid transition-[grid-template-rows,opacity] duration-200 ease-snappy"
                 :style="open ? 'grid-template-rows:1fr;opacity:1' : 'grid-template-rows:0fr;opacity:0'">
                 <div class="overflow-hidden">
-                    <pre class="mx-5 mb-4 max-h-80 overflow-y-auto rounded-lg p-3 text-sm whitespace-pre-wrap break-words {{ $isRunWarning ? 'bg-amber-100/60 text-amber-700 dark:bg-black/30 dark:text-amber-300' : 'bg-red-100/60 text-red-700 dark:bg-black/30 dark:text-red-300' }}">{{ $this->run->error_message }}</pre>
+                    <pre class="mx-4 mb-4 max-h-80 overflow-y-auto rounded-lg bg-white/70 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words ring-1 ring-inset {{ $errorTone['pre'] }}">{{ $this->run->error_message }}</pre>
                 </div>
             </div>
         </div>
@@ -399,606 +357,397 @@ class extends Component
     @if (in_array($this->run->status, ['passed', 'failed', 'error']))
         {{-- Performance metrics --}}
         @php
-            $metricCards = [
-                ['label' => 'VUs Max', 'value' => $this->formatMetric($this->run->vus_max), 'icon' => 'user', 'color' => 'bg-violet-500', 'hint' => 'peak concurrent virtual users'],
-                ['label' => 'Total Requests', 'value' => $this->formatMetric($this->run->requests_total), 'icon' => 'globe-alt', 'color' => 'bg-blue-500', 'hint' => 'requests sent during the run'],
-                ['label' => 'Requests / Second', 'value' => $this->formatMetric($this->run->requests_per_second), 'icon' => 'arrows-right-left', 'color' => 'bg-emerald-500', 'hint' => 'average throughput'],
-                ['label' => 'P95 Duration', 'value' => $this->formatMetric($this->run->req_duration_p95_ms, 'ms'), 'icon' => 'clock', 'color' => 'bg-sky-500', 'hint' => '95th percentile latency'],
-                ['label' => 'P99 Duration', 'value' => $this->formatMetric($this->run->req_duration_p99_ms, 'ms'), 'icon' => 'clock', 'color' => 'bg-rose-500', 'hint' => '99th percentile latency'],
-                ['label' => 'Error Rate', 'value' => $this->formatMetric($this->run->error_rate, '%'), 'icon' => 'exclamation-triangle', 'color' => 'bg-amber-500', 'hint' => 'failed request percentage'],
+            $metricStats = [
+                ['label' => 'Max VUs', 'value' => $this->run->vus_max !== null ? number_format($this->run->vus_max) : 'N/A', 'hint' => 'Peak concurrent virtual users'],
+                ['label' => 'Total requests', 'value' => $this->run->requests_total !== null ? number_format($this->run->requests_total) : 'N/A', 'hint' => 'Sent during the run'],
+                ['label' => 'Request rate', 'value' => $this->formatMetric($this->run->requests_per_second, 'req/s'), 'hint' => 'Average throughput'],
+                ['label' => 'p95 latency', 'value' => $this->formatMetric($this->run->req_duration_p95_ms, 'ms'), 'hint' => '95th percentile'],
+                ['label' => 'p99 latency', 'value' => $this->formatMetric($this->run->req_duration_p99_ms, 'ms'), 'hint' => '99th percentile'],
+                ['label' => 'Error rate', 'value' => $this->formatMetric($this->run->error_rate, '%'), 'hint' => 'Failed requests'],
             ];
         @endphp
 
-        <div class="flex items-center justify-between">
-            <flux:text class="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Performance Metrics</flux:text>
-            <flux:text class="text-xs text-[#919191]">Aggregated run results</flux:text>
-        </div>
-
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            @foreach ($metricCards as $card)
-                <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
-                    <div class="flex flex-col rounded-xl bg-white pb-3.5 dark:bg-zinc-900">
-                        <div class="flex items-center gap-3 px-4 py-3.5">
-                            <div class="flex size-8 shrink-0 items-center justify-center rounded-lg {{ $card['color'] }} text-white">
-                                <flux:icon :name="$card['icon']" class="size-4" />
-                            </div>
-                            <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">{{ $card['label'] }}</flux:text>
-                        </div>
-                        <div class="px-4">
-                            <p class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ $card['value'] }}</p>
-                        </div>
-                    </div>
-                    <div class="px-4 py-2.5">
-                        <p class="text-xs text-[#919191] dark:text-zinc-400">{{ $card['hint'] }}</p>
-                    </div>
-                </div>
+        <div class="ui-panel grid grid-cols-2 gap-px overflow-hidden bg-zinc-200 sm:grid-cols-3 xl:grid-cols-6 [&>*]:bg-white">
+            @foreach ($metricStats as $stat)
+                <x-stat :label="$stat['label']" :value="$stat['value']" />
             @endforeach
         </div>
 
-        {{-- Response codes --}}
-        @php $codeSummary = $this->responseCodeSummary; @endphp
-        @if ($codeSummary && $codeSummary['total'] > 0)
-            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
-                <div class="flex items-center justify-between px-3 py-2.5">
-                    <div>
-                        <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Response Codes</flux:text>
-                        <p class="text-xs text-[#919191] dark:text-zinc-400">Distribution of HTTP status codes</p>
-                    </div>
-                </div>
-                <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
-                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        @foreach (['2xx' => ['label' => '2xx Success', 'color' => '#16a34a'], '3xx' => ['label' => '3xx Redirect', 'color' => '#ca8a04'], '4xx' => ['label' => '4xx Client Error', 'color' => '#ea580c'], '5xx' => ['label' => '5xx Server Error', 'color' => '#dc2626']] as $group => $codeGroup)
-                            @php $g = $codeSummary['groups'][$group] ?? ['count' => 0, 'percent' => 0]; @endphp
-                            <div class="flex flex-col gap-y-1">
-                                <flux:text class="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">{{ $codeGroup['label'] }}</flux:text>
-                                <div class="flex items-baseline gap-x-2">
-                                    <span class="text-2xl font-semibold tabular-nums" style="color: {{ $codeGroup['color'] }}">{{ number_format($g['count']) }}</span>
-                                    <flux:text class="text-sm text-zinc-500">{{ $g['percent'] }}%</flux:text>
-                                </div>
-                                <div class="mt-1 h-1.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800">
-                                    <div class="h-1.5 rounded-full" style="width: {{ max($g['percent'], 2) }}%; background-color: {{ $codeGroup['color'] }}"></div>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-        @endif
+        {{-- Response codes, checks, thresholds --}}
+        @php
+            $codeSummary = $this->responseCodeSummary;
+            $hasCodeSummary = $codeSummary && $codeSummary['total'] > 0;
+            $hasChecks = $this->run->checks_total !== null;
+        @endphp
 
-        {{-- Checks --}}
-        @if ($this->run->checks_total !== null)
+        @if ($hasCodeSummary || $hasChecks)
             @php
-                $checksCards = [
-                    ['label' => 'Total Checks', 'value' => $this->run->checks_total, 'icon' => 'document-text', 'color' => 'bg-blue-500', 'hint' => 'assertions evaluated'],
-                    ['label' => 'Failed', 'value' => $this->run->checks_failed ?? 0, 'icon' => 'x-mark', 'color' => 'bg-rose-500', 'hint' => 'assertions that failed'],
-                    ['label' => 'Passed', 'value' => $this->run->checks_total - ($this->run->checks_failed ?? 0), 'icon' => 'check', 'color' => 'bg-emerald-500', 'hint' => 'assertions that passed'],
+                $codeGroups = [
+                    '2xx' => ['label' => '2xx', 'color' => '#0ca30c'],
+                    '3xx' => ['label' => '3xx', 'color' => '#a1a1aa'],
+                    '4xx' => ['label' => '4xx', 'color' => '#fab219'],
+                    '5xx' => ['label' => '5xx', 'color' => '#d03b3b'],
                 ];
+                if ($hasChecks) {
+                    $checksFailed = $this->run->checks_failed ?? 0;
+                    $checksPassed = $this->run->checks_total - $checksFailed;
+                    $checksPassRate = $this->run->checks_total > 0 ? round(($checksPassed / $this->run->checks_total) * 100, 1) : 0;
+                }
             @endphp
 
-            <div class="flex items-center justify-between">
-                <flux:text class="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Checks</flux:text>
-                <flux:text class="text-xs text-[#919191]">Assertions evaluated during the run</flux:text>
-            </div>
-
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                @foreach ($checksCards as $card)
-                    <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
-                        <div class="flex flex-col rounded-xl bg-white pb-3.5 dark:bg-zinc-900">
-                            <div class="flex items-center gap-3 px-4 py-3.5">
-                                <div class="flex size-8 shrink-0 items-center justify-center rounded-lg {{ $card['color'] }} text-white">
-                                    <flux:icon :name="$card['icon']" class="size-4" />
-                                </div>
-                                <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">{{ $card['label'] }}</flux:text>
-                            </div>
-                            <div class="px-4">
-                                <p class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ $card['value'] }}</p>
-                            </div>
+            <section @class(['ui-panel grid grid-cols-1 divide-zinc-200 overflow-hidden max-lg:divide-y lg:divide-x', 'lg:grid-cols-2' => $hasCodeSummary && $hasChecks])>
+                @if ($hasCodeSummary)
+                    <div class="flex flex-col gap-3 p-4">
+                        <div class="flex items-baseline justify-between gap-3">
+                            <h2 class="ui-panel-title">Response codes</h2>
+                            <span class="text-xs text-zinc-500 tabular-nums">{{ number_format($codeSummary['total']) }} responses</span>
                         </div>
-                        <div class="px-4 py-2.5">
-                            <p class="text-xs text-[#919191] dark:text-zinc-400">{{ $card['hint'] }}</p>
+                        <div class="flex h-2 gap-0.5 overflow-hidden rounded-full bg-zinc-100">
+                            @foreach ($codeGroups as $group => $codeGroup)
+                                @php $percent = $codeSummary['groups'][$group]['percent'] ?? 0; @endphp
+                                @if ($percent > 0)
+                                    <div class="h-full" style="width: {{ $percent }}%; background-color: {{ $codeGroup['color'] }}"></div>
+                                @endif
+                            @endforeach
+                        </div>
+                        <div class="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                            @foreach ($codeGroups as $group => $codeGroup)
+                                @php $g = $codeSummary['groups'][$group] ?? ['count' => 0, 'percent' => 0]; @endphp
+                                <span @class(['flex items-center gap-1.5 tabular-nums', 'text-zinc-400' => $g['count'] === 0])>
+                                    <span class="size-2 rounded-[2px]" style="background-color: {{ $codeGroup['color'] }}"></span>
+                                    <span class="text-zinc-500">{{ $codeGroup['label'] }}</span>
+                                    <span @class(['font-medium', 'text-zinc-900' => $g['count'] > 0])>{{ number_format($g['count']) }}</span>
+                                </span>
+                            @endforeach
                         </div>
                     </div>
-                @endforeach
-            </div>
+                @endif
+
+                @if ($hasChecks)
+                    <div class="flex flex-col gap-3 p-4">
+                        <div class="flex items-baseline justify-between gap-3">
+                            <h2 class="ui-panel-title">Checks</h2>
+                            <span class="text-xs text-zinc-500 tabular-nums">{{ $checksPassRate }}% passed</span>
+                        </div>
+                        <div class="flex h-2 gap-0.5 overflow-hidden rounded-full bg-zinc-100">
+                            @if ($checksPassed > 0)
+                                <div class="h-full bg-emerald-600" style="width: {{ $checksPassRate }}%"></div>
+                            @endif
+                            @if ($checksFailed > 0)
+                                <div class="h-full bg-red-600" style="width: {{ 100 - $checksPassRate }}%"></div>
+                            @endif
+                        </div>
+                        <div class="flex flex-wrap gap-x-5 gap-y-1 text-sm tabular-nums">
+                            <span class="text-zinc-500">Passed <span class="font-medium text-zinc-900">{{ number_format($checksPassed) }}</span></span>
+                            <span class="text-zinc-500">Failed <span @class(['font-medium', 'text-red-700' => $checksFailed > 0, 'text-zinc-400' => $checksFailed === 0])>{{ number_format($checksFailed) }}</span></span>
+                            <span class="text-zinc-500">Total <span class="font-medium text-zinc-900">{{ number_format($this->run->checks_total) }}</span></span>
+                        </div>
+                    </div>
+                @endif
+            </section>
         @endif
 
         {{-- Thresholds --}}
         @if ($this->run->thresholds_summary !== null)
-            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
-                <div class="flex items-center justify-between px-3 py-2.5">
-                    <div>
-                        <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Thresholds</flux:text>
-                        <p class="text-xs text-[#919191] dark:text-zinc-400">Rate limiting and assertion thresholds</p>
-                    </div>
-                </div>
-                <div class="rounded-xl bg-white dark:bg-zinc-900">
-                    <div class="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-800">
-                        @foreach ($this->run->thresholds_summary as $threshold)
-                            @php
-                                $thresholdValue = $threshold['value'] ?? null;
-                                $thresholdName = $threshold['name'] ?? '';
-                                $thresholdCondition = $threshold['condition'] ?? null;
+            @php
+                $thresholdsPassed = collect($this->run->thresholds_summary)->filter(fn ($threshold) => $threshold['ok'] ?? false)->count();
+            @endphp
+            <section class="ui-panel overflow-hidden">
+                <header class="ui-panel-header">
+                    <h2 class="ui-panel-title">Thresholds</h2>
+                    <span class="text-xs text-zinc-500 tabular-nums">{{ $thresholdsPassed }} of {{ count($this->run->thresholds_summary) }} passed</span>
+                </header>
+                <div class="ui-list">
+                    @foreach ($this->run->thresholds_summary as $threshold)
+                        @php
+                            $thresholdValue = $threshold['value'] ?? null;
+                            $thresholdName = $threshold['name'] ?? '';
+                            $thresholdCondition = $threshold['condition'] ?? null;
 
-                                $valueLabel = null;
-                                if (is_numeric($thresholdValue)) {
-                                    $valueLabel = is_float($thresholdValue + 0)
-                                        ? number_format((float) $thresholdValue, 2)
-                                        : number_format((int) $thresholdValue);
-                                } elseif ($thresholdValue !== null) {
-                                    $valueLabel = (string) $thresholdValue;
-                                }
-                            @endphp
-                            <div class="flex items-center justify-between gap-x-4 px-4 py-3">
-                                <div class="flex min-w-0 flex-col">
-                                    <flux:text class="text-sm font-medium text-zinc-800 dark:text-zinc-200">{{ $thresholdName }}</flux:text>
-                                    @if ($thresholdCondition)
-                                        <flux:text class="text-xs text-zinc-500">{{ $thresholdCondition }}</flux:text>
-                                    @endif
-                                </div>
-                                <div class="flex shrink-0 items-center gap-x-3">
-                                    @if ($valueLabel !== null)
-                                        <flux:text class="text-xs text-zinc-500 tabular-nums">{{ $valueLabel }}</flux:text>
-                                    @endif
-                                    @if ($threshold['ok'])
-                                        <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                                            <flux:icon.check class="size-4" />
-                                            Passed
-                                        </span>
-                                    @else
-                                        <span class="inline-flex items-center gap-1.5 text-xs font-medium text-red-500">
-                                            <flux:icon.x-mark class="size-4" />
-                                            Failed
-                                        </span>
-                                    @endif
-                                </div>
+                            $valueLabel = null;
+                            if (is_numeric($thresholdValue)) {
+                                $valueLabel = is_float($thresholdValue + 0)
+                                    ? number_format((float) $thresholdValue, 2)
+                                    : number_format((int) $thresholdValue);
+                            } elseif ($thresholdValue !== null) {
+                                $valueLabel = (string) $thresholdValue;
+                            }
+                        @endphp
+                        <div class="ui-list-row justify-between gap-4">
+                            <div class="flex min-w-0 flex-col gap-0.5">
+                                <span class="truncate font-mono text-[13px] text-zinc-900">{{ $thresholdName }}</span>
+                                @if ($thresholdCondition)
+                                    <span class="truncate font-mono text-xs text-zinc-500">{{ $thresholdCondition }}</span>
+                                @endif
                             </div>
-                        @endforeach
-                    </div>
+                            <div class="flex shrink-0 items-center gap-3">
+                                @if ($valueLabel !== null)
+                                    <span class="text-sm text-zinc-700 tabular-nums">{{ $valueLabel }}</span>
+                                @endif
+                                <x-status-badge :status="$threshold['ok'] ? 'passed' : 'failed'" />
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
-            </div>
+            </section>
         @endif
 
         {{-- InfluxDB time-series charts --}}
         @php $metrics = $this->influxMetrics; @endphp
         @if ($metrics)
-            <div class="flex flex-col gap-y-4">
-                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <flux:text class="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Time-Series Charts</flux:text>
-                            <p class="text-xs text-[#919191]">
-                                @if ($this->selectedEndpoint)
-                                    @php
-                                        $activeGroup = $currentEndpointGroup ?? collect($this->endpoints)->firstWhere('pattern', $this->selectedEndpoint);
-                                        $activeLabel = $activeGroup['label'] ?? $this->selectedEndpoint;
-                                        $activeCount = $activeGroup['count'] ?? 1;
-                                    @endphp
-                                    Filtered to {{ $activeLabel }}{{ $activeCount > 1 ? ' (× '.$activeCount.')' : '' }} · VUs, Checks and Data Transfer are run-level only
-                                @else
-                                    Performance metrics sampled every 5 seconds
-                                @endif
-                            </p>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <flux:dropdown>
-                                <flux:button variant="subtle" size="sm" icon-trailing="chevron-down">
-                                    Charts
-                                </flux:button>
-                                <flux:menu>
-                                    <flux:menu.item wire:click="toggleExtraChart('timing')">
-                                        <div class="flex items-center gap-2">
-                                            <flux:icon :icon="$this->hasExtraChart('timing') ? 'check' : 'plus'" class="size-4" />
-                                            HTTP Timing
-                                        </div>
-                                    </flux:menu.item>
-                                    <flux:menu.item wire:click="toggleExtraChart('iteration-duration')">
-                                        <div class="flex items-center gap-2">
-                                            <flux:icon :icon="$this->hasExtraChart('iteration-duration') ? 'check' : 'plus'" class="size-4" />
-                                            Iteration Duration
-                                        </div>
-                                    </flux:menu.item>
-                                    <flux:menu.item wire:click="toggleExtraChart('iterations')">
-                                        <div class="flex items-center gap-2">
-                                            <flux:icon :icon="$this->hasExtraChart('iterations') ? 'check' : 'plus'" class="size-4" />
-                                            Iterations
-                                        </div>
-                                    </flux:menu.item>
-                                </flux:menu>
-                            </flux:dropdown>
-
-                            @if (! empty($this->endpoints))
+            <section class="flex flex-col gap-4">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div class="min-w-0">
+                        <h2 class="text-sm font-medium text-zinc-900">Time series</h2>
+                        <p class="mt-0.5 text-xs text-zinc-500">
+                            @if ($this->selectedEndpoint)
                                 @php
-                                    $currentEndpointGroup = collect($this->endpoints)->firstWhere('pattern', $this->selectedEndpoint);
+                                    $activeGroup = collect($this->endpoints)->firstWhere('pattern', $this->selectedEndpoint);
+                                    $activeLabel = $activeGroup['label'] ?? $this->selectedEndpoint;
+                                    $activeCount = $activeGroup['count'] ?? 1;
                                 @endphp
-                                <div
-                                    x-data="{
-                                        open: false,
-                                        search: '',
-                                        groups: @js(collect($this->endpoints)->map(fn ($group) => ['pattern' => $group['pattern'], 'label' => $group['label'], 'count' => $group['count']])->values()),
-                                        selected: @js($this->selectedEndpoint),
-                                        get current() { return this.groups.find((g) => g.pattern === this.selected) ?? null; },
-                                        get filtered() {
-                                            const q = this.search.trim().toLowerCase();
-                                            if (q === '') return this.groups;
-                                            return this.groups.filter((g) => g.label.toLowerCase().includes(q) || g.pattern.toLowerCase().includes(q));
-                                        },
-                                        get visible() { return this.filtered.slice(0, 100); },
-                                        pick(pattern) {
-                                            this.selected = pattern;
-                                            $wire.set('selectedEndpoint', pattern);
-                                            this.open = false;
-                                            this.search = '';
-                                        },
-                                    }"
-                                    @keydown.escape.window="open = false"
-                                    class="relative w-72"
-                                    wire:key="endpoint-filter"
+                                Filtered to <span class="font-mono text-zinc-700">{{ $activeLabel }}</span>{{ $activeCount > 1 ? ' (× '.$activeCount.')' : '' }}. VUs, checks and data transfer are run-level only.
+                            @else
+                                Sampled every 5 seconds.
+                            @endif
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <flux:dropdown position="bottom" align="end">
+                            <flux:button size="sm" icon-trailing="chevron-down">Charts</flux:button>
+                            <flux:menu>
+                                <flux:menu.item wire:click="toggleExtraChart('timing')">
+                                    <div class="flex items-center gap-2">
+                                        <flux:icon :icon="$this->hasExtraChart('timing') ? 'check' : 'plus'" variant="micro" class="text-zinc-500" />
+                                        HTTP timing
+                                    </div>
+                                </flux:menu.item>
+                                <flux:menu.item wire:click="toggleExtraChart('iteration-duration')">
+                                    <div class="flex items-center gap-2">
+                                        <flux:icon :icon="$this->hasExtraChart('iteration-duration') ? 'check' : 'plus'" variant="micro" class="text-zinc-500" />
+                                        Iteration duration
+                                    </div>
+                                </flux:menu.item>
+                                <flux:menu.item wire:click="toggleExtraChart('iterations')">
+                                    <div class="flex items-center gap-2">
+                                        <flux:icon :icon="$this->hasExtraChart('iterations') ? 'check' : 'plus'" variant="micro" class="text-zinc-500" />
+                                        Iterations
+                                    </div>
+                                </flux:menu.item>
+                            </flux:menu>
+                        </flux:dropdown>
+
+                        @if (! empty($this->endpoints))
+                            @php
+                                $currentEndpointGroup = collect($this->endpoints)->firstWhere('pattern', $this->selectedEndpoint);
+                            @endphp
+                            <div
+                                x-data="{
+                                    open: false,
+                                    search: '',
+                                    groups: @js(collect($this->endpoints)->map(fn ($group) => ['pattern' => $group['pattern'], 'label' => $group['label'], 'count' => $group['count']])->values()),
+                                    selected: @js($this->selectedEndpoint),
+                                    get current() { return this.groups.find((g) => g.pattern === this.selected) ?? null; },
+                                    get filtered() {
+                                        const q = this.search.trim().toLowerCase();
+                                        if (q === '') return this.groups;
+                                        return this.groups.filter((g) => g.label.toLowerCase().includes(q) || g.pattern.toLowerCase().includes(q));
+                                    },
+                                    get visible() { return this.filtered.slice(0, 100); },
+                                    pick(pattern) {
+                                        this.selected = pattern;
+                                        $wire.set('selectedEndpoint', pattern);
+                                        this.open = false;
+                                        this.search = '';
+                                    },
+                                }"
+                                @keydown.escape.window="open = false"
+                                class="relative w-72"
+                                wire:key="endpoint-filter"
+                            >
+                                <button
+                                    type="button"
+                                    x-on:click="open = !open; if (open) $nextTick(() => $refs.search.focus())"
+                                    :aria-expanded="open.toString()"
+                                    aria-label="Filter by endpoint"
+                                    class="flex h-8 w-full items-center gap-2 rounded-lg border border-zinc-200 bg-white px-2.5 text-left text-sm text-zinc-900 shadow-xs transition-colors hover:bg-zinc-50"
                                 >
-                                    <flux:text class="mb-1 block text-[11px] font-medium tracking-wide text-zinc-500 uppercase">Endpoint</flux:text>
-                                    <button
-                                        type="button"
-                                        x-on:click="open = !open; if (open) $nextTick(() => $refs.search.focus())"
-                                        class="flex h-10 w-full items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-left text-sm text-zinc-900 shadow-xs transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
-                                    >
-                                        <flux:icon.globe-alt class="size-4 shrink-0 text-zinc-400" />
-                                        <span class="min-w-0 flex-1 truncate" x-text="current ? current.label : 'All endpoints'">{{ $currentEndpointGroup['label'] ?? 'All endpoints' }}</span>
-                                        <span x-show="current && current.count > 1" x-text="'× ' + current?.count" class="shrink-0 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[11px] font-medium text-zinc-500 tabular-nums dark:bg-zinc-800 dark:text-zinc-400"></span>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="shrink-0 text-zinc-400 transition-transform duration-200"
-                                            :style="open ? 'transform: rotate(180deg)' : 'transform: rotate(0deg)'">
-                                            <path d="M6 9l6 6 6-6" />
-                                        </svg>
-                                    </button>
-                                    <div
-                                        x-show="open"
-                                        x-cloak
-                                        x-on:click.outside="open = false"
-                                        class="absolute right-0 z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
-                                    >
-                                        <div class="border-b border-zinc-100 p-2 dark:border-zinc-800">
-                                            <input
-                                                x-ref="search"
-                                                x-model="search"
-                                                type="text"
-                                                placeholder="Search endpoints…"
-                                                class="w-full rounded-lg bg-zinc-100 px-2.5 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500"
-                                            />
-                                        </div>
-                                        <ul class="max-h-64 overflow-y-auto p-1">
+                                    <flux:icon.globe-alt variant="micro" class="shrink-0 text-zinc-400" />
+                                    <span class="min-w-0 flex-1 truncate" x-text="current ? current.label : 'All endpoints'">{{ $currentEndpointGroup['label'] ?? 'All endpoints' }}</span>
+                                    <span x-show="current && current.count > 1" x-text="'× ' + current?.count" class="shrink-0 rounded-md bg-zinc-100 px-1.5 text-[11px] font-medium text-zinc-500 tabular-nums"></span>
+                                    <flux:icon.chevron-down
+                                        variant="micro"
+                                        class="shrink-0 text-zinc-400 transition-transform duration-200 ease-snappy"
+                                        x-bind:class="open ? 'rotate-180' : 'rotate-0'"
+                                    />
+                                </button>
+                                <div
+                                    x-show="open"
+                                    x-cloak
+                                    x-on:click.outside="open = false"
+                                    x-transition:enter="transition ease-snappy duration-200"
+                                    x-transition:enter-start="opacity-0 scale-[0.97]"
+                                    x-transition:enter-end="opacity-100 scale-100"
+                                    x-transition:leave="transition ease-out duration-100"
+                                    x-transition:leave-start="opacity-100"
+                                    x-transition:leave-end="opacity-0"
+                                    class="absolute right-0 z-50 mt-1.5 w-full origin-top-right overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg shadow-zinc-900/5"
+                                >
+                                    <div class="border-b border-zinc-100 p-1.5">
+                                        <input
+                                            x-ref="search"
+                                            x-model="search"
+                                            type="text"
+                                            placeholder="Search endpoints…"
+                                            class="ui-input h-8 text-xs shadow-none"
+                                        />
+                                    </div>
+                                    <ul class="max-h-64 overflow-y-auto p-1">
+                                        <li>
+                                            <button
+                                                type="button"
+                                                x-on:click="pick('')"
+                                                class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-zinc-700 transition-colors hover:bg-zinc-100"
+                                            >
+                                                <span class="min-w-0 flex-1 truncate">All endpoints</span>
+                                                <flux:icon.check x-show="!current" variant="micro" class="shrink-0 text-zinc-900" />
+                                            </button>
+                                        </li>
+                                        <template x-for="group in visible" :key="group.pattern">
                                             <li>
                                                 <button
                                                     type="button"
-                                                    x-on:click="pick('')"
-                                                    class="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                                                    x-on:click="pick(group.pattern)"
+                                                    :title="group.pattern"
+                                                    class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-zinc-700 transition-colors hover:bg-zinc-100"
                                                 >
-                                                    <span class="min-w-0 flex-1 truncate">All endpoints</span>
-                                                    <svg x-show="!current" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-emerald-500">
-                                                        <path d="M20 6L9 17l-5-5" />
-                                                    </svg>
+                                                    <span class="min-w-0 flex-1 truncate font-mono" x-text="group.label"></span>
+                                                    <span x-show="group.count > 1" x-text="'× ' + group.count" class="shrink-0 rounded-md bg-zinc-100 px-1.5 text-[11px] font-medium text-zinc-500 tabular-nums"></span>
+                                                    <flux:icon.check x-show="current && current.pattern === group.pattern" variant="micro" class="shrink-0 text-zinc-900" />
                                                 </button>
                                             </li>
-                                            <template x-for="group in visible" :key="group.pattern">
-                                                <li>
-                                                    <button
-                                                        type="button"
-                                                        x-on:click="pick(group.pattern)"
-                                                        :title="group.pattern"
-                                                        class="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                                                    >
-                                                        <span class="min-w-0 flex-1 truncate font-mono" x-text="group.label"></span>
-                                                        <span x-show="group.count > 1" x-text="'× ' + group.count" class="shrink-0 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10.5px] font-medium text-zinc-500 tabular-nums dark:bg-zinc-800 dark:text-zinc-400"></span>
-                                                        <svg x-show="current && current.pattern === group.pattern" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-emerald-500">
-                                                            <path d="M20 6L9 17l-5-5" />
-                                                        </svg>
-                                                    </button>
-                                                </li>
-                                            </template>
-                                            <li x-show="filtered.length === 0" class="px-3 py-2 text-xs text-zinc-400">
-                                                No endpoints match.
-                                            </li>
-                                            <li x-show="filtered.length > visible.length" class="px-3 py-2 text-[11px] text-zinc-400 tabular-nums">
-                                                Showing <span x-text="visible.length"></span> of <span x-text="filtered.length"></span> — refine search to narrow down.
-                                            </li>
-                                        </ul>
-                                    </div>
+                                        </template>
+                                        <li x-show="filtered.length === 0" class="px-2 py-1.5 text-xs text-zinc-500">
+                                            No endpoints match.
+                                        </li>
+                                        <li x-show="filtered.length > visible.length" class="px-2 py-1.5 text-xs text-zinc-500 tabular-nums">
+                                            Showing <span x-text="visible.length"></span> of <span x-text="filtered.length"></span>. Refine the search to narrow down.
+                                        </li>
+                                    </ul>
                                 </div>
-                            @endif
-                        </div>
+                            </div>
+                        @endif
                     </div>
+                </div>
 
                 @if ($this->selectedEndpoint)
                     @php $summary = $this->selectedEndpointSummary; @endphp
                     @if ($summary)
-                        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
-                                <div class="flex flex-col rounded-xl bg-white pb-3.5 dark:bg-zinc-900">
-                                    <div class="flex items-center gap-3 px-4 py-3.5">
-                                        <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-500 text-white">
-                                            <flux:icon.globe-alt class="size-4" />
-                                        </div>
-                                        <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">Total Requests</flux:text>
-                                    </div>
-                                    <div class="px-4">
-                                        <p class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ $this->formatMetric($summary['total_requests']) }}</p>
-                                    </div>
-                                </div>
-                                <div class="px-4 py-2.5">
-                                    <p class="text-xs text-[#919191] dark:text-zinc-400">hits on this endpoint</p>
-                                </div>
-                            </div>
-                            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
-                                <div class="flex flex-col rounded-xl bg-white pb-3.5 dark:bg-zinc-900">
-                                    <div class="flex items-center gap-3 px-4 py-3.5">
-                                        <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sky-500 text-white">
-                                            <flux:icon.clock class="size-4" />
-                                        </div>
-                                        <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">P95 Duration</flux:text>
-                                    </div>
-                                    <div class="px-4">
-                                        <p class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ $this->formatMetric($summary['p95_ms'], 'ms') }}</p>
-                                    </div>
-                                </div>
-                                <div class="px-4 py-2.5">
-                                    <p class="text-xs text-[#919191] dark:text-zinc-400">95th percentile latency</p>
-                                </div>
-                            </div>
-                            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
-                                <div class="flex flex-col rounded-xl bg-white pb-3.5 dark:bg-zinc-900">
-                                    <div class="flex items-center gap-3 px-4 py-3.5">
-                                        <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-rose-500 text-white">
-                                            <flux:icon.clock class="size-4" />
-                                        </div>
-                                        <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">P99 Duration</flux:text>
-                                    </div>
-                                    <div class="px-4">
-                                        <p class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ $this->formatMetric($summary['p99_ms'], 'ms') }}</p>
-                                    </div>
-                                </div>
-                                <div class="px-4 py-2.5">
-                                    <p class="text-xs text-[#919191] dark:text-zinc-400">99th percentile latency</p>
-                                </div>
-                            </div>
-                            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80">
-                                <div class="flex flex-col rounded-xl bg-white pb-3.5 dark:bg-zinc-900">
-                                    <div class="flex items-center gap-3 px-4 py-3.5">
-                                        <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white">
-                                            <flux:icon.exclamation-triangle class="size-4" />
-                                        </div>
-                                        <flux:text class="text-xs font-medium tracking-wide text-zinc-500 uppercase">Error Rate</flux:text>
-                                    </div>
-                                    <div class="px-4">
-                                        <p class="text-2xl font-semibold text-zinc-900 dark:text-white">{{ $this->formatMetric($summary['error_rate_percent'], '%') }}</p>
-                                    </div>
-                                </div>
-                                <div class="px-4 py-2.5">
-                                    <p class="text-xs text-[#919191] dark:text-zinc-400">failed requests on this endpoint</p>
-                                </div>
-                            </div>
+                        <div class="ui-panel grid grid-cols-2 gap-px overflow-hidden bg-zinc-200 lg:grid-cols-4 [&>*]:bg-white">
+                            <x-stat label="Total requests" :value="$summary['total_requests'] !== null ? number_format($summary['total_requests']) : 'N/A'" hint="Hits on this endpoint" />
+                            <x-stat label="p95 latency" :value="$this->formatMetric($summary['p95_ms'], 'ms')" hint="95th percentile" />
+                            <x-stat label="p99 latency" :value="$this->formatMetric($summary['p99_ms'], 'ms')" hint="99th percentile" />
+                            <x-stat label="Error rate" :value="$this->formatMetric($summary['error_rate_percent'], '%')" hint="Failed requests on this endpoint" />
                         </div>
                     @endif
                 @endif
 
                 @php $hasChartData = ! empty($metrics['request_rate']['labels']); @endphp
                 @if ($hasChartData)
+                    @php
+                        $isRunLevelView = $this->selectedEndpoint === null || $this->selectedEndpoint === '';
+                        $chartPanels = [];
+
+                        if ($isRunLevelView) {
+                            $chartPanels[] = ['key' => 'vus-chart', 'title' => 'Active VUs', 'unit' => 'Virtual users', 'component' => 'runVusChart', 'data' => $metrics['vus'] ?? ['labels' => [], 'values' => []], 'hash' => $metrics['vus'] ?? []];
+                        }
+
+                        $chartPanels[] = ['key' => 'request-rate-chart', 'title' => 'Request rate', 'unit' => 'req/s', 'component' => 'runRequestRateChart', 'data' => $metrics['request_rate'] ?? ['labels' => [], 'values' => []], 'hash' => $metrics['request_rate'] ?? []];
+                        $chartPanels[] = ['key' => 'response-time-chart', 'title' => 'Response time', 'unit' => 'ms', 'component' => 'runResponseTimeChart', 'data' => $metrics['response_time'] ?? ['labels' => [], 'p95' => [], 'p99' => []], 'hash' => $metrics['response_time'] ?? []];
+                        $chartPanels[] = ['key' => 'error-rate-chart', 'title' => 'Error rate', 'unit' => '%', 'component' => 'runErrorRateChart', 'data' => $metrics['error_rate'] ?? ['labels' => [], 'values' => []], 'hash' => $metrics['error_rate'] ?? []];
+                        $chartPanels[] = ['key' => 'response-codes-chart', 'title' => 'Response codes', 'unit' => 'Responses', 'component' => 'runResponseCodesChart', 'data' => $metrics['response_codes'] ?? ['labels' => [], '2xx' => [], '3xx' => [], '4xx' => [], '5xx' => []], 'hash' => $metrics['response_codes'] ?? []];
+
+                        if ($this->hasExtraChart('timing')) {
+                            $timing = $this->httpTiming;
+
+                            if ($timing && ! empty($timing['labels'])) {
+                                $chartPanels[] = ['key' => 'http-timing-chart', 'title' => 'HTTP timing', 'unit' => 'ms, stacked', 'component' => 'runHttpTimingChart', 'data' => $timing, 'hash' => $timing];
+                            }
+                        }
+
+                        if ($isRunLevelView) {
+                            $chartPanels[] = ['key' => 'checks-chart', 'title' => 'Checks', 'unit' => 'Per interval', 'component' => 'runChecksChart', 'data' => $metrics['checks'] ?? ['labels' => [], 'passed' => [], 'failed' => []], 'hash' => $metrics['checks'] ?? []];
+                            $chartPanels[] = ['key' => 'data-transfer-chart', 'title' => 'Data transfer', 'unit' => 'Bytes', 'component' => 'runDataTransferChart', 'data' => $metrics['data_transfer'] ?? ['labels' => [], 'sent' => [], 'received' => []], 'hash' => $metrics['data_transfer'] ?? []];
+
+                            if ($this->hasExtraChart('iteration-duration')) {
+                                $iterationDuration = $this->iterationDuration;
+
+                                if ($iterationDuration && ! empty($iterationDuration['labels'])) {
+                                    $chartPanels[] = ['key' => 'iteration-duration-chart', 'title' => 'Iteration duration', 'unit' => 'ms', 'component' => 'runIterationDurationChart', 'data' => $iterationDuration, 'hash' => $iterationDuration];
+                                }
+                            }
+
+                            if ($this->hasExtraChart('iterations')) {
+                                $iterations = $this->iterations;
+
+                                if ($iterations && ! empty($iterations['labels'])) {
+                                    $chartPanels[] = ['key' => 'iterations-chart', 'title' => 'Iterations', 'unit' => 'Per interval', 'component' => 'runIterationsChart', 'data' => $iterations, 'hash' => $iterations];
+                                }
+                            }
+                        }
+                    @endphp
+
                     <div
-                        class="grid grid-cols-1 gap-4 lg:grid-cols-2"
-                        @if ($this->isActive()) wire:poll.5s @endif
+                        class="grid grid-cols-1 gap-6 lg:grid-cols-2"
+                        @if ($isRunActive) wire:poll.5s @endif
                     >
-                        @if ($this->selectedEndpoint === null || $this->selectedEndpoint === '')
-                            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
-                                <div class="flex items-center justify-between px-3 py-2.5">
-                                    <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Active VUs</flux:text>
-                                </div>
-                                <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
+                        @foreach ($chartPanels as $chartPanel)
+                            <section class="ui-panel" wire:key="panel-{{ $chartPanel['key'] }}">
+                                <header class="ui-panel-header">
+                                    <h2 class="ui-panel-title">{{ $chartPanel['title'] }}</h2>
+                                    <span class="text-xs text-zinc-500">{{ $chartPanel['unit'] }}</span>
+                                </header>
+                                <div class="p-4">
                                     <div
-                                        wire:key="vus-chart-{{ md5(json_encode($metrics['vus'] ?? [])) }}"
+                                        wire:key="{{ $chartPanel['key'] }}-{{ md5(json_encode($chartPanel['hash'])) }}"
                                         wire:ignore
-                                        x-data="runVusChart(@js($metrics['vus'] ?? ['labels' => [], 'values' => []]))"
+                                        x-data="{{ $chartPanel['component'] }}(@js($chartPanel['data']))"
                                         class="relative h-56"
                                     >
-                                        <canvas x-ref="canvas"></canvas>
+                                        <canvas x-ref="canvas" role="img" aria-label="{{ $chartPanel['title'] }} over the run"></canvas>
                                         <x-chart-tooltip />
                                     </div>
                                 </div>
-                            </div>
-                        @endif
-
-                        <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
-                            <div class="flex items-center justify-between px-3 py-2.5">
-                                <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Request Rate</flux:text>
-                            </div>
-                            <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
-                                <div
-                                    wire:key="request-rate-chart-{{ md5(json_encode($metrics['request_rate'] ?? [])) }}"
-                                    wire:ignore
-                                    x-data="runRequestRateChart(@js($metrics['request_rate'] ?? ['labels' => [], 'values' => []]))"
-                                    class="relative h-56"
-                                >
-                                    <canvas x-ref="canvas"></canvas>
-                                    <x-chart-tooltip />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
-                            <div class="flex items-center justify-between px-3 py-2.5">
-                                <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Response Time</flux:text>
-                            </div>
-                            <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
-                                <div
-                                    wire:key="response-time-chart-{{ md5(json_encode($metrics['response_time'] ?? [])) }}"
-                                    wire:ignore
-                                    x-data="runResponseTimeChart(@js($metrics['response_time'] ?? ['labels' => [], 'p95' => [], 'p99' => []]))"
-                                    class="relative h-56"
-                                >
-                                    <canvas x-ref="canvas"></canvas>
-                                    <x-chart-tooltip />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
-                            <div class="flex items-center justify-between px-3 py-2.5">
-                                <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Error Rate</flux:text>
-                            </div>
-                            <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
-                                <div
-                                    wire:key="error-rate-chart-{{ md5(json_encode($metrics['error_rate'] ?? [])) }}"
-                                    wire:ignore
-                                    x-data="runErrorRateChart(@js($metrics['error_rate'] ?? ['labels' => [], 'values' => []]))"
-                                    class="relative h-56"
-                                >
-                                    <canvas x-ref="canvas"></canvas>
-                                    <x-chart-tooltip />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
-                            <div class="flex items-center justify-between px-3 py-2.5">
-                                <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Response Codes</flux:text>
-                            </div>
-                            <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
-                                <div
-                                    wire:key="response-codes-chart-{{ md5(json_encode($metrics['response_codes'] ?? [])) }}"
-                                    wire:ignore
-                                    x-data="runResponseCodesChart(@js($metrics['response_codes'] ?? ['labels' => [], '2xx' => [], '3xx' => [], '4xx' => [], '5xx' => []]))"
-                                    class="relative h-56"
-                                >
-                                    <canvas x-ref="canvas"></canvas>
-                                    <x-chart-tooltip />
-                                </div>
-                            </div>
-                        </div>
-
-                        @if ($this->hasExtraChart('timing'))
-                            @php $timing = $this->httpTiming; @endphp
-                            @if ($timing && ! empty($timing['labels']))
-                                <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
-                                    <div class="flex items-center justify-between px-3 py-2.5">
-                                        <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">HTTP Timing</flux:text>
-                                    </div>
-                                    <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
-                                        <div
-                                            wire:key="http-timing-chart-{{ md5(json_encode($timing)) }}"
-                                            wire:ignore
-                                            x-data="runHttpTimingChart(@js($timing))"
-                                            class="relative h-56"
-                                        >
-                                            <canvas x-ref="canvas"></canvas>
-                                            <x-chart-tooltip />
-                                        </div>
-                                    </div>
-                                </div>
-                            @endif
-                        @endif
-
-                        @if ($this->selectedEndpoint === null || $this->selectedEndpoint === '')
-                            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
-                                <div class="flex items-center justify-between px-3 py-2.5">
-                                    <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Checks</flux:text>
-                                </div>
-                                <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
-                                    <div
-                                        wire:key="checks-chart-{{ md5(json_encode($metrics['checks'] ?? [])) }}"
-                                        wire:ignore
-                                        x-data="runChecksChart(@js($metrics['checks'] ?? ['labels' => [], 'passed' => [], 'failed' => []]))"
-                                        class="relative h-56"
-                                    >
-                                        <canvas x-ref="canvas"></canvas>
-                                        <x-chart-tooltip />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
-                                <div class="flex items-center justify-between px-3 py-2.5">
-                                    <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Data Transfer</flux:text>
-                                </div>
-                                <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
-                                    <div
-                                        wire:key="data-transfer-chart-{{ md5(json_encode($metrics['data_transfer'] ?? [])) }}"
-                                        wire:ignore
-                                        x-data="runDataTransferChart(@js($metrics['data_transfer'] ?? ['labels' => [], 'sent' => [], 'received' => []]))"
-                                        class="relative h-56"
-                                    >
-                                        <canvas x-ref="canvas"></canvas>
-                                        <x-chart-tooltip />
-                                    </div>
-                                </div>
-                            </div>
-
-                            @if ($this->hasExtraChart('iteration-duration'))
-                                @php $iterationDuration = $this->iterationDuration; @endphp
-                                @if ($iterationDuration && ! empty($iterationDuration['labels']))
-                                    <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
-                                        <div class="flex items-center justify-between px-3 py-2.5">
-                                            <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Iteration Duration</flux:text>
-                                        </div>
-                                        <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
-                                            <div
-                                                wire:key="iteration-duration-chart-{{ md5(json_encode($iterationDuration)) }}"
-                                                wire:ignore
-                                                x-data="runIterationDurationChart(@js($iterationDuration))"
-                                                class="relative h-56"
-                                            >
-                                                <canvas x-ref="canvas"></canvas>
-                                                <x-chart-tooltip />
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endif
-                            @endif
-
-                            @if ($this->hasExtraChart('iterations'))
-                                @php $iterations = $this->iterations; @endphp
-                                @if ($iterations && ! empty($iterations['labels']))
-                                    <div class="overflow-hidden rounded-xl border border-[#EDEDED] dark:border-zinc-800 bg-[#F1F1F1] dark:bg-zinc-800/80 p-2">
-                                        <div class="flex items-center justify-between px-3 py-2.5">
-                                            <flux:text class="text-xs font-semibold tracking-wide text-zinc-600 dark:text-zinc-300 uppercase">Iterations</flux:text>
-                                        </div>
-                                        <div class="rounded-xl bg-white p-4 dark:bg-zinc-900">
-                                            <div
-                                                wire:key="iterations-chart-{{ md5(json_encode($iterations)) }}"
-                                                wire:ignore
-                                                x-data="runIterationsChart(@js($iterations))"
-                                                class="relative h-56"
-                                            >
-                                                <canvas x-ref="canvas"></canvas>
-                                                <x-chart-tooltip />
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endif
-                            @endif
-                        @endif
+                            </section>
+                        @endforeach
                     </div>
                 @else
-                    <div class="flex flex-col items-center justify-center gap-y-3 rounded-xl border border-[#EDEDED] bg-[#F1F1F1] py-14 dark:border-zinc-800 dark:bg-zinc-800/80">
-                        <div class="flex size-12 items-center justify-center rounded-lg bg-blue-50 text-blue-500 dark:bg-zinc-800">
-                            <flux:icon.chart-bar class="size-6" />
-                        </div>
-                        <flux:text class="text-sm text-zinc-500 dark:text-zinc-400">No time-series data available for this run.</flux:text>
+                    <div class="ui-panel">
+                        <x-empty-state icon="chart-bar" title="No time-series data" description="InfluxDB has no samples recorded for this run." />
                     </div>
                 @endif
-            </div>
+            </section>
         @endif
     @endif
 
     {{-- Waiting for run --}}
     @if ($this->run->status === 'queued' || $this->run->status === 'running')
-        <div class="flex flex-col items-center justify-center gap-y-3 rounded-xl border border-[#EDEDED] bg-[#F1F1F1] py-16 dark:border-zinc-800 dark:bg-zinc-800/80" wire:poll.5s>
+        <div class="ui-panel flex flex-col items-center justify-center gap-4 px-6 py-14 text-center" wire:poll.5s>
             <x-plowing-bull />
-            <flux:text class="text-zinc-500 dark:text-zinc-400">Plowing through your test run...</flux:text>
+            <div>
+                <p class="text-sm font-medium text-zinc-900">Plowing through your test run…</p>
+                <p class="mt-1 text-sm text-zinc-500">Metrics and charts appear here when the run finishes.</p>
+            </div>
         </div>
     @endif
 
     {{-- Footer actions --}}
-    <div class="flex gap-x-2">
-        <flux:button wire:navigate :href="route('projects.runs', ['project' => $this->project])">
-            Back to Runs
+    <div class="flex gap-2">
+        <flux:button wire:navigate :href="route('projects.runs', ['project' => $this->project])" size="sm" icon="arrow-left">
+            Back to runs
         </flux:button>
-        <flux:button wire:navigate :href="route('projects.view-test-script', ['project' => $this->project, 'test' => $this->run->script->test, 'script' => $this->run->script])">
-            View Script
+        <flux:button wire:navigate :href="route('projects.view-test-script', ['project' => $this->project, 'test' => $runTest, 'script' => $runScript])" variant="ghost" size="sm">
+            View script
         </flux:button>
     </div>
 

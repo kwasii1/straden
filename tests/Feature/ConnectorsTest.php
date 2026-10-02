@@ -217,7 +217,7 @@ test('git providers page is accessible', function () {
     $this->actingAs($user)
         ->get(route('projects.git-providers', ['project' => $project]))
         ->assertOk()
-        ->assertSee('Git Providers');
+        ->assertSee('Git providers');
 });
 
 test('ai providers page is accessible', function () {
@@ -227,7 +227,7 @@ test('ai providers page is accessible', function () {
     $this->actingAs($user)
         ->get(route('settings.ai-integrations'))
         ->assertOk()
-        ->assertSee('AI Integrations');
+        ->assertSee('AI integrations');
 });
 
 test('git providers list shows empty state', function () {
@@ -236,7 +236,7 @@ test('git providers list shows empty state', function () {
 
     Livewire::actingAs($user)
         ->test('pages::dashboard.git-providers', ['project' => $project])
-        ->assertSee('No Git Providers Connected');
+        ->assertSee('No git providers connected');
 });
 
 test('git providers list shows connected providers', function () {

@@ -1,5 +1,14 @@
-<div class="relative mb-6 w-full">
-    <flux:heading size="xl" level="1">{{ __('Settings') }}</flux:heading>
-    <flux:subheading size="lg" class="mb-6">{{ __('Manage your profile and account settings') }}</flux:subheading>
-    <flux:separator variant="subtle" />
-</div>
+@php
+    $backUrl ??= null;
+@endphp
+
+<x-page-header :title="__('Settings')" :description="__('Manage your account, access tokens and this Straden instance.')">
+    @if ($backUrl)
+        <x-slot:breadcrumbs>
+            <a href="{{ $backUrl }}" wire:navigate class="inline-flex items-center gap-1 text-zinc-500 transition-colors duration-150 hover:text-zinc-900">
+                <flux:icon.arrow-left variant="micro" />
+                {{ __('Back') }}
+            </a>
+        </x-slot:breadcrumbs>
+    @endif
+</x-page-header>

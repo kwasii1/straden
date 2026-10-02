@@ -25,17 +25,9 @@ document.addEventListener('alpine:init', () => {
                     existing.destroy();
                 }
 
-                const ctx = canvas.getContext('2d');
+                const { series, ink } = window.StradenCharts;
 
-                const gP95 = ctx.createLinearGradient(0, 0, 0, 240);
-                gP95.addColorStop(0, 'rgba(2, 132, 199, 0.18)');
-                gP95.addColorStop(1, 'rgba(2, 132, 199, 0.0)');
-
-                const gP99 = ctx.createLinearGradient(0, 0, 0, 240);
-                gP99.addColorStop(0, 'rgba(244, 63, 94, 0.14)');
-                gP99.addColorStop(1, 'rgba(244, 63, 94, 0.0)');
-
-                chart = new Chart(ctx, {
+                chart = new Chart(canvas.getContext('2d'), {
                     type: 'line',
 
                     data: {
@@ -45,24 +37,22 @@ document.addEventListener('alpine:init', () => {
                             {
                                 label: 'p95 (ms)',
                                 data: payload.p95,
-                                borderColor: '#0284c7',
-                                backgroundColor: gP95,
-                                borderWidth: 2,
-                                fill: true,
-                                tension: 0.35,
-                                pointRadius: 0,
-                                pointHoverRadius: 4,
+                                borderColor: series[0],
+                                backgroundColor: series[0],
+                                pointBackgroundColor: series[0],
+                                pointHoverBorderColor: ink.surface,
+                                pointHoverBorderWidth: 2,
+                                fill: false,
                             },
                             {
                                 label: 'p99 (ms)',
                                 data: payload.p99,
-                                borderColor: '#f43f5e',
-                                backgroundColor: gP99,
-                                borderWidth: 2,
-                                fill: true,
-                                tension: 0.35,
-                                pointRadius: 0,
-                                pointHoverRadius: 4,
+                                borderColor: series[1],
+                                backgroundColor: series[1],
+                                pointBackgroundColor: series[1],
+                                pointHoverBorderColor: ink.surface,
+                                pointHoverBorderWidth: 2,
+                                fill: false,
                             },
                         ],
                     },
@@ -79,12 +69,9 @@ document.addEventListener('alpine:init', () => {
                         scales: {
                             y: {
                                 beginAtZero: true,
-                                grid: {
-                                    color: 'rgba(161, 161, 170, 0.1)',
-                                },
+                                border: { display: false },
                                 ticks: {
-                                    color: '#a1a1aa',
-                                    font: { size: 11 },
+                                    maxTicksLimit: 5,
                                     callback: (value) => {
                                         const number = Number(value);
 
@@ -102,30 +89,16 @@ document.addEventListener('alpine:init', () => {
                             },
                             x: {
                                 grid: { display: false },
-                                ticks: {
-                                    color: '#a1a1aa',
-                                    font: { size: 11 },
-                                    maxTicksLimit: 8,
-                                },
+                                border: { display: false },
+                                ticks: { maxTicksLimit: 8 },
                             },
                         },
 
                         plugins: {
-                            legend: {
-                                display: true,
-                                position: 'bottom',
-                                labels: {
-                                    padding: 12,
-                                    usePointStyle: true,
-                                    pointStyle: 'line',
-                                    color: '#a1a1aa',
-                                },
-                            },
+                            legend: { position: 'bottom', align: 'start' },
                             tooltip: {
                                 enabled: false,
-                                external: (context) => {
-                                    this.externalTooltip(context);
-                                },
+                                external: (context) => this.externalTooltip(context),
                             },
                         },
                     },
@@ -145,7 +118,7 @@ document.addEventListener('alpine:init', () => {
                 this.tooltip = {
                     show: true,
                     x: tooltipModel.caretX,
-                    y: tooltipModel.caretY - 12,
+                    y: tooltipModel.caretY,
                     label: points[0]?.label ?? '',
                     rows: points.map((p) => ({
                         label: p.dataset.label,
