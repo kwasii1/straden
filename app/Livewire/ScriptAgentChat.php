@@ -17,6 +17,7 @@ use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Models\Conversation;
 use Laravel\Ai\Models\ConversationMessage;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
 
 class ScriptAgentChat extends Component
@@ -109,7 +110,7 @@ class ScriptAgentChat extends Component
 
         if ($this->selectedProvider === null) {
             $this->selectedModel = null;
-        } elseif (! in_array($this->selectedModel, $this->availableModels, true)) {
+        } elseif (! AvailableModelMap::isKnownModel($this->selectedProvider, $this->selectedModel)) {
             $this->selectedModel = $this->availableModels[0] ?? null;
         }
 
@@ -133,7 +134,7 @@ class ScriptAgentChat extends Component
             $this->selectedProvider = $provider;
             $this->buildAvailableModels();
 
-            if (! in_array($this->selectedModel, $this->availableModels, true)) {
+            if (! AvailableModelMap::isKnownModel($this->selectedProvider, $this->selectedModel)) {
                 $this->selectedModel = $this->availableModels[0] ?? null;
             }
         }
@@ -164,7 +165,7 @@ class ScriptAgentChat extends Component
 
         $models = AvailableModelMap::modelsFor($this->selectedProvider);
 
-        if (! in_array($this->selectedModel, $models, true)) {
+        if (! AvailableModelMap::isKnownModel($this->selectedProvider, $this->selectedModel)) {
             $this->selectedModel = $models[0] ?? null;
             $this->dispatch('agent-model-changed', model: $this->selectedModel);
         }
@@ -360,6 +361,31 @@ class ScriptAgentChat extends Component
 
         $this->pendingDecisions = [];
         $this->dispatch('chat-scroll-bottom');
+    }
+
+    /**
+     * Permanently delete one of this chat's past conversations.
+     */
+    public function deleteConversation(string $conversationId): void
+    {
+        $conversation = Conversation::query()
+            ->where('id', $conversationId)
+            ->where('participant_type', $this->script->getMorphClass())
+            ->where('participant_id', $this->script->getKey())
+            ->first();
+
+        if (! $conversation) {
+            return;
+        }
+
+        $conversation->messages()->delete();
+        $conversation->delete();
+
+        if ($this->conversationId === $conversationId) {
+            $this->newConversation();
+        }
+
+        $this->loadConversations();
     }
 
     public function newConversation(): void
@@ -572,6 +598,19 @@ class ScriptAgentChat extends Component
             'ScriptInsightsTool' => 'checking insights',
             default => strtolower(str_replace('Tool', '', $name)),
         };
+    }
+
+    /**
+     * Every searchable model for the selected provider.
+     *
+     * @return array<int, string>
+     */
+    #[Computed]
+    public function allModels(): array
+    {
+        return $this->selectedProvider
+            ? AvailableModelMap::allModelsFor($this->selectedProvider)
+            : [];
     }
 
     public function render(): View

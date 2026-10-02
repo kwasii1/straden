@@ -401,228 +401,188 @@ class extends Component
 ?>
 
 <x-pages::settings.ai-layout>
-<div class="flex flex-col gap-y-6">
-    {{-- Header Section --}}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-5">
+<div>
+    <section class="grid gap-x-8 gap-y-5 border-t border-zinc-200 py-8 first:border-t-0 first:pt-0 lg:grid-cols-[18rem_1fr]">
         <div>
-            <flux:heading size="xl" class="font-semibold text-zinc-900 dark:text-zinc-100">AI Integrations</flux:heading>
-            <flux:text class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Manage API keys, endpoints, and credentials for language, reasoning, and multimodal providers.</flux:text>
+            <h2 class="text-sm font-medium text-zinc-900">AI providers</h2>
+            <p class="mt-1 text-sm text-zinc-500">Manage API keys, endpoints, and credentials for language, reasoning, and multimodal providers.</p>
+            <p class="mt-3 text-sm text-zinc-500">
+                <span class="font-medium text-zinc-900 tabular-nums">{{ $this->stats['connected'] }}</span>
+                of
+                <span class="tabular-nums">{{ $this->stats['total'] }}</span>
+                connected
+            </p>
         </div>
 
-        <div class="flex items-center gap-2">
-            <flux:button variant="filled" size="sm" icon="question-mark-circle" class="shrink-0">Docs</flux:button>
-        </div>
-    </div>
+        {{-- Filter & grid --}}
+        <div
+            x-data="{
+                query: '',
+                filter: 'all',
+                matches(name, description, isConnected) {
+                    const q = this.query.trim().toLowerCase();
+                    const matchesText = !q || name.toLowerCase().includes(q) || (description ?? '').toLowerCase().includes(q);
 
-    {{-- Stats Bar Strip --}}
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div class="flex items-center justify-between p-3.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xs">
-            <span class="text-xs text-zinc-500 font-medium">Total Supported</span>
-            <span class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 font-mono">{{ $this->stats['total'] }}</span>
-        </div>
-        <div class="flex items-center justify-between p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10">
-            <div class="flex items-center gap-2">
-                <span class="relative flex size-2">
-                    <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                    <span class="relative inline-flex size-2 rounded-full bg-emerald-500"></span>
-                </span>
-                <span class="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Active & Connected</span>
+                    if (this.filter === 'connected') return matchesText && isConnected;
+                    if (this.filter === 'available') return matchesText && !isConnected;
+                    return matchesText;
+                }
+            }"
+            class="flex min-w-0 flex-col gap-4"
+        >
+            {{-- Toolbar --}}
+            <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                <div class="relative w-full sm:w-72">
+                    <flux:icon.magnifying-glass variant="micro" class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-zinc-400" />
+                    <input
+                        x-model="query"
+                        type="text"
+                        placeholder="Filter providers or models..."
+                        aria-label="Filter providers"
+                        class="ui-input pr-8 pl-9"
+                    />
+                    <button
+                        type="button"
+                        x-show="query"
+                        x-cloak
+                        @click="query = ''"
+                        aria-label="Clear filter"
+                        class="absolute top-1/2 right-2 flex size-5 -translate-y-1/2 items-center justify-center rounded text-zinc-400 transition-colors duration-150 hover:text-zinc-700"
+                    >
+                        <flux:icon.x-mark variant="micro" class="size-3.5" />
+                    </button>
+                </div>
+
+                <div class="inline-flex self-start rounded-lg bg-zinc-100 p-0.5 sm:self-auto" role="group" aria-label="Filter by status">
+                    <button
+                        type="button"
+                        @click="filter = 'all'"
+                        :aria-pressed="filter === 'all'"
+                        :class="filter === 'all' ? 'bg-white text-zinc-900 shadow-xs ring-1 ring-zinc-200' : 'text-zinc-500 hover:text-zinc-900'"
+                        class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-150"
+                    >All</button>
+                    <button
+                        type="button"
+                        @click="filter = 'connected'"
+                        :aria-pressed="filter === 'connected'"
+                        :class="filter === 'connected' ? 'bg-white text-zinc-900 shadow-xs ring-1 ring-zinc-200' : 'text-zinc-500 hover:text-zinc-900'"
+                        class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-150"
+                    >Connected</button>
+                    <button
+                        type="button"
+                        @click="filter = 'available'"
+                        :aria-pressed="filter === 'available'"
+                        :class="filter === 'available' ? 'bg-white text-zinc-900 shadow-xs ring-1 ring-zinc-200' : 'text-zinc-500 hover:text-zinc-900'"
+                        class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-150"
+                    >Available</button>
+                </div>
             </div>
-            <span class="text-sm font-semibold text-emerald-700 dark:text-emerald-300 font-mono">{{ $this->stats['connected'] }}</span>
-        </div>
-        <div class="flex items-center justify-between p-3.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xs">
-            <span class="text-xs text-zinc-500 font-medium">Available to Setup</span>
-            <span class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 font-mono">{{ $this->stats['available'] }}</span>
-        </div>
-    </div>
 
-    {{-- Filter & Grid Control --}}
-    <div
-        x-data="{
-            query: '',
-            filter: 'all',
-            matches(name, description, isConnected) {
-                const q = this.query.trim().toLowerCase();
-                const matchesText = !q || name.toLowerCase().includes(q) || (description ?? '').toLowerCase().includes(q);
+            {{-- Provider cards --}}
+            <div x-ref="grid" class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-4">
+                @foreach ($this->providers as $provider)
+                    <div
+                        wire:key="provider-{{ $provider['slug'] }}"
+                        x-show="matches('{{ addslashes($provider['name']) }}', '{{ addslashes($provider['description'] ?? '') }}', {{ $provider['is_connected'] ? 'true' : 'false' }})"
+                        x-cloak
+                        class="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white"
+                    >
+                        <div class="flex flex-1 flex-col gap-3 p-4">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex min-w-0 items-center gap-3">
+                                    <div @class([
+                                        'flex size-9 shrink-0 items-center justify-center rounded-lg p-1.5 ring-1 ring-inset',
+                                        $provider['logo'] === 'eleven-labs' ? 'bg-zinc-900 ring-zinc-900' : 'bg-white ring-zinc-200',
+                                    ])>
+                                        <img
+                                            src="/images/providers/{{ $provider['logo'] }}.svg"
+                                            alt="{{ $provider['name'] }} logo"
+                                            loading="lazy"
+                                            class="size-full object-contain"
+                                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                        />
+                                        <div class="hidden size-full items-center justify-center text-zinc-400">
+                                            <flux:icon.sparkles variant="micro" />
+                                        </div>
+                                    </div>
 
-                if (this.filter === 'connected') return matchesText && isConnected;
-                if (this.filter === 'available') return matchesText && !isConnected;
-                return matchesText;
-            }
-        }"
-        class="flex flex-col gap-y-5"
-    >
-        {{-- Toolbar --}}
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div class="relative w-full sm:w-80">
-                <flux:icon.magnifying-glass class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-400" />
-                <input
-                    x-model="query"
-                    type="text"
-                    placeholder="Filter providers or models..."
-                    class="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 pl-9 pr-8 py-1.5 text-xs text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-600 transition-all"
-                />
-                <button
-                    type="button"
-                    x-show="query"
-                    x-cloak
-                    @click="query = ''"
-                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                >
-                    <flux:icon.x-mark class="size-3.5" />
-                </button>
-            </div>
-
-            <div class="inline-flex rounded-lg border border-zinc-200 dark:border-zinc-800 p-0.5 bg-zinc-100/60 dark:bg-zinc-900/60 self-start sm:self-auto">
-                <button
-                    @click="filter = 'all'"
-                    :class="filter === 'all' ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'"
-                    class="px-2.5 py-1 text-xs font-medium rounded-md transition-all"
-                >All</button>
-                <button
-                    @click="filter = 'connected'"
-                    :class="filter === 'connected' ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'"
-                    class="px-2.5 py-1 text-xs font-medium rounded-md transition-all"
-                >Connected</button>
-                <button
-                    @click="filter = 'available'"
-                    :class="filter === 'available' ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'"
-                    class="px-2.5 py-1 text-xs font-medium rounded-md transition-all"
-                >Available</button>
-            </div>
-        </div>
-
-        {{-- Cards Grid --}}
-        <div x-ref="grid" class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4">
-            @foreach ($this->providers as $provider)
-                <div
-                    wire:key="provider-{{ $provider['slug'] }}"
-                    x-show="matches('{{ addslashes($provider['name']) }}', '{{ addslashes($provider['description'] ?? '') }}', {{ $provider['is_connected'] ? 'true' : 'false' }})"
-                    x-cloak
-                    class="group relative flex flex-col justify-between rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all duration-200 hover:shadow-xs overflow-hidden"
-                >
-                    <div class="p-4 space-y-3.5">
-                        {{-- Top Meta: Logo, Name & Status --}}
-                        <div class="flex items-start justify-between gap-x-3">
-                            <div class="flex min-w-0 items-center gap-x-3">
-                                <div @class([
-                                    'flex size-9 shrink-0 items-center justify-center rounded-lg border p-1.5 transition-colors',
-                                    $provider['logo'] === 'eleven-labs'
-                                        ? 'bg-black border-zinc-700'
-                                        : 'bg-zinc-50 dark:bg-zinc-800/80 border-zinc-100 dark:border-zinc-700/60 group-hover:border-zinc-300 dark:group-hover:border-zinc-600',
-                                ])>
-                                    <img
-                                        src="/images/providers/{{ $provider['logo'] }}.svg"
-                                        alt="{{ $provider['name'] }} logo"
-                                        loading="lazy"
-                                        class="size-full object-contain dark:invert-0"
-                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                                    />
-                                    <div class="hidden size-full items-center justify-center text-zinc-400 dark:text-zinc-500">
-                                        <flux:icon.sparkles class="size-4" />
+                                    <div class="min-w-0">
+                                        <h3 class="truncate text-sm font-medium text-zinc-900">{{ $provider['name'] }}</h3>
+                                        @if ($provider['website_url'])
+                                            <a href="{{ $provider['website_url'] }}" target="_blank" rel="noopener" class="mt-0.5 inline-flex items-center gap-0.5 text-xs text-zinc-500 transition-colors duration-150 hover:text-zinc-900">
+                                                Console
+                                                <flux:icon.arrow-up-right variant="micro" class="size-3" />
+                                            </a>
+                                        @endif
                                     </div>
                                 </div>
 
-                                <div class="min-w-0">
-                                    <flux:heading class="truncate font-medium text-sm text-zinc-900 dark:text-zinc-100 leading-tight">
-                                        {{ $provider['name'] }}
-                                    </flux:heading>
-                                    @if ($provider['website_url'])
-                                        <a href="{{ $provider['website_url'] }}" target="_blank" rel="noopener" class="text-[11px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 inline-flex items-center gap-0.5 mt-0.5">
-                                            Console
-                                            <flux:icon.arrow-up-right class="size-2.5" />
-                                        </a>
-                                    @endif
-                                </div>
+                                @if ($provider['is_connected'])
+                                    <x-status-badge status="connected" class="shrink-0" />
+                                @endif
                             </div>
 
-                            <div class="shrink-0">
-                                @if ($provider['is_connected'])
-                                    <span class="inline-flex items-center gap-x-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                        <span class="size-1.5 rounded-full bg-emerald-500"></span>
-                                        Connected
-                                    </span>
-                                @else
-                                    <span class="inline-flex items-center rounded-full bg-zinc-100 dark:bg-zinc-800/80 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-zinc-500 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50">
-                                        Not Configured
-                                    </span>
+                            <p class="line-clamp-2 min-h-10 text-sm text-zinc-500">{{ $provider['description'] }}</p>
+
+                            <div class="flex flex-wrap gap-1">
+                                @foreach (array_slice($provider['models'], 0, 3) as $model)
+                                    <span class="inline-flex items-center rounded-md bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600">{{ $model }}</span>
+                                @endforeach
+                                @if (count($provider['models']) > 3)
+                                    <span class="inline-flex items-center px-1 py-0.5 text-xs text-zinc-500">+{{ count($provider['models']) - 3 }} more</span>
                                 @endif
                             </div>
                         </div>
 
-                        {{-- Description --}}
-                        <p class="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed min-h-[2.25rem]">
-                            {{ $provider['description'] }}
-                        </p>
+                        <div class="flex items-center justify-between gap-3 border-t border-zinc-100 px-4 py-2.5">
+                            <span class="text-xs text-zinc-500 tabular-nums">
+                                {{ count($provider['fields']) }} {{ Str::plural('field', count($provider['fields'])) }}
+                            </span>
 
-                        {{-- Model Tags Preview --}}
-                        <div class="flex flex-wrap gap-1.5 pt-1">
-                            @foreach (array_slice($provider['models'], 0, 3) as $model)
-                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200/50 dark:border-zinc-700/50">
-                                    {{ $model }}
-                                </span>
-                            @endforeach
-                            @if (count($provider['models']) > 3)
-                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono bg-zinc-50 dark:bg-zinc-800/40 text-zinc-400 border border-zinc-200/30 dark:border-zinc-700/30">
-                                    +{{ count($provider['models']) - 3 }} more
-                                </span>
+                            @if ($provider['is_connected'])
+                                <flux:button
+                                    x-on:click="$wire.startConfigure('{{ $provider['slug'] }}'); $flux.modal('configure-provider').show()"
+                                    variant="ghost"
+                                    size="sm"
+                                    icon="cog-6-tooth"
+                                >
+                                    Settings
+                                </flux:button>
+                            @else
+                                <flux:button
+                                    x-on:click="$wire.startConnect('{{ $provider['slug'] }}'); $flux.modal('connect-provider').show()"
+                                    size="sm"
+                                    icon="plus"
+                                >
+                                    Connect
+                                </flux:button>
                             @endif
                         </div>
                     </div>
+                @endforeach
+            </div>
 
-                    {{-- Card Footer Action --}}
-                    <div class="flex items-center justify-between px-4 py-2.5 bg-zinc-50/80 dark:bg-zinc-800/30 border-t border-zinc-100 dark:border-zinc-800/80">
-                        <span class="text-[11px] text-zinc-400 font-mono">
-                            {{ count($provider['fields']) }} {{ Str::plural('param', count($provider['fields'])) }}
-                        </span>
-
-                        @if ($provider['is_connected'])
-                            <flux:button
-                                x-on:click="$wire.startConfigure('{{ $provider['slug'] }}'); $flux.modal('configure-provider').show()"
-                                variant="ghost"
-                                size="sm"
-                                icon="cog-6-tooth"
-                                class="text-xs h-7"
-                            >
-                                Settings
-                            </flux:button>
-                        @else
-                            <flux:button
-                                x-on:click="$wire.startConnect('{{ $provider['slug'] }}'); $flux.modal('connect-provider').show()"
-                                variant="primary"
-                                size="sm"
-                                icon="plus"
-                                class="text-xs h-7"
-                            >
-                                Connect
-                            </flux:button>
-                        @endif
-                    </div>
-                </div>
-            @endforeach
+            {{-- Empty filter state --}}
+            <x-empty-state
+                x-show="! Array.from($refs.grid.children).some(el => el.style.display !== 'none')"
+                x-cloak
+                icon="magnifying-glass"
+                title="No matching providers"
+                description="Try a different name, or clear the filters."
+                class="rounded-xl border border-dashed border-zinc-200"
+            >
+                <flux:button size="sm" variant="ghost" x-on:click="query = ''; filter = 'all'">Clear filters</flux:button>
+            </x-empty-state>
         </div>
+    </section>
 
-        {{-- Empty Search State --}}
-        <div
-            x-show="query && ! Array.from($refs.grid.children).some(el => el.style.display !== 'none')"
-            x-cloak
-            class="flex flex-col items-center justify-center py-16 text-center rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800"
-        >
-            <flux:icon.magnifying-glass class="size-8 text-zinc-300 dark:text-zinc-600 mb-3" />
-            <flux:heading size="sm" class="text-zinc-700 dark:text-zinc-300">No matching AI providers</flux:heading>
-            <flux:text class="text-xs text-zinc-400 mt-1">No provider results found for "<span x-text="query"></span>".</flux:text>
-        </div>
-    </div>
-
-    {{-- Connect Modal --}}
-    <flux:modal name="connect-provider" class="md:w-1/3">
-        <div class="space-y-6">
-            <div class="flex items-center gap-x-3 border-b dark:border-zinc-800 pb-4">
+    {{-- Connect modal --}}
+    <flux:modal name="connect-provider" class="md:w-[28rem]">
+        <div class="flex flex-col gap-6">
+            <div class="flex items-start gap-3">
                 <div @class([
-                    'flex size-9 shrink-0 items-center justify-center rounded-lg border p-1.5',
-                    ($this->getActiveMeta()['logo'] ?? null) === 'eleven-labs'
-                        ? 'bg-black border-zinc-700'
-                        : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-100 dark:border-zinc-700',
+                    'flex size-9 shrink-0 items-center justify-center rounded-lg p-1.5 ring-1 ring-inset',
+                    ($this->getActiveMeta()['logo'] ?? null) === 'eleven-labs' ? 'bg-zinc-900 ring-zinc-900' : 'bg-white ring-zinc-200',
                 ])>
                     <img
                         src="/images/providers/{{ $this->getActiveMeta()['logo'] ?? 'sparkles' }}.svg"
@@ -631,22 +591,22 @@ class extends Component
                         onerror="this.style.display='none';"
                     />
                 </div>
-                <div>
+                <div class="min-w-0">
                     <flux:heading size="lg">Connect {{ $this->getActiveMeta()['name'] ?? '' }}</flux:heading>
                     @if ($this->getActiveMeta()['description'] ?? null)
-                        <flux:text class="mt-0.5 text-xs text-zinc-500">{{ $this->getActiveMeta()['description'] }}</flux:text>
+                        <flux:text class="mt-1">{{ $this->getActiveMeta()['description'] }}</flux:text>
                     @endif
                 </div>
             </div>
 
-            <form wire:submit="connectProvider" class="space-y-4">
+            <form wire:submit="connectProvider" class="flex flex-col gap-6">
                 @if ($this->getActiveMeta())
                     @foreach ($this->getActiveMeta()['fields'] as $field)
                         <flux:field>
-                            <flux:label class="text-xs">
+                            <flux:label>
                                 {{ $field['label'] }}
                                 @if (! ($field['required'] ?? false))
-                                    <span class="text-xs text-zinc-400 font-normal">(optional)</span>
+                                    <span class="ms-1 font-normal text-zinc-500">(optional)</span>
                                 @endif
                             </flux:label>
                             <flux:input
@@ -659,23 +619,21 @@ class extends Component
                     @endforeach
                 @endif
 
-                <div class="flex items-center justify-end gap-2 pt-4 border-t dark:border-zinc-800">
-                    <flux:button x-on:click="$flux.modal('connect-provider').close()" variant="ghost" size="sm">Cancel</flux:button>
-                    <flux:button type="submit" variant="primary" size="sm">Save Connection</flux:button>
+                <div class="flex justify-end gap-2">
+                    <flux:button x-on:click="$flux.modal('connect-provider').close()" variant="ghost">Cancel</flux:button>
+                    <flux:button type="submit" variant="primary">Save connection</flux:button>
                 </div>
             </form>
         </div>
     </flux:modal>
 
-    {{-- Configure Modal --}}
-    <flux:modal name="configure-provider" class="md:w-1/3 scrollbar-none [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-600">
-        <div class="space-y-5">
-            <div class="flex items-center gap-x-3 border-b dark:border-zinc-800 pb-4">
+    {{-- Configure modal --}}
+    <flux:modal name="configure-provider" class="md:w-[28rem]">
+        <div class="flex flex-col gap-6">
+            <div class="flex items-start gap-3">
                 <div @class([
-                    'flex size-9 shrink-0 items-center justify-center rounded-lg border p-1.5',
-                    ($this->getActiveMeta()['logo'] ?? null) === 'eleven-labs'
-                        ? 'bg-black border-zinc-700'
-                        : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-100 dark:border-zinc-700',
+                    'flex size-9 shrink-0 items-center justify-center rounded-lg p-1.5 ring-1 ring-inset',
+                    ($this->getActiveMeta()['logo'] ?? null) === 'eleven-labs' ? 'bg-zinc-900 ring-zinc-900' : 'bg-white ring-zinc-200',
                 ])>
                     <img
                         src="/images/providers/{{ $this->getActiveMeta()['logo'] ?? 'sparkles' }}.svg"
@@ -684,48 +642,40 @@ class extends Component
                         onerror="this.style.display='none';"
                     />
                 </div>
-                <div>
+                <div class="flex min-w-0 flex-col items-start gap-1">
                     <flux:heading size="lg">{{ $this->getActiveMeta()['name'] ?? '' }}</flux:heading>
-                    <flux:text class="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Connected & Active</flux:text>
+                    <x-status-badge status="connected" />
                 </div>
             </div>
 
             @if ($this->getActiveMeta())
-                <div class="border rounded-xl dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900">
-                    <div class="px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 border-b dark:border-zinc-800 flex items-center justify-between">
-                        <flux:text class="text-xs font-medium text-zinc-700 dark:text-zinc-300">Supported Models</flux:text>
-                        <span class="text-[10px] font-mono text-zinc-400">{{ count($this->getActiveMeta()['models']) }} total</span>
+                <div class="overflow-hidden rounded-lg border border-zinc-200">
+                    <div class="flex items-center justify-between border-b border-zinc-200 px-3.5 py-2">
+                        <span class="text-xs font-medium text-zinc-700">Supported models</span>
+                        <span class="text-xs text-zinc-500 tabular-nums">{{ count($this->getActiveMeta()['models']) }} total</span>
                     </div>
-                    <div class="divide-y dark:divide-zinc-800 max-h-48 overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-600">
+                    <ul class="max-h-48 divide-y divide-zinc-100 overflow-y-auto [scrollbar-width:thin]">
                         @foreach ($this->getActiveMeta()['models'] as $model)
-                            <div class="flex items-center justify-between px-3.5 py-2">
-                                <div class="flex items-center gap-x-2">
-                                    <div class="size-1.5 rounded-full bg-emerald-500"></div>
-                                    <flux:text class="text-xs font-mono">{{ $model }}</flux:text>
-                                </div>
-                                <span class="text-[10px] text-zinc-400">Ready</span>
-                            </div>
+                            <li class="px-3.5 py-2 text-sm text-zinc-700">{{ $model }}</li>
                         @endforeach
-                    </div>
+                    </ul>
                 </div>
 
-                <div class="bg-zinc-50 dark:bg-zinc-800/40 rounded-xl p-3 border border-zinc-200/60 dark:border-zinc-800">
-                    <flux:text class="text-[11px] text-zinc-500 dark:text-zinc-400 leading-normal">
-                        Credentials are encrypted in the database
-                        @if ($this->keyHintFor($this->activeProvider))
-                            (key ending in <code class="text-[10px] bg-zinc-200/70 dark:bg-zinc-700 px-1 py-0.5 rounded font-mono text-zinc-800 dark:text-zinc-200">{{ $this->keyHintFor($this->activeProvider) }}</code>)
-                        @endif
-                        and applied immediately — no <code class="text-[10px] bg-zinc-200/70 dark:bg-zinc-700 px-1 py-0.5 rounded font-mono text-zinc-800 dark:text-zinc-200">.env</code> edits needed.
-                    </flux:text>
-                </div>
+                <p class="ui-inset p-3 text-xs text-zinc-500">
+                    Credentials are encrypted in the database
+                    @if ($this->keyHintFor($this->activeProvider))
+                        (key ending in <code class="ui-code">{{ $this->keyHintFor($this->activeProvider) }}</code>)
+                    @endif
+                    and applied immediately, with no <code class="ui-code">.env</code> edits needed.
+                </p>
 
-                <form wire:submit="updateProvider" class="space-y-4">
+                <form id="configure-provider-form" wire:submit="updateProvider" class="flex flex-col gap-6">
                     @foreach ($this->getActiveMeta()['fields'] as $field)
                         <flux:field>
-                            <flux:label class="text-xs">
+                            <flux:label>
                                 {{ $field['label'] }}
                                 @if (! ($field['required'] ?? false))
-                                    <span class="text-xs text-zinc-400 font-normal">(optional)</span>
+                                    <span class="ms-1 font-normal text-zinc-500">(optional)</span>
                                 @endif
                             </flux:label>
                             <flux:input
@@ -736,32 +686,28 @@ class extends Component
                             />
                         </flux:field>
                     @endforeach
-
-                    <flux:button type="submit" variant="primary" size="sm" class="w-full">Save Changes</flux:button>
                 </form>
             @endif
 
-            <div class="flex items-center justify-between pt-2 border-t dark:border-zinc-800">
+            <div class="flex items-center justify-between gap-2">
                 <flux:button
                     wire:click="disconnectProvider('{{ $this->activeProvider }}')"
                     wire:confirm="Are you sure you want to disconnect {{ $this->getActiveMeta()['name'] ?? '' }}?"
                     variant="ghost"
-                    size="sm"
                     icon="trash"
-                    class="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 text-xs"
+                    class="text-red-700! hover:bg-red-50!"
                 >
                     Disconnect
                 </flux:button>
-                <flux:button
-                    x-on:click="$flux.modal('configure-provider').close()"
-                    variant="primary"
-                    size="sm"
-                >
-                    Done
-                </flux:button>
+
+                <div class="flex gap-2">
+                    <flux:button x-on:click="$flux.modal('configure-provider').close()" variant="ghost">Done</flux:button>
+                    @if ($this->getActiveMeta())
+                        <flux:button type="submit" form="configure-provider-form" variant="primary">Save changes</flux:button>
+                    @endif
+                </div>
             </div>
         </div>
     </flux:modal>
-
 </div>
 </x-pages::settings.ai-layout>

@@ -39,12 +39,14 @@ class Project extends Model
         'slug',
         'description',
         'persist_run_logs',
+        'last_accessed_at',
     ];
 
     protected function casts(): array
     {
         return [
             'persist_run_logs' => 'boolean',
+            'last_accessed_at' => 'datetime',
         ];
     }
 

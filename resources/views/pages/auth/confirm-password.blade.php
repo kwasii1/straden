@@ -2,10 +2,10 @@
     <div class="flex flex-col gap-6">
         <x-auth-header
             :title="__('Confirm password')"
-            :description="__('This is a secure area of the application. Please confirm your password before continuing.')"
+            :description="__('This is a secure area. Confirm your password to continue.')"
         />
 
-        <x-auth-session-status class="text-center" :status="session('status')" />
+        <x-auth-session-status :status="session('status')" />
 
         <x-passkey-verify
             options-route="passkey.confirm-options"
@@ -15,7 +15,7 @@
             :separator="__('Or confirm with password')"
         />
 
-        <form method="POST" action="{{ route('password.confirm.store') }}" class="flex flex-col gap-6">
+        <form method="POST" action="{{ route('password.confirm.store') }}" class="flex flex-col gap-5">
             @csrf
 
             <flux:input

@@ -6,6 +6,9 @@
     "guidelines": true,
     "mcp": true,
     "nightwatch": false,
+    "packages": [
+        "livewire/blaze"
+    ],
     "sail": false,
     "skills": [
         "infer-conventions",
@@ -18,6 +21,7 @@
         "fluxui-development",
         "livewire-development",
         "tailwindcss-development",
-        "echo-development"
+        "echo-development",
+        "blaze-optimize"
     ]
 }

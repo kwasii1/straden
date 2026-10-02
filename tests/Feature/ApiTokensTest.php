@@ -8,7 +8,7 @@ test('api tokens page can be rendered', function () {
     $this->actingAs(User::factory()->admin()->create())
         ->get(route('settings.api-tokens'))
         ->assertOk()
-        ->assertSee(['API Tokens', 'AI Integrations', 'AI Insights Model']);
+        ->assertSee(['API tokens', 'AI integrations', 'Insights model']);
 });
 
 test('users can create a token with selected abilities', function () {

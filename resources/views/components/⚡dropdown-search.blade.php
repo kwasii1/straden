@@ -65,8 +65,16 @@ new class extends Component
     class="relative"
 >
     <div x-ref="trigger">
-        <flux:button icon="folder" @click="togglePanel()" variant="ghost" icon:trailing="chevron-down">
-            {{ $this->currentProject?->name ?? 'Switch project' }}
+        <flux:button @click="togglePanel()" variant="ghost" size="sm" class="font-medium text-zinc-900">
+            <span class="flex items-center gap-2 leading-none">
+                @if ($this->currentProject)
+                    <span class="ui-monogram size-5 rounded-[5px] text-[9px] leading-none">{{ strtoupper(substr($this->currentProject->name, 0, 2)) }}</span>
+                @else
+                    <flux:icon.folder variant="micro" class="text-zinc-400" />
+                @endif
+                <span class="block max-w-48 truncate leading-5">{{ $this->currentProject?->name ?? 'Switch project' }}</span>
+                <flux:icon.chevron-up-down variant="micro" class="shrink-0 text-zinc-400" />
+            </span>
         </flux:button>
     </div>
 
@@ -75,82 +83,89 @@ new class extends Component
             x-show="open"
             x-cloak
             @click.outside="open = false"
-            x-transition
+            x-transition:enter="transition ease-snappy duration-150"
+            x-transition:enter-start="opacity-0 scale-[0.97]"
+            x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-out duration-100"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
             :style="panelStyle"
-            class="fixed z-50 w-80 rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
+            class="fixed z-50 w-72 origin-top-left overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg shadow-zinc-900/5"
         >
-        <div class="border-b border-zinc-200 p-2 dark:border-zinc-700">
-            <flux:input
-                x-model="search"
-                placeholder="Find a project..."
-                icon="magnifying-glass"
-                autofocus
-            />
-        </div>
+            <div class="border-b border-zinc-200 p-1.5">
+                <flux:input
+                    x-model="search"
+                    size="sm"
+                    placeholder="Find a project"
+                    icon="magnifying-glass"
+                    autofocus
+                />
+            </div>
 
-        <div class="max-h-80 overflow-y-auto p-1">
-
-            <template x-if="search.trim() === ''">
-                <div>
-                    <div class="px-3 py-1.5 text-xs font-medium uppercase tracking-wide text-zinc-400">
-                        Recent
+            <div class="max-h-80 overflow-y-auto p-1">
+                <template x-if="search.trim() === ''">
+                    <div>
+                        <div class="px-2 pt-1.5 pb-1 text-xs text-zinc-500">Recent</div>
+                        <template x-if="recent.length === 0">
+                            <div class="px-2 py-1.5 text-sm text-zinc-500">No projects yet.</div>
+                        </template>
+                        <template x-for="project in recent" :key="project.id">
+                            <button
+                                type="button"
+                                @click="open = false; $wire.goToProject(project.slug)"
+                                class="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm text-zinc-700 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-900"
+                                :class="project.slug === currentProjectId && 'font-medium text-zinc-900'"
+                            >
+                                <span class="ui-monogram size-6 rounded-md text-[10px]" x-text="project.name.substring(0, 2).toUpperCase()"></span>
+                                <span class="min-w-0 flex-1 truncate" x-text="project.name"></span>
+                                <flux:icon.check
+                                    variant="micro"
+                                    x-show="project.slug === currentProjectId"
+                                    class="shrink-0 text-zinc-900"
+                                />
+                            </button>
+                        </template>
                     </div>
-                    <template x-if="recent.length === 0">
-                        <div class="px-3 py-2 text-sm text-zinc-400">No projects yet.</div>
-                    </template>
-                    <template x-for="project in recent" :key="project.id">
-                        <button
-                            type="button"
-                            @click="open = false; $wire.goToProject(project.slug)"
-                            class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-700"
-                        >
-                            <flux:icon.check
-                                x-show="project.slug === currentProjectId"
-                                class="mr-2 h-4 w-4 shrink-0 text-zinc-500"
-                            />
-                            <span x-text="project.name"></span>
-                        </button>
-                    </template>
-                </div>
-            </template>
+                </template>
 
-            <template x-if="search.trim() !== ''">
-                <div>
-                    <div class="px-3 py-1.5 text-xs font-medium uppercase tracking-wide text-zinc-400">
-                        Results
+                <template x-if="search.trim() !== ''">
+                    <div>
+                        <div class="px-2 pt-1.5 pb-1 text-xs text-zinc-500">Results</div>
+                        <template x-if="filtered.length === 0">
+                            <div class="px-2 py-1.5 text-sm text-zinc-500">
+                                No matches for &ldquo;<span x-text="search"></span>&rdquo;
+                            </div>
+                        </template>
+                        <template x-for="project in filtered" :key="project.id">
+                            <button
+                                type="button"
+                                @click="open = false; $wire.goToProject(project.slug)"
+                                class="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm text-zinc-700 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-900"
+                                :class="project.slug === currentProjectId && 'font-medium text-zinc-900'"
+                            >
+                                <span class="ui-monogram size-6 rounded-md text-[10px]" x-text="project.name.substring(0, 2).toUpperCase()"></span>
+                                <span class="min-w-0 flex-1 truncate" x-text="project.name"></span>
+                                <flux:icon.check
+                                    variant="micro"
+                                    x-show="project.slug === currentProjectId"
+                                    class="shrink-0 text-zinc-900"
+                                />
+                            </button>
+                        </template>
                     </div>
-                    <template x-if="filtered.length === 0">
-                        <div class="px-3 py-2 text-sm text-zinc-400">
-                            No matches for "<span x-text="search"></span>"
-                        </div>
-                    </template>
-                    <template x-for="project in filtered" :key="project.id">
-                        <button
-                            type="button"
-                            @click="open = false; $wire.goToProject(project.slug)"
-                            class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-700"
-                        >
-                            <flux:icon.check
-                                x-show="project.slug === currentProjectId"
-                                class="mr-2 h-4 w-4 shrink-0 text-zinc-500"
-                            />
-                            <span x-text="project.name"></span>
-                        </button>
-                    </template>
-                </div>
-            </template>
+                </template>
+            </div>
 
-        </div>
-
-        <div class="border-t border-zinc-200 p-1 dark:border-zinc-700">
-            <a
-                href="{{ route('projects') }}"
-                wire:navigate
-                class="flex items-center rounded-md px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
-            >
-                View all projects
-            </a>
-        </div>
+            <div class="border-t border-zinc-200 p-1">
+                <a
+                    href="{{ route('projects') }}"
+                    wire:navigate
+                    class="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-zinc-600 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-900"
+                >
+                    <flux:icon.squares-2x2 variant="micro" class="text-zinc-400" />
+                    View all projects
+                </a>
+            </div>
         </div>
     </template>
 </div>

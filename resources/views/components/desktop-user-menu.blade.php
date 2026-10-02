@@ -6,15 +6,16 @@
         data-test="sidebar-menu-button"
     />
 
-    <flux:menu>
-        <div class="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
+    <flux:menu class="min-w-56">
+        <div class="flex items-center gap-2.5 px-2 py-1.5">
             <flux:avatar
+                size="sm"
                 :name="auth()->user()->name"
                 :initials="auth()->user()->initials()"
             />
-            <div class="grid flex-1 text-start text-sm leading-tight">
-                <flux:heading class="truncate">{{ auth()->user()->name }}</flux:heading>
-                <flux:text class="truncate">{{ auth()->user()->email }}</flux:text>
+            <div class="grid min-w-0 flex-1 leading-tight">
+                <span class="truncate text-sm font-medium text-zinc-900">{{ auth()->user()->name }}</span>
+                <span class="truncate text-xs text-zinc-500">{{ auth()->user()->email }}</span>
             </div>
         </div>
         <flux:menu.separator />

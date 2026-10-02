@@ -331,37 +331,47 @@ class extends Component
     @editor-save.window="saveEditor($event.detail)"
     @editor-moved.window="handleEditorMoved($event.detail)"
     @editor-deleted.window="handleEditorDeleted($event.detail)"
-    class="flex flex-col h-full bg-white dark:bg-zinc-950"
+    class="flex flex-col h-full bg-white"
 >
-    {{-- In-flow toolbar — replaces the old floating title / tab-switcher / run button.
-         Sits in its own row so it never overlaps editor or chat content. --}}
-    <div class="shrink-0 h-12 flex items-center justify-between gap-3 px-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 z-10">
-        <div class="flex items-center gap-2 min-w-0">
-            <flux:icon.document-text class="size-4 text-zinc-400 dark:text-zinc-500 shrink-0" />
-            <span class="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate">
-                {{ $script->name }}
-            </span>
-        </div>
+    {{-- Toolbar --}}
+    <div class="z-10 flex h-11 shrink-0 items-center justify-between gap-3 border-b border-zinc-200 bg-white px-3">
+        <nav class="flex min-w-0 items-center gap-1.5 text-sm" aria-label="Breadcrumb">
+            <a href="{{ route('projects.view-test', ['project' => $project, 'test' => $test]) }}" wire:navigate class="truncate text-zinc-500 hover:text-zinc-900">{{ $test->name }}</a>
+            <flux:icon.chevron-right variant="micro" class="shrink-0 text-zinc-300" />
+            <span class="truncate font-medium text-zinc-900">{{ $script->name }}</span>
+        </nav>
 
-        <div class="flex bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-full p-0.5 shrink-0">
+        <div class="inline-flex shrink-0 items-center rounded-lg bg-zinc-100 p-0.5" role="group" aria-label="View">
             <button
+                type="button"
                 wire:click="$set('mode', 'script')"
-                class="px-3.5 py-1 text-xs font-medium rounded-full transition-colors {{ $mode === 'script' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-xs' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200' }}"
+                aria-pressed="{{ $mode === 'script' ? 'true' : 'false' }}"
+                @class([
+                    'h-7 rounded-md px-3 text-xs font-medium',
+                    'bg-white text-zinc-900 shadow-xs ring-1 ring-zinc-200' => $mode === 'script',
+                    'text-zinc-500 hover:text-zinc-900' => $mode !== 'script',
+                ])
             >
                 Script
             </button>
             <button
+                type="button"
                 wire:click="$set('mode', 'agent')"
-                class="px-3.5 py-1 text-xs font-medium rounded-full transition-colors {{ $mode === 'agent' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-xs' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200' }}"
+                aria-pressed="{{ $mode === 'agent' ? 'true' : 'false' }}"
+                @class([
+                    'h-7 rounded-md px-3 text-xs font-medium',
+                    'bg-white text-zinc-900 shadow-xs ring-1 ring-zinc-200' => $mode === 'agent',
+                    'text-zinc-500 hover:text-zinc-900' => $mode !== 'agent',
+                ])
             >
                 Agent
             </button>
         </div>
 
-        <div class="flex items-center gap-2 shrink-0">
-            <label class="flex shrink-0 cursor-pointer select-none items-center gap-2" title="Persist k6 logs after the run completes">
+        <div class="flex shrink-0 items-center gap-3">
+            <label class="flex shrink-0 cursor-pointer items-center gap-2 select-none" title="Keep k6 logs after the run completes">
                 <flux:switch wire:model.live="persistLogs" />
-                <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Persist logs</span>
+                <span class="text-xs text-zinc-600">Persist logs</span>
             </label>
 
             @if ($this->currentRun)
@@ -369,39 +379,46 @@ class extends Component
                     wire:navigate
                     :href="route('projects.runs.view', ['project' => $this->project, 'run' => $this->currentRun])"
                     size="sm"
-                    variant="subtle"
-                    icon="clock"
+                    variant="ghost"
                 >
-                    View Current Run
+                    <x-spinner class="size-3.5 text-zinc-500" />
+                    View current run
                 </flux:button>
             @endif
 
             <flux:button wire:click="runTest" wire:loading.attr="disabled" icon="play" variant="primary" size="sm">
-                Run Test
+                Run test
             </flux:button>
         </div>
     </div>
 
     {{-- Content area --}}
-    <div class="flex flex-1 min-h-0">
+    <div class="flex min-h-0 flex-1">
         {{-- Script mode: explorer + editor --}}
         @if ($mode === 'script')
-            <aside class="flex w-64 shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
-                <div class="flex h-9 shrink-0 items-center gap-0.5 border-b border-zinc-200 pl-3 pr-1.5 dark:border-zinc-800">
-                    <span class="flex-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Explorer</span>
-                    <button @click="startCreate('file')" title="New file" class="rounded p-1 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-100">
-                        <flux:icon.document-plus variant="micro" class="size-4" />
+            <aside class="flex w-64 shrink-0 flex-col overflow-hidden border-r border-zinc-200 bg-zinc-50">
+                <div class="flex h-10 shrink-0 items-center gap-0.5 border-b border-zinc-200 pr-1.5 pl-3">
+                    <span class="flex-1 text-[13px] font-medium text-zinc-900">Explorer</span>
+                    <button type="button" @click="startCreate('file')" title="New file" aria-label="New file" class="ui-icon-button size-6">
+                        <flux:icon.document-plus variant="micro" />
                     </button>
-                    <button @click="startCreate('folder')" title="New folder" class="rounded p-1 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-100">
-                        <flux:icon.folder-plus variant="micro" class="size-4" />
+                    <button type="button" @click="startCreate('folder')" title="New folder" aria-label="New folder" class="ui-icon-button size-6">
+                        <flux:icon.folder-plus variant="micro" />
                     </button>
-                    <button @click="$refs.fileUploadInput.click()" title="Upload files" class="rounded p-1 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-100">
-                        <flux:icon.arrow-up-tray variant="micro" class="size-4" />
+                    <button type="button" @click="$refs.fileUploadInput.click()" title="Upload files" aria-label="Upload files" class="ui-icon-button size-6">
+                        <flux:icon.arrow-up-tray variant="micro" />
                     </button>
                     <input type="file" x-ref="fileUploadInput" multiple hidden @change="handleFileUpload($event)" />
                 </div>
 
-                <div x-show="creating" x-cloak class="shrink-0 px-2 pt-2" x-transition>
+                <div
+                    x-show="creating"
+                    x-cloak
+                    class="shrink-0 px-1.5 pt-1.5"
+                    x-transition:enter="transition ease-snappy duration-200"
+                    x-transition:enter-start="opacity-0 -translate-y-1"
+                    x-transition:enter-end="opacity-100 translate-y-0"
+                >
                     <input
                         x-ref="newItemInput"
                         x-model="newItemName"
@@ -410,7 +427,7 @@ class extends Component
                         @blur="cancelCreate()"
                         :placeholder="createType === 'file' ? 'File name…' : 'Folder name…'"
                         x-effect="creating && $nextTick(() => $el.focus())"
-                        class="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-800 outline-none focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                        class="ui-input h-7 rounded-md px-2 text-[13px]"
                     />
                 </div>
 
@@ -420,13 +437,13 @@ class extends Component
                     @endforeach
 
                     @if (empty($fileTree))
-                        <div class="p-2 text-sm text-zinc-500 dark:text-zinc-400">No files yet.</div>
+                        <x-empty-state compact icon="document" title="No files yet" description="Create a file or drop one here." />
                     @endif
                 </div>
             </aside>
 
             <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-                <div class="flex h-9 shrink-0 items-stretch overflow-x-auto border-b border-zinc-200 bg-zinc-50 [scrollbar-width:none] dark:border-zinc-800 dark:bg-zinc-900 [&::-webkit-scrollbar]:hidden">
+                <div class="flex h-10 shrink-0 items-stretch overflow-x-auto bg-zinc-50 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     @foreach ($openTabs as $tab)
                         @php $isActive = $tab === $activeFilePath; @endphp
                         <div
@@ -434,40 +451,39 @@ class extends Component
                             wire:click="selectFile('{{ $tab }}')"
                             title="{{ $tab }}"
                             @class([
-                                'group/tab relative flex shrink-0 cursor-pointer select-none items-center gap-2 border-r border-zinc-200 px-3 text-[13px] dark:border-zinc-800',
-                                'bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100' => $isActive,
-                                'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-zinc-200' => ! $isActive,
+                                'group/tab flex shrink-0 cursor-pointer items-center gap-2 border-r border-b border-zinc-200 pr-1.5 pl-3 text-[13px] select-none',
+                                'border-b-transparent bg-white text-zinc-900' => $isActive,
+                                'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900' => ! $isActive,
                             ])
                         >
-                            @if ($isActive)
-                                <span class="absolute inset-x-0 top-0 h-0.5 bg-zinc-900 dark:bg-white"></span>
-                            @endif
                             <x-file-icon :name="$tab" class="size-3.5" />
                             <span class="max-w-[180px] truncate">{{ basename($tab) }}</span>
-                            <span class="relative flex size-4 items-center justify-center">
+                            <span class="relative flex size-5 items-center justify-center">
                                 <span
                                     x-show="$store.editor.buffers['{{ $tab }}']?.dirty"
-                                    class="size-2 rounded-full bg-zinc-500 group-hover/tab:hidden dark:bg-zinc-300"
+                                    class="size-2 rounded-full bg-zinc-400 group-hover/tab:hidden"
                                 ></span>
                                 <button
                                     wire:click.stop="closeTab('{{ $tab }}')"
                                     title="Close"
-                                    class="absolute inset-0 hidden items-center justify-center rounded text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 group-hover/tab:flex dark:hover:bg-white/10 dark:hover:text-zinc-200"
+                                    aria-label="Close {{ basename($tab) }}"
+                                    class="absolute inset-0 hidden items-center justify-center rounded text-zinc-400 hover:bg-zinc-200 hover:text-zinc-900 group-hover/tab:flex"
                                     x-bind:class="{ '!flex': ! $store.editor.buffers['{{ $tab }}']?.dirty && @js($isActive) }"
                                 >
-                                    <flux:icon.x-mark variant="micro" class="size-3" />
+                                    <flux:icon.x-mark variant="micro" class="size-3.5" />
                                 </button>
                             </span>
                         </div>
                     @endforeach
+                    <div class="min-w-0 flex-1 border-b border-zinc-200"></div>
                 </div>
 
                 @if ($activeFilePath)
-                    <div class="flex h-7 shrink-0 items-center gap-1 border-b border-zinc-200 bg-white px-3 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+                    <div class="flex h-7 shrink-0 items-center gap-1 border-b border-zinc-200 bg-white px-3 text-xs text-zinc-500">
                         <span>{{ $script->name }}</span>
                         @foreach (explode('/', $activeFilePath) as $segment)
-                            <flux:icon.chevron-right variant="micro" class="size-3 text-zinc-400" />
-                            <span @class(['text-zinc-800 dark:text-zinc-200' => $loop->last])>{{ $segment }}</span>
+                            <flux:icon.chevron-right variant="micro" class="size-3 text-zinc-300" />
+                            <span @class(['text-zinc-900' => $loop->last])>{{ $segment }}</span>
                         @endforeach
                     </div>
 
@@ -482,9 +498,8 @@ class extends Component
                         class="min-h-0 flex-1 !rounded-none !border-0"
                     />
                 @else
-                    <div class="flex flex-1 flex-col items-center justify-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-                        <flux:icon.code-bracket class="size-8 text-zinc-300 dark:text-zinc-600" />
-                        Select a file from the explorer to start editing.
+                    <div class="flex flex-1 items-center justify-center">
+                        <x-empty-state icon="code-bracket" title="No file open" description="Select a file in the explorer to start editing." />
                     </div>
                 @endif
             </div>

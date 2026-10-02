@@ -104,7 +104,7 @@ test('insights model page renders within the settings navigation', function () {
     $this->actingAs($user)
         ->get(route('settings.insights-model'))
         ->assertOk()
-        ->assertSee(['AI Insights Model', 'AI Integrations', 'API Tokens']);
+        ->assertSee(['AI insights model', 'AI integrations', 'API tokens']);
 });
 
 test('panel prompts to visit settings when no model is selected', function () {

@@ -1,31 +1,28 @@
 document.addEventListener('alpine:init', () => {
     Alpine.data('activityChart', (activity) => ({
         chart: null,
-        tooltip: { show: false, x: 0, y: 0, label: '', value: 0 },
+        tooltip: { show: false, x: 0, y: 0, label: '', rows: [] },
 
         init() {
-            const ctx = this.$refs.canvas.getContext('2d');
-            const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-            gradient.addColorStop(0, '#3b82f6');
-            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.05)');
+            const { series } = window.StradenCharts;
 
-            this.chart = new Chart(ctx, {
+            this.chart = new Chart(this.$refs.canvas.getContext('2d'), {
                 type: 'bar',
                 data: {
                     labels: activity.map(d => d.label),
                     datasets: [{
+                        label: 'Runs',
                         data: activity.map(d => d.count),
-                        backgroundColor: gradient,
-                        hoverBackgroundColor: '#2563eb',
-                        borderRadius: 6,
-                        borderSkipped: false,
-                        maxBarThickness: 42,
+                        backgroundColor: series[0],
+                        hoverBackgroundColor: '#2f49c4',
+                        borderRadius: { topLeft: 4, topRight: 4 },
+                        borderSkipped: 'bottom',
+                        maxBarThickness: 28,
                     }],
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    animation: { duration: 300 },
                     interaction: { intersect: false, mode: 'index' },
                     plugins: {
                         legend: { display: false },
@@ -37,12 +34,12 @@ document.addEventListener('alpine:init', () => {
                     scales: {
                         x: {
                             grid: { display: false },
-                            ticks: { color: '#a1a1aa', font: { size: 10 } },
+                            border: { display: false },
                         },
                         y: {
                             beginAtZero: true,
-                            grid: { color: '#f4f4f5' },
-                            ticks: { color: '#a1a1aa', font: { size: 10 }, stepSize: 1, precision: 0 },
+                            border: { display: false },
+                            ticks: { stepSize: 1, precision: 0, maxTicksLimit: 5 },
                         },
                     },
                 },
@@ -57,15 +54,14 @@ document.addEventListener('alpine:init', () => {
                 return;
             }
 
-            const index = tooltipModel.dataPoints?.[0]?.dataIndex;
-            const day = activity[index];
+            const day = activity[tooltipModel.dataPoints?.[0]?.dataIndex];
 
             this.tooltip = {
                 show: true,
                 x: tooltipModel.caretX,
-                y: tooltipModel.caretY - 12,
+                y: tooltipModel.caretY,
                 label: day?.full ?? '',
-                value: day?.count ?? 0,
+                rows: [{ label: 'Runs', value: day?.count ?? 0, color: window.StradenCharts.series[0] }],
             };
         },
 

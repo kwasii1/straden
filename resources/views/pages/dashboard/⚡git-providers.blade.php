@@ -58,20 +58,9 @@ class extends Component
         ];
     }
 
-    public function getGitTypeIconColor(string $type): string
-    {
-        return match ($type) {
-            'github' => 'text-zinc-900',
-            'gitlab' => 'text-orange-600',
-            'bitbucket' => 'text-blue-600',
-            'azure_devops' => 'text-sky-600',
-            default => 'text-[#919191]',
-        };
-    }
-
     public function getTokenLabel(): string
     {
-        return $this->gitType === 'bitbucket' ? 'App Password' : 'Personal Access Token';
+        return $this->gitType === 'bitbucket' ? 'App password' : 'Personal access token';
     }
 
     public function getScopesHelpText(): string
@@ -234,192 +223,170 @@ class extends Component
 };
 ?>
 
-<div class="flex flex-col gap-y-6">
-    {{-- Header --}}
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#EDEDED]">
-        <div>
-            <flux:heading size="xl" class="font-semibold text-zinc-900">Git Providers</flux:heading>
-            <flux:text class="text-xs text-[#919191] mt-1">Connect GitHub, GitLab, Bitbucket, or Azure DevOps to sync and import source repositories.</flux:text>
-        </div>
+<div class="flex flex-col gap-8">
+    @php
+        $gitProviderOptions = [
+            'github' => ['label' => 'GitHub', 'monogram' => 'GH', 'description' => 'Personal access token'],
+            'gitlab' => ['label' => 'GitLab', 'monogram' => 'GL', 'description' => 'Personal access token'],
+            'bitbucket' => ['label' => 'Bitbucket', 'monogram' => 'BB', 'description' => 'App password and workspace'],
+            'azure_devops' => ['label' => 'Azure DevOps', 'monogram' => 'AZ', 'description' => 'Personal access token and organization'],
+        ];
+    @endphp
 
-        <flux:modal.trigger name="create-git-connector">
-            <flux:button variant="primary" size="sm" icon="plus" class="shrink-0">
-                Add Git Provider
-            </flux:button>
-        </flux:modal.trigger>
-    </div>
+    <x-page-header title="Git providers" description="Connect GitHub, GitLab, Bitbucket or Azure DevOps to sync and import source repositories.">
+        <x-slot:actions>
+            <flux:modal.trigger name="create-git-connector">
+                <flux:button variant="primary" icon="plus">Add git provider</flux:button>
+            </flux:modal.trigger>
+        </x-slot:actions>
+    </x-page-header>
 
-    {{-- Metrics strip --}}
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div class="flex items-center justify-between p-3.5 rounded-xl border border-[#EDEDED] bg-[#F1F1F1]">
-            <span class="text-xs text-[#919191] font-medium">Connected Accounts</span>
-            <span class="text-sm font-semibold text-zinc-900 font-mono">{{ $this->stats['total_connected'] }}</span>
-        </div>
-
-        <div class="flex items-center justify-between p-3.5 rounded-xl border border-[#EDEDED] bg-[#F1F1F1]">
-            <span class="text-xs text-[#919191] font-medium">Synced Repositories</span>
-            <span class="text-sm font-semibold text-zinc-900 font-mono">{{ $this->stats['total_cached'] }}</span>
-        </div>
-
-        <div class="flex items-center justify-between p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5">
-            <div class="flex items-center gap-2">
-                <span class="relative flex size-2">
-                    <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                    <span class="relative inline-flex size-2 rounded-full bg-emerald-500"></span>
-                </span>
-                <span class="text-xs text-emerald-700 font-medium">Supported Platforms</span>
-            </div>
-            <span class="text-xs font-semibold text-emerald-700">4 Providers</span>
-        </div>
-    </div>
-
-    {{-- Connected accounts list --}}
-    <div class="flex flex-col rounded-xl border border-[#EDEDED] bg-[#F1F1F1] divide-y divide-[#EDEDED] overflow-hidden">
-        @forelse ($this->gitConnectors as $connector)
-            @php
-                $settings = $connector->settings ?? [];
-                $repoCount = count($settings['cached_repos'] ?? []);
-                $projectCount = count($settings['cached_projects'] ?? []);
-                $lastFetched = isset($settings['repos_fetched_at']) ? \Carbon\Carbon::parse($settings['repos_fetched_at']) : null;
-            @endphp
-
-            <div wire:key="git-connector-{{ $connector->id }}" class="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-4 bg-white hover:bg-[#F8F8F8] transition">
-                <div class="flex items-center gap-x-3.5 min-w-0">
-                    <div class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-[#EDEDED] bg-[#F1F1F1]">
-                        <flux:icon.folder-git-2 class="size-5 {{ $this->getGitTypeIconColor($connector->type->value) }}" />
-                    </div>
-
-                    <div class="space-y-0.5 min-w-0">
-                        <div class="flex items-center gap-x-2">
-                            <flux:heading class="font-medium text-sm text-zinc-900 truncate">
-                                {{ $connector->name }}
-                            </flux:heading>
-
-                            <flux:badge size="sm" variant="subtle" color="zinc" class="text-[10px] font-mono capitalize shrink-0">
-                                {{ $connector->type->label() }}
-                            </flux:badge>
-                        </div>
-
-                        <div class="flex flex-wrap items-center gap-x-3 text-xs text-[#919191]">
-                            @if ($repoCount > 0)
-                                <span class="font-mono text-zinc-700 font-medium">{{ $repoCount }} {{ Str::plural('repository', $repoCount) }}</span>
-                            @elseif ($projectCount > 0)
-                                <span class="font-mono text-zinc-700 font-medium">{{ $projectCount }} {{ Str::plural('project', $projectCount) }}</span>
-                            @else
-                                <span>No cached repos</span>
-                            @endif
-
-                            @if ($lastFetched)
-                                <span class="text-[#D8D8D8]">&middot;</span>
-                                <span class="text-[11px]">Synced {{ $lastFetched->diffForHumans() }}</span>
-                            @endif
-
-                            @if (isset($settings['workspace']))
-                                <span class="text-[#D8D8D8]">&middot;</span>
-                                <span class="text-[11px] font-mono">ws: {{ $settings['workspace'] }}</span>
-                            @endif
-
-                            @if (isset($settings['organization']))
-                                <span class="text-[#D8D8D8]">&middot;</span>
-                                <span class="text-[11px] font-mono">org: {{ $settings['organization'] }}</span>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-x-1.5 self-end sm:self-auto shrink-0">
-                    <flux:button
-                        wire:click="refreshGitConnectorRepos('{{ $connector->id }}')"
-                        wire:loading.attr="disabled"
-                        wire:target="refreshGitConnectorRepos('{{ $connector->id }}')"
-                        variant="ghost"
-                        size="sm"
-                        icon="arrow-path"
-                        class="text-xs h-8"
-                    >
-                        <span wire:loading.remove wire:target="refreshGitConnectorRepos('{{ $connector->id }}')">Refresh</span>
-                        <span wire:loading wire:target="refreshGitConnectorRepos('{{ $connector->id }}')">Syncing...</span>
-                    </flux:button>
-
-                    <flux:button
-                        variant="subtle"
-                        size="sm"
-                        icon="magnifying-glass"
-                        :href="route('projects.repository-picker', ['project' => $this->project, 'connector' => $connector])"
-                        wire:navigate
-                        class="text-xs h-8"
-                    >
-                        Browse Repos
-                    </flux:button>
-
-                    <flux:button
-                        wire:click="deleteGitConnector('{{ $connector->id }}')"
-                        wire:confirm="Are you sure you want to remove this git provider connection?"
-                        variant="ghost"
-                        size="sm"
-                        icon="trash"
-                        class="text-red-500 hover:text-red-600 hover:bg-red-50 text-xs h-8"
-                    />
-                </div>
-            </div>
-        @empty
-            <div class="flex flex-col items-center justify-center py-16 px-4 text-center bg-white">
-                <div class="flex size-12 items-center justify-center rounded-2xl bg-[#F1F1F1] border border-[#EDEDED] text-[#919191] mb-4">
-                    <flux:icon.folder-git-2 class="size-6" />
-                </div>
-
-                <flux:heading size="md" class="text-zinc-900 font-medium">No Git Providers Connected</flux:heading>
-
-                <flux:text class="text-xs text-[#919191] mt-1 max-w-sm">
-                    Link your GitHub, GitLab, Bitbucket, or Azure DevOps account to browse and import repositories into your project.
-                </flux:text>
-
+    <section class="ui-panel overflow-hidden">
+        @if ($this->gitConnectors->isEmpty())
+            <x-empty-state icon="folder-git-2" title="No git providers connected" description="Link a GitHub, GitLab, Bitbucket or Azure DevOps account to browse and import repositories into this project.">
                 <flux:modal.trigger name="create-git-connector">
-                    <flux:button variant="primary" size="sm" icon="plus" class="mt-5">
-                        Connect First Provider
-                    </flux:button>
+                    <flux:button size="sm" icon="plus">Connect a provider</flux:button>
                 </flux:modal.trigger>
+            </x-empty-state>
+        @else
+            <header class="ui-panel-header">
+                <h2 class="ui-panel-title">Connected accounts</h2>
+                <span class="text-xs text-zinc-500 tabular-nums">
+                    {{ trans_choice(':count account|:count accounts', $this->stats['total_connected']) }}, {{ trans_choice(':count repository cached|:count repositories cached', $this->stats['total_cached']) }}
+                </span>
+            </header>
+
+            <div class="ui-list">
+                @foreach ($this->gitConnectors as $connector)
+                    @php
+                        $settings = $connector->settings ?? [];
+                        $repoCount = count($settings['cached_repos'] ?? []);
+                        $projectCount = count($settings['cached_projects'] ?? []);
+                        $lastFetched = isset($settings['repos_fetched_at']) ? \Carbon\Carbon::parse($settings['repos_fetched_at']) : null;
+                    @endphp
+
+                    <div wire:key="git-connector-{{ $connector->id }}" class="ui-list-row flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+                        <div class="flex min-w-0 flex-1 items-center gap-3">
+                            <span class="ui-monogram size-9">{{ $gitProviderOptions[$connector->type->value]['monogram'] ?? strtoupper(substr($connector->type->label(), 0, 2)) }}</span>
+
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="truncate text-sm font-medium text-zinc-900">{{ $connector->name }}</span>
+                                    <x-status-badge status="connected" />
+                                </div>
+
+                                <div class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-zinc-500">
+                                    <span>{{ $connector->type->label() }}</span>
+
+                                    @if ($repoCount > 0)
+                                        <span class="tabular-nums">{{ $repoCount }} {{ Str::plural('repository', $repoCount) }}</span>
+                                    @elseif ($projectCount > 0)
+                                        <span class="tabular-nums">{{ $projectCount }} {{ Str::plural('project', $projectCount) }}</span>
+                                    @else
+                                        <span>No cached repositories</span>
+                                    @endif
+
+                                    @if ($lastFetched)
+                                        <span>Synced {{ $lastFetched->diffForHumans() }}</span>
+                                    @endif
+
+                                    @if (isset($settings['workspace']))
+                                        <span>Workspace <span class="font-mono text-zinc-700">{{ $settings['workspace'] }}</span></span>
+                                    @endif
+
+                                    @if (isset($settings['organization']))
+                                        <span>Organization <span class="font-mono text-zinc-700">{{ $settings['organization'] }}</span></span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex shrink-0 items-center gap-1 self-end sm:self-auto">
+                            <flux:button
+                                wire:click="refreshGitConnectorRepos('{{ $connector->id }}')"
+                                wire:loading.attr="disabled"
+                                wire:target="refreshGitConnectorRepos('{{ $connector->id }}')"
+                                variant="ghost"
+                                size="sm"
+                                icon="arrow-path"
+                            >
+                                <span wire:loading.remove wire:target="refreshGitConnectorRepos('{{ $connector->id }}')">Refresh</span>
+                                <span wire:loading wire:target="refreshGitConnectorRepos('{{ $connector->id }}')">Syncing…</span>
+                            </flux:button>
+
+                            <flux:button
+                                size="sm"
+                                :href="route('projects.repository-picker', ['project' => $this->project, 'connector' => $connector])"
+                                wire:navigate
+                            >
+                                Browse repositories
+                            </flux:button>
+
+                            <button
+                                type="button"
+                                wire:click="deleteGitConnector('{{ $connector->id }}')"
+                                wire:confirm="Are you sure you want to remove this git provider connection?"
+                                class="ui-icon-button hover:bg-red-50 hover:text-red-600"
+                                aria-label="Remove git provider"
+                                title="Remove"
+                            >
+                                <flux:icon.trash variant="micro" />
+                            </button>
+                        </div>
+                    </div>
+                @endforeach
             </div>
-        @endforelse
-    </div>
+        @endif
+    </section>
 
-    {{-- Create modal --}}
-    <flux:modal name="create-git-connector" class="md:w-1/2">
-        <div class="space-y-6">
-            <div class="border-b border-[#EDEDED] pb-4">
-                <flux:heading size="lg" class="text-zinc-900">Add Git Provider</flux:heading>
-                <flux:text class="mt-1 text-xs text-[#919191]">Connect your source control provider using a personal access token or app password.</flux:text>
+    <flux:modal name="create-git-connector" class="md:w-[36rem]">
+        <div class="flex flex-col gap-6">
+            <div>
+                <flux:heading size="lg">Add git provider</flux:heading>
+                <flux:text class="mt-1">Connect your source control provider with a personal access token or app password.</flux:text>
             </div>
 
-            <form wire:submit="addGitConnector" class="space-y-5">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <flux:field>
-                        <flux:label class="text-xs">Connection Name</flux:label>
-                        <flux:input wire:model="gitName" placeholder="Personal GitHub, Work GitLab..." />
-                    </flux:field>
+            <form wire:submit="addGitConnector" class="flex flex-col gap-6">
+                <fieldset>
+                    <legend class="mb-2 text-sm font-medium text-zinc-800">Provider</legend>
 
-                    <flux:field>
-                        <flux:label class="text-xs">Git Provider</flux:label>
-                        <flux:select wire:model.live="gitType">
-                            <flux:select.option value="">Select a provider...</flux:select.option>
-                            <flux:select.option value="github">GitHub</flux:select.option>
-                            <flux:select.option value="gitlab">GitLab</flux:select.option>
-                            <flux:select.option value="bitbucket">Bitbucket</flux:select.option>
-                            <flux:select.option value="azure_devops">Azure DevOps</flux:select.option>
-                        </flux:select>
-                    </flux:field>
-                </div>
+                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        @foreach ($gitProviderOptions as $value => $option)
+                            <label
+                                wire:key="git-provider-option-{{ $value }}"
+                                class="ui-tile flex cursor-pointer items-center gap-3 p-4 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand-500/70"
+                                @if ($gitType === $value) data-selected @endif
+                            >
+                                <input type="radio" wire:model.live="gitType" value="{{ $value }}" class="sr-only" />
+                                <span class="ui-monogram size-8">{{ $option['monogram'] }}</span>
+                                <span class="min-w-0">
+                                    <span class="block text-sm font-medium text-zinc-900">{{ $option['label'] }}</span>
+                                    <span class="block text-xs text-zinc-500">{{ $option['description'] }}</span>
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+
+                    <flux:error name="gitType" />
+                </fieldset>
+
+                <flux:field>
+                    <flux:label>Connection name</flux:label>
+                    <flux:input wire:model="gitName" placeholder="Personal GitHub, Work GitLab…" />
+                    <flux:error name="gitName" />
+                </flux:field>
 
                 @if ($gitType)
                     <flux:field>
-                        <flux:label class="text-xs">{{ $this->getTokenLabel() }}</flux:label>
+                        <flux:label>{{ $this->getTokenLabel() }}</flux:label>
                         <flux:input
                             wire:model="gitToken"
                             type="password"
-                            placeholder="{{ $gitType === 'bitbucket' ? 'Enter your app password...' : 'Enter your token...' }}"
+                            placeholder="{{ $gitType === 'bitbucket' ? 'Enter your app password' : 'Enter your token' }}"
                         />
+                        <flux:error name="gitToken" />
                         @if ($scopesHelp = $this->getScopesHelpText())
-                            <div class="mt-2 text-[11px] text-[#919191] bg-[#F1F1F1] p-2.5 rounded-lg border border-[#EDEDED] leading-normal">
+                            <div class="ui-inset px-3 py-2.5 text-xs leading-relaxed text-zinc-600 [&_a]:font-medium [&_a]:text-zinc-900 [&_a]:decoration-zinc-300 [&_a]:underline-offset-2 [&_strong]:font-medium [&_strong]:text-zinc-800">
                                 {!! $scopesHelp !!}
                             </div>
                         @endif
@@ -427,28 +394,30 @@ class extends Component
 
                     @if ($gitType === 'bitbucket')
                         <flux:field>
-                            <flux:label class="text-xs">Workspace</flux:label>
+                            <flux:label>Workspace</flux:label>
                             <flux:input wire:model="gitWorkspace" placeholder="my-workspace" />
-                            <flux:description class="text-[11px]">Bitbucket requires a workspace slug to list repositories.</flux:description>
+                            <flux:description>Bitbucket needs a workspace slug to list repositories.</flux:description>
+                            <flux:error name="gitWorkspace" />
                         </flux:field>
                     @endif
 
                     @if ($gitType === 'azure_devops')
                         <flux:field>
-                            <flux:label class="text-xs">Organization</flux:label>
+                            <flux:label>Organization</flux:label>
                             <flux:input wire:model="gitOrganization" placeholder="my-org" />
-                            <flux:description class="text-[11px]">Your Azure DevOps organization name (e.g., dev.azure.com/my-org).</flux:description>
+                            <flux:description>Your Azure DevOps organization name, as in dev.azure.com/my-org.</flux:description>
+                            <flux:error name="gitOrganization" />
                         </flux:field>
                     @endif
                 @endif
 
-                <div class="flex items-center justify-end gap-2 pt-4 border-t border-[#EDEDED]">
-                    <flux:button x-on:click="$flux.modal('create-git-connector').close()" variant="ghost" size="sm">
-                        Cancel
-                    </flux:button>
-                    <flux:button type="submit" variant="primary" size="sm" wire:loading.attr="disabled">
-                        <span wire:loading.remove wire:target="addGitConnector">Authenticate & Connect</span>
-                        <span wire:loading wire:target="addGitConnector">Validating...</span>
+                <div class="flex justify-end gap-2">
+                    <flux:modal.close>
+                        <flux:button variant="ghost">Cancel</flux:button>
+                    </flux:modal.close>
+                    <flux:button type="submit" variant="primary" wire:loading.attr="disabled" wire:target="addGitConnector">
+                        <span wire:loading.remove wire:target="addGitConnector">Validate and connect</span>
+                        <span wire:loading wire:target="addGitConnector">Validating…</span>
                     </flux:button>
                 </div>
             </form>

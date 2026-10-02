@@ -71,7 +71,7 @@ test('selecting an endpoint scopes the charts and shows a summary strip', functi
     Livewire::actingAs($user)
         ->test('pages::dashboard.view-run', ['project' => $run->script->test->project, 'run' => $run])
         ->set('selectedEndpoint', 'https://api.example.com/v1/users')
-        ->assertSee('Total Requests')
+        ->assertSee('Total requests')
         ->assertSee('100 ms')
         ->assertSee('200 ms')
         ->assertSee('are run-level only')
@@ -91,7 +91,7 @@ test('clearing the endpoint filter restores the run-level charts', function () {
         ->assertDontSee('Active VUs')
         ->set('selectedEndpoint', '')
         ->assertSee('Active VUs')
-        ->assertSee('Data Transfer');
+        ->assertSee('Data transfer');
 });
 
 test('run detail page hides the filter when no endpoints are available', function () {
@@ -178,7 +178,7 @@ test('selecting a grouped pattern scopes queries across every raw url', function
     Livewire::actingAs($user)
         ->test('pages::dashboard.view-run', ['project' => $run->script->test->project, 'run' => $run])
         ->set('selectedEndpoint', 'https://api.example.com/todos/{id}')
-        ->assertSee('Total Requests');
+        ->assertSee('Total requests');
 
     // One anchored regex covers the whole group — no per-URL OR enumeration.
     Http::assertSent(function ($request) {

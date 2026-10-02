@@ -61,7 +61,7 @@ class extends Component {
 <div class="flex flex-col gap-6">
     <x-auth-header :title="__('Welcome to Straden')" :description="__('Create the administrator account for this instance. You can invite more people afterwards.')" />
 
-    <form wire:submit="createAdmin" class="flex flex-col gap-6">
+    <form wire:submit="createAdmin" class="flex flex-col gap-5">
         <flux:input wire:model="name" :label="__('Name')" type="text" required autofocus autocomplete="name" :placeholder="__('Full name')" />
 
         <flux:input wire:model="email" :label="__('Email address')" type="email" required autocomplete="email" placeholder="email@example.com" />

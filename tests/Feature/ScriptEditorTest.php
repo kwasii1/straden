@@ -42,6 +42,25 @@ test('creating a script writes entry point file to disk', function () {
         ->not->toContain('__TARGET_URL__');
 });
 
+test('test page lists scripts with their latest run status', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $test = Test::factory()->create(['project_id' => $project->id]);
+    $failing = Script::factory()->create(['test_id' => $test->id, 'name' => 'Checkout flow']);
+    Script::factory()->create(['test_id' => $test->id, 'name' => 'Search flow']);
+
+    Run::factory()->for($failing)->failed()->create();
+
+    $this->actingAs($user)
+        ->get(route('projects.view-test', ['project' => $project, 'test' => $test]))
+        ->assertOk()
+        ->assertSee('Checkout flow')
+        ->assertSee('data-status="failed"', false)
+        ->assertSee('Search flow')
+        ->assertSee('No runs')
+        ->assertSee(route('projects.view-test-script', ['project' => $project, 'test' => $test, 'script' => $failing]));
+});
+
 test('script editor page loads with file tree', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();
@@ -668,7 +687,7 @@ test('script editor shows a view current run button when a run is active', funct
             'script' => $script,
         ]))
         ->assertOk()
-        ->assertSee('View Current Run')
+        ->assertSee('View current run')
         ->assertSee(route('projects.runs.view', ['project' => $project, 'run' => $run]));
 });
 
@@ -691,7 +710,7 @@ test('script editor shows a view current run button for queued runs', function (
             'script' => $script,
         ]))
         ->assertOk()
-        ->assertSee('View Current Run')
+        ->assertSee('View current run')
         ->assertSee(route('projects.runs.view', ['project' => $project, 'run' => $run]));
 });
 
@@ -714,7 +733,7 @@ test('script editor hides the view current run button without an active run', fu
             'script' => $script,
         ]))
         ->assertOk()
-        ->assertDontSee('View Current Run');
+        ->assertDontSee('View current run');
 });
 
 test('autosaves persist silently and report success to the editor', function () {

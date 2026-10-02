@@ -107,3 +107,19 @@ test('default provider selection clears the model', function () {
         ->assertSet('selectedProvider', null)
         ->assertSet('selectedModel', null);
 });
+
+test('all models list puts featured first and includes models beyond the featured list', function () {
+    $featured = AvailableModelMap::modelsFor('openrouter');
+    $all = AvailableModelMap::allModelsFor('openrouter');
+
+    expect(array_slice($all, 0, count($featured)))->toBe($featured)
+        ->and(count($all))->toBeGreaterThan(count($featured));
+});
+
+test('catalog models are accepted as valid selections but unknown ones are not', function () {
+    $catalogOnly = collect(AvailableModelMap::catalogFor('openrouter'))
+        ->first(fn (string $model) => ! in_array($model, AvailableModelMap::modelsFor('openrouter'), true));
+
+    expect(AvailableModelMap::isKnownModel('openrouter', $catalogOnly))->toBeTrue()
+        ->and(AvailableModelMap::isKnownModel('openrouter', 'not/a-real-model'))->toBeFalse();
+});

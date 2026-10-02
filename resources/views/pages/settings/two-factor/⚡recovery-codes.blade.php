@@ -46,27 +46,32 @@ new class extends Component {
 }; ?>
 
 <div
-    class="py-6 space-y-6 border shadow-sm rounded-xl border-zinc-200 dark:border-white/10"
+    class="ui-panel"
     wire:cloak
     x-data="{ showRecoveryCodes: false }"
 >
-    <div class="px-6 space-y-2">
-        <div class="flex items-center gap-2">
-            <flux:icon.lock-closed variant="outline" class="size-4"/>
-            <flux:heading size="lg" level="3">{{ __('2FA recovery codes') }}</flux:heading>
-        </div>
-        <flux:text variant="subtle">
-            {{ __('Recovery codes let you regain access if you lose your 2FA device. Store them in a secure password manager.') }}
-        </flux:text>
-    </div>
+    <header class="ui-panel-header">
+        <h3 class="ui-panel-title">{{ __('2FA recovery codes') }}</h3>
 
-    <div class="px-6">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-2">
+            @if (filled($recoveryCodes))
+                <flux:button
+                    x-show="showRecoveryCodes"
+                    x-cloak
+                    icon="arrow-path"
+                    variant="ghost"
+                    size="sm"
+                    wire:click="regenerateRecoveryCodes"
+                >
+                    {{ __('Regenerate codes') }}
+                </flux:button>
+            @endif
+
             <flux:button
                 x-show="!showRecoveryCodes"
                 icon="eye"
                 icon:variant="outline"
-                variant="primary"
+                size="sm"
                 @click="showRecoveryCodes = true;"
                 aria-expanded="false"
                 aria-controls="recovery-codes-section"
@@ -76,61 +81,61 @@ new class extends Component {
 
             <flux:button
                 x-show="showRecoveryCodes"
+                x-cloak
                 icon="eye-slash"
                 icon:variant="outline"
-                variant="primary"
+                size="sm"
                 @click="showRecoveryCodes = false"
                 aria-expanded="true"
                 aria-controls="recovery-codes-section"
             >
                 {{ __('Hide recovery codes') }}
             </flux:button>
-
-            @if (filled($recoveryCodes))
-                <flux:button
-                    x-show="showRecoveryCodes"
-                    icon="arrow-path"
-                    variant="filled"
-                    wire:click="regenerateRecoveryCodes"
-                >
-                    {{ __('Regenerate codes') }}
-                </flux:button>
-            @endif
         </div>
+    </header>
+
+    <div class="ui-panel-body flex flex-col gap-4">
+        <p class="text-sm text-zinc-500">
+            {{ __('Recovery codes let you regain access if you lose your 2FA device. Store them in a secure password manager.') }}
+        </p>
 
         <div
             x-show="showRecoveryCodes"
-            x-transition
+            x-cloak
+            x-transition:enter="transition ease-snappy duration-200"
+            x-transition:enter-start="opacity-0 translate-y-1"
+            x-transition:enter-end="opacity-100 translate-y-0"
+            x-transition:leave="transition ease-out duration-100"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
             id="recovery-codes-section"
-            class="relative overflow-hidden"
+            class="flex flex-col gap-3"
             x-bind:aria-hidden="!showRecoveryCodes"
         >
-            <div class="mt-3 space-y-3">
-                @error('recoveryCodes')
-                    <flux:callout variant="danger" icon="x-circle" heading="{{$message}}"/>
-                @enderror
+            @error('recoveryCodes')
+                <flux:callout variant="danger" icon="x-circle" heading="{{ $message }}" />
+            @enderror
 
-                @if (filled($recoveryCodes))
-                    <div
-                        class="grid gap-1 p-4 font-mono text-sm rounded-lg bg-zinc-100 dark:bg-white/5"
-                        role="list"
-                        aria-label="{{ __('Recovery codes') }}"
-                    >
-                        @foreach($recoveryCodes as $code)
-                            <div
-                                role="listitem"
-                                class="select-text"
-                                wire:loading.class="opacity-50 animate-pulse"
-                            >
-                                {{ $code }}
-                            </div>
-                        @endforeach
-                    </div>
-                    <flux:text variant="subtle" class="text-xs">
-                        {{ __('Each recovery code can be used once to access your account and will be removed after use. If you need more, click Regenerate codes above.') }}
-                    </flux:text>
-                @endif
-            </div>
+            @if (filled($recoveryCodes))
+                <div
+                    class="ui-inset grid grid-cols-1 gap-x-6 gap-y-1.5 p-4 font-mono text-sm text-zinc-800 sm:grid-cols-2"
+                    role="list"
+                    aria-label="{{ __('Recovery codes') }}"
+                >
+                    @foreach ($recoveryCodes as $code)
+                        <div
+                            role="listitem"
+                            class="select-text transition-opacity duration-150"
+                            wire:loading.class="opacity-50"
+                        >
+                            {{ $code }}
+                        </div>
+                    @endforeach
+                </div>
+                <p class="text-xs text-zinc-500">
+                    {{ __('Each recovery code can be used once to access your account and will be removed after use. If you need more, click Regenerate codes above.') }}
+                </p>
+            @endif
         </div>
     </div>
 </div>

@@ -60,6 +60,47 @@ class AvailableModelMap
     }
 
     /**
+     * Get every known model for a provider from the synced models.dev catalog.
+     *
+     * @return array<string>
+     */
+    public static function catalogFor(string $provider): array
+    {
+        static $catalog = null;
+
+        if ($catalog === null) {
+            $path = resource_path('data/ai-models.json');
+            $contents = is_file($path) ? file_get_contents($path) : false;
+            $catalog = $contents === false ? [] : (json_decode($contents, true) ?: []);
+        }
+
+        return $catalog[$provider] ?? [];
+    }
+
+    /**
+     * Get the featured models followed by the rest of the catalog.
+     *
+     * @return array<string>
+     */
+    public static function allModelsFor(string $provider): array
+    {
+        return array_values(array_unique(array_merge(
+            static::modelsFor($provider),
+            static::catalogFor($provider),
+        )));
+    }
+
+    /**
+     * Determine whether a model is featured or present in the full catalog.
+     */
+    public static function isKnownModel(string $provider, ?string $model): bool
+    {
+        return $model !== null
+            && (in_array($model, static::modelsFor($provider), true)
+                || in_array($model, static::catalogFor($provider), true));
+    }
+
+    /**
      * Get the display label for a provider key.
      */
     public static function labelFor(string $provider): string
@@ -92,25 +133,33 @@ class AvailableModelMap
             'deepseek' => [
                 'deepseek-flash',
                 'deepseek-v4-pro',
-                'deepseek-v4-flash',
             ],
             'openai' => [
-                'gpt-5.4',
+                'gpt-6.1-sol',
+                'gpt-6-sol',
+                'gpt-6-luna',
+                'gpt-6-astra',
+                'gpt-5.6',
+                'gpt-5.6-sol',
+                'gpt-5.6-terra',
+                'gpt-5.6-luna',
+                'gpt-5.5',
+                'gpt-5.5-pro',
+                'gpt-5.4-mini',
                 'gpt-5.4-nano',
-                'gpt-5.4-pro',
-                'gpt-4o',
-                'gpt-4o-mini',
-                'o1',
-                'o1-mini',
-                'o3',
-                'o3-mini',
             ],
             'anthropic' => [
+                'claude-sonnet-5-5',
+                'claude-opus-5-5',
+                'claude-fable-5-1',
+                'claude-opus-5',
                 'claude-sonnet-5',
+                'claude-fable-5',
+                'claude-opus-4-8',
+                'claude-opus-4-7',
+                'claude-sonnet-4-6',
+                'claude-opus-4-6',
                 'claude-haiku-4-5-20251001',
-                'claude-opus-4-5',
-                'claude-sonnet-4',
-                'claude-haiku-4',
             ],
             'gemini' => [
                 'gemini-3.8-flash',
@@ -123,21 +172,26 @@ class AvailableModelMap
                 'gemini-2.5-flash-lite',
             ],
             'groq' => [
+                'qwen/qwen3.8-27b',
+                'qwen/qwen3.6-27b',
+                'openai/gpt-oss-120b',
+                'openai/gpt-oss-20b',
                 'llama-3.3-70b-versatile',
                 'llama-3.1-8b-instant',
-                'mixtral-8x7b-32768',
-                'gemma2-9b-it',
             ],
             'xai' => [
-                'grok-3',
-                'grok-2',
-                'grok-2-vision',
+                'grok-4.7',
+                'grok-4.6',
+                'grok-4.5',
+                'grok-4.3',
+                'grok-4.20-0309-reasoning',
+                'grok-4.20-0309-non-reasoning',
             ],
             'mistral' => [
-                'mistral-large-latest',
                 'mistral-medium-latest',
                 'mistral-small-latest',
-                'codestral-latest',
+                'mistral-large-latest',
+                'magistral-medium-latest',
             ],
             'ollama' => [
                 'llama3',
@@ -147,20 +201,33 @@ class AvailableModelMap
                 'codellama',
             ],
             'openrouter' => [
-                'openai/gpt-4o',
-                'anthropic/claude-sonnet-5',
-                'google/gemini-3.5-flash',
-                'meta-llama/llama-3.3-70b-instruct',
+                'openai/gpt-6.1-sol',
+                'openai/gpt-6-luna',
+                'anthropic/claude-sonnet-5.5',
+                'anthropic/claude-opus-5.5',
+                'x-ai/grok-4.7',
+                'deepseek/deepseek-v4.1-flash',
+                'qwen/qwen3.8-max-prime',
             ],
             'azure' => [
-                'gpt-4o',
-                'gpt-4o-mini',
+                'gpt-6.1-sol',
+                'gpt-6-sol',
+                'gpt-6-luna',
+                'gpt-6-astra',
+                'gpt-5.6-sol',
+                'gpt-5.5',
                 'gpt-5.4',
+                'gpt-5.4-mini',
+                'gpt-5.4-nano',
             ],
             'bedrock' => [
+                'anthropic.claude-sonnet-5-5',
+                'anthropic.claude-opus-5-5',
+                'anthropic.claude-fable-5-1',
+                'anthropic.claude-opus-5',
                 'anthropic.claude-sonnet-5',
-                'anthropic.claude-haiku-4-5',
-                'meta.llama3-70b-instruct',
+                'openai.gpt-6-sol',
+                'openai.gpt-6-luna',
             ],
         ];
     }

@@ -227,192 +227,176 @@ class extends Component
 
         $this->addRepository($this->branchPickerFor, $this->overrideBranch);
     }
-
-    public function getRepoIconColor(): string
-    {
-        return match ($this->connector->type) {
-            ConnectorType::Bitbucket => 'text-blue-600',
-            ConnectorType::GitLab => 'text-orange-600',
-            ConnectorType::AzureDevOps => 'text-sky-600',
-            default => 'text-[#919191]',
-        };
-    }
 };
 ?>
 
-<div class="flex flex-col gap-y-8">
-    {{-- Header --}}
-    <div class="flex items-center gap-x-3">
-        <flux:button
-            variant="ghost"
-            size="sm"
-            icon="arrow-left"
-            :href="route('projects.git-providers', ['project' => $project])"
-            wire:navigate
-        />
-        <div>
-            <flux:heading size="xl" class="font-semibold text-zinc-900">Browse Repositories</flux:heading>
-            <flux:text class="text-xs text-[#919191]">{{ $connector->name }} &middot; {{ $connector->type->label() }}</flux:text>
-        </div>
-    </div>
+<div class="flex flex-col gap-8">
+    <x-page-header title="Browse repositories" description="Pick repositories from {{ $connector->name }} ({{ $connector->type->label() }}) to import into this project.">
+        <x-slot:breadcrumbs>
+            <nav class="flex items-center gap-1.5" aria-label="Breadcrumb">
+                <a href="{{ route('projects.git-providers', ['project' => $project]) }}" wire:navigate class="text-zinc-500 hover:text-zinc-900">Git providers</a>
+                <flux:icon.chevron-right variant="micro" class="text-zinc-300" />
+                <span class="truncate text-zinc-500">{{ $connector->name }}</span>
+            </nav>
+        </x-slot:breadcrumbs>
+
+        <x-slot:actions>
+            <flux:button wire:click="refreshRepos" size="sm" icon="arrow-path">Refresh</flux:button>
+        </x-slot:actions>
+    </x-page-header>
 
     @if ($connector->type === \App\Enums\ConnectorType::AzureDevOps && $selectedProject === null)
         {{-- Azure DevOps: project selection step --}}
-        <div class="space-y-4">
-            <div class="flex items-center justify-between">
-                <flux:heading size="sm" class="text-[#919191] font-medium uppercase tracking-wide">Select a Project</flux:heading>
-                <flux:button wire:click="refreshRepos" variant="ghost" size="sm" icon="arrow-path">
-                    Refresh
-                </flux:button>
-            </div>
+        <section class="ui-panel overflow-hidden">
+            <header class="ui-panel-header">
+                <h2 class="ui-panel-title">Select a project</h2>
+            </header>
 
-            <div class="flex flex-col rounded-xl border border-[#EDEDED] bg-[#F1F1F1] divide-y divide-[#EDEDED] overflow-hidden">
-                @forelse ($this->projects as $projectItem)
-                    <button
-                        wire:key="project-{{ $projectItem['name'] }}"
-                        wire:click="selectProject('{{ $projectItem['name'] }}')"
-                        class="flex items-center gap-x-3 p-4 bg-white hover:bg-[#F8F8F8] transition text-left"
-                    >
-                        <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#F1F1F1] border border-[#EDEDED]">
-                            <flux:icon.folder class="size-4 text-sky-600" />
-                        </div>
-                        <div>
-                            <flux:heading class="font-medium text-sm text-zinc-900">{{ $projectItem['name'] }}</flux:heading>
-                            @if (!empty($projectItem['description']))
-                                <flux:text class="text-xs text-[#919191]">{{ $projectItem['description'] }}</flux:text>
-                            @endif
-                        </div>
-                    </button>
-                @empty
-                    <div class="flex h-40 w-full items-center justify-center bg-white">
-                        <div class="flex flex-col items-center gap-y-2">
-                            <flux:icon.folder class="size-8 text-[#C7C7C7]" />
-                            <flux:text class="text-center text-sm text-zinc-700">No projects found.</flux:text>
-                            <flux:text class="text-center text-xs text-[#919191]">Try refreshing the project list.</flux:text>
-                        </div>
-                    </div>
-                @endforelse
-            </div>
-        </div>
+            @if (count($this->projects) === 0)
+                <x-empty-state icon="folder" title="No projects found" description="Refresh to load the projects in this Azure DevOps organization." />
+            @else
+                <div class="ui-list">
+                    @foreach ($this->projects as $projectItem)
+                        <button
+                            type="button"
+                            wire:key="project-{{ $projectItem['name'] }}"
+                            wire:click="selectProject('{{ $projectItem['name'] }}')"
+                            class="ui-list-row group"
+                        >
+                            <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 ring-1 ring-zinc-200 ring-inset">
+                                <flux:icon.folder variant="micro" />
+                            </span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block truncate text-sm font-medium text-zinc-900">{{ $projectItem['name'] }}</span>
+                                @if (! empty($projectItem['description']))
+                                    <span class="block truncate text-xs text-zinc-500">{{ $projectItem['description'] }}</span>
+                                @endif
+                            </span>
+                            <flux:icon.chevron-right variant="micro" class="text-zinc-300 transition-transform duration-150 ease-snappy group-hover:translate-x-0.5 group-hover:text-zinc-500" />
+                        </button>
+                    @endforeach
+                </div>
+            @endif
+        </section>
     @else
         {{-- Repository selection step --}}
-        <div class="space-y-4">
-            <div class="flex items-center justify-between">
+        <section class="ui-panel overflow-hidden">
+            <header class="ui-panel-header">
                 @if ($connector->type === \App\Enums\ConnectorType::AzureDevOps && $selectedProject)
-                    <flux:button wire:click="backToProjects" variant="ghost" size="sm" icon="arrow-left">
+                    <flux:button wire:click="backToProjects" variant="ghost" size="sm" icon="arrow-left" class="-ml-2">
                         {{ $selectedProject }}
                     </flux:button>
                 @else
-                    <flux:heading size="sm" class="text-[#919191] font-medium uppercase tracking-wide">Repositories</flux:heading>
+                    <h2 class="ui-panel-title">Repositories</h2>
                 @endif
 
-                <flux:button wire:click="refreshRepos" variant="ghost" size="sm" icon="arrow-path">
-                    Refresh
-                </flux:button>
-            </div>
+                <div class="w-full max-w-64">
+                    <flux:input
+                        wire:model.live.debounce.150ms="search"
+                        icon="magnifying-glass"
+                        size="sm"
+                        placeholder="Search repositories"
+                        aria-label="Search repositories"
+                    />
+                </div>
+            </header>
 
-            <flux:input
-                wire:model.live.debounce.150ms="search"
-                icon="magnifying-glass"
-                placeholder="Search repositories..."
-            />
+            @if (count($this->repos) === 0)
+                <x-empty-state icon="folder-git-2" title="No repositories found" description="Refresh the list or try a different search." />
+            @else
+                <div class="ui-list">
+                    @foreach ($this->repos as $repo)
+                        @php $isAdded = in_array($repo['full_name'], $this->addedFullNames, true); @endphp
 
-            <div class="flex flex-col rounded-xl border border-[#EDEDED] bg-[#F1F1F1] divide-y divide-[#EDEDED] overflow-hidden">
-                @forelse ($this->repos as $repo)
-                    @php $isAdded = in_array($repo['full_name'], $this->addedFullNames, true); @endphp
-
-                    <div wire:key="repo-{{ $repo['full_name'] }}" class="bg-white">
-                        <div class="flex items-center justify-between gap-x-4 p-4">
-                            <div class="flex items-center gap-x-3 min-w-0">
-                                <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#F1F1F1] border border-[#EDEDED]">
-                                    <flux:icon.folder-git-2 class="size-4 {{ $this->getRepoIconColor() }}" />
-                                </div>
-                                <div class="min-w-0">
-                                    <flux:heading class="font-medium text-sm text-zinc-900 truncate">{{ $repo['full_name'] }}</flux:heading>
-                                    <div class="flex items-center gap-x-2 mt-0.5">
-                                        <flux:text class="text-xs text-[#919191]">{{ $repo['default_branch'] }}</flux:text>
-                                        @if ($repo['private'])
-                                            <flux:badge size="sm" variant="subtle" color="amber">Private</flux:badge>
-                                        @else
-                                            <flux:badge size="sm" variant="subtle" color="emerald">Public</flux:badge>
-                                        @endif
+                        <div wire:key="repo-{{ $repo['full_name'] }}">
+                            <div class="ui-list-row justify-between gap-4">
+                                <div class="flex min-w-0 items-center gap-3">
+                                    <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 ring-1 ring-zinc-200 ring-inset">
+                                        <flux:icon.folder-git-2 variant="micro" />
+                                    </span>
+                                    <div class="min-w-0">
+                                        <div class="truncate text-sm font-medium text-zinc-900">{{ $repo['full_name'] }}</div>
+                                        <div class="mt-0.5 flex items-center gap-3 text-xs text-zinc-500">
+                                            <span class="flex items-center gap-1">
+                                                <flux:icon.git-branch variant="micro" class="size-3.5 text-zinc-400" />
+                                                <span class="font-mono">{{ $repo['default_branch'] }}</span>
+                                            </span>
+                                            <span class="flex items-center gap-1">
+                                                @if ($repo['private'])
+                                                    <flux:icon.lock-closed variant="micro" class="size-3.5 text-zinc-400" />
+                                                    Private
+                                                @else
+                                                    <flux:icon.globe-alt variant="micro" class="size-3.5 text-zinc-400" />
+                                                    Public
+                                                @endif
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div class="flex items-center gap-x-2 shrink-0">
-                                @if ($isAdded)
-                                    <flux:badge size="sm" variant="solid" color="zinc" icon="check">Added</flux:badge>
-                                @else
-                                    <flux:button
-                                        wire:click="openBranchPicker('{{ $repo['full_name'] }}')"
-                                        variant="ghost"
-                                        size="sm"
-                                        class="text-xs text-[#919191]"
-                                    >
-                                        Change branch
-                                    </flux:button>
-
-                                    <flux:button
-                                        wire:click="addRepository('{{ $repo['full_name'] }}')"
-                                        wire:loading.attr="disabled"
-                                        wire:target="addRepository('{{ $repo['full_name'] }}')"
-                                        variant="primary"
-                                        size="sm"
-                                        icon="plus"
-                                    >
-                                        <span wire:loading.remove wire:target="addRepository('{{ $repo['full_name'] }}')">Add</span>
-                                        <span wire:loading wire:target="addRepository('{{ $repo['full_name'] }}')">Adding...</span>
-                                    </flux:button>
-                                @endif
-                            </div>
-                        </div>
-
-                        {{-- Inline branch override, only rendered when explicitly opened --}}
-                        @if ($branchPickerFor === $repo['full_name'])
-                            <div class="flex items-end gap-x-3 px-4 pb-4 pt-1 border-t border-[#EDEDED] bg-[#F8F8F8]">
-                                <div class="flex-1">
-                                    @if ($loadingBranches)
-                                        <flux:field>
-                                            <flux:label class="text-xs text-[#919191]">Branch</flux:label>
-                                            <flux:input disabled value="Loading branches..." />
-                                        </flux:field>
-                                    @elseif ($branches)
-                                        <flux:select wire:model="overrideBranch" label="Branch">
-                                            @foreach ($branches as $branch)
-                                                <flux:select.option value="{{ $branch['name'] }}">{{ $branch['name'] }}</flux:select.option>
-                                            @endforeach
-                                        </flux:select>
+                                <div class="flex shrink-0 items-center gap-1">
+                                    @if ($isAdded)
+                                        <x-status-badge status="success" label="Added" />
                                     @else
-                                        <flux:input wire:model="overrideBranch" label="Branch" placeholder="main" />
+                                        <flux:button
+                                            wire:click="openBranchPicker('{{ $repo['full_name'] }}')"
+                                            variant="ghost"
+                                            size="sm"
+                                        >
+                                            Change branch
+                                        </flux:button>
+
+                                        <flux:button
+                                            wire:click="addRepository('{{ $repo['full_name'] }}')"
+                                            wire:loading.attr="disabled"
+                                            wire:target="addRepository('{{ $repo['full_name'] }}')"
+                                            size="sm"
+                                            icon="plus"
+                                        >
+                                            <span wire:loading.remove wire:target="addRepository('{{ $repo['full_name'] }}')">Add</span>
+                                            <span wire:loading wire:target="addRepository('{{ $repo['full_name'] }}')">Adding…</span>
+                                        </flux:button>
                                     @endif
                                 </div>
-
-                                <flux:button wire:click="closeBranchPicker" variant="ghost" size="sm">
-                                    Cancel
-                                </flux:button>
-
-                                <flux:button
-                                    wire:click="addRepositoryWithBranch"
-                                    wire:loading.attr="disabled"
-                                    variant="primary"
-                                    size="sm"
-                                >
-                                    Add
-                                </flux:button>
                             </div>
-                        @endif
-                    </div>
-                @empty
-                    <div class="flex h-40 w-full items-center justify-center bg-white">
-                        <div class="flex flex-col items-center gap-y-2">
-                            <flux:icon.folder-git-2 class="size-8 text-[#C7C7C7]" />
-                            <flux:text class="text-center text-sm text-zinc-700">No repositories found.</flux:text>
-                            <flux:text class="text-center text-xs text-[#919191]">Try refreshing or adjusting your search.</flux:text>
+
+                            {{-- Inline branch override, only rendered when explicitly opened --}}
+                            @if ($branchPickerFor === $repo['full_name'])
+                                <div class="animate-enter flex items-end gap-2 border-t border-zinc-100 bg-zinc-50 px-4 py-3">
+                                    <div class="flex-1">
+                                        @if ($loadingBranches)
+                                            <flux:field>
+                                                <flux:label>Branch</flux:label>
+                                                <flux:input disabled value="Loading branches…" />
+                                            </flux:field>
+                                        @elseif ($branches)
+                                            <flux:select wire:model="overrideBranch" label="Branch">
+                                                @foreach ($branches as $branch)
+                                                    <flux:select.option value="{{ $branch['name'] }}">{{ $branch['name'] }}</flux:select.option>
+                                                @endforeach
+                                            </flux:select>
+                                        @else
+                                            <flux:input wire:model="overrideBranch" label="Branch" placeholder="main" />
+                                        @endif
+                                    </div>
+
+                                    <flux:button wire:click="closeBranchPicker" variant="ghost">
+                                        Cancel
+                                    </flux:button>
+
+                                    <flux:button
+                                        wire:click="addRepositoryWithBranch"
+                                        wire:loading.attr="disabled"
+                                        variant="primary"
+                                    >
+                                        Add
+                                    </flux:button>
+                                </div>
+                            @endif
                         </div>
-                    </div>
-                @endforelse
-            </div>
-        </div>
+                    @endforeach
+                </div>
+            @endif
+        </section>
     @endif
 </div>

@@ -25,13 +25,11 @@ document.addEventListener('alpine:init', () => {
                     existing.destroy();
                 }
 
-                const ctx = canvas.getContext('2d');
+                const { series, fill, ink } = window.StradenCharts;
 
-                const gradient = ctx.createLinearGradient(0, 0, 0, 240);
-                gradient.addColorStop(0, 'rgba(139, 92, 246, 0.18)');
-                gradient.addColorStop(1, 'rgba(139, 92, 246, 0.0)');
+                const color = series[0];
 
-                chart = new Chart(ctx, {
+                chart = new Chart(canvas.getContext('2d'), {
                     type: 'line',
 
                     data: {
@@ -41,13 +39,12 @@ document.addEventListener('alpine:init', () => {
                             {
                                 label: 'VUs',
                                 data: payload.values,
-                                borderColor: '#8b5cf6',
-                                backgroundColor: gradient,
-                                borderWidth: 2,
+                                borderColor: color,
+                                backgroundColor: fill(color),
+                                pointBackgroundColor: color,
+                                pointHoverBorderColor: ink.surface,
+                                pointHoverBorderWidth: 2,
                                 fill: true,
-                                tension: 0.35,
-                                pointRadius: 0,
-                                pointHoverRadius: 4,
                             },
                         ],
                     },
@@ -64,22 +61,16 @@ document.addEventListener('alpine:init', () => {
                         scales: {
                             y: {
                                 beginAtZero: true,
-                                grid: {
-                                    color: 'rgba(161, 161, 170, 0.1)',
-                                },
+                                border: { display: false },
                                 ticks: {
-                                    color: '#a1a1aa',
-                                    font: { size: 11 },
+                                    maxTicksLimit: 5,
                                     precision: 0,
                                 },
                             },
                             x: {
                                 grid: { display: false },
-                                ticks: {
-                                    color: '#a1a1aa',
-                                    font: { size: 11 },
-                                    maxTicksLimit: 8,
-                                },
+                                border: { display: false },
+                                ticks: { maxTicksLimit: 8 },
                             },
                         },
 
@@ -87,9 +78,7 @@ document.addEventListener('alpine:init', () => {
                             legend: { display: false },
                             tooltip: {
                                 enabled: false,
-                                external: (context) => {
-                                    this.externalTooltip(context);
-                                },
+                                external: (context) => this.externalTooltip(context),
                             },
                         },
                     },
@@ -109,7 +98,7 @@ document.addEventListener('alpine:init', () => {
                 this.tooltip = {
                     show: true,
                     x: tooltipModel.caretX,
-                    y: tooltipModel.caretY - 12,
+                    y: tooltipModel.caretY,
                     label: points[0]?.label ?? '',
                     rows: points.map((p) => ({
                         label: p.dataset.label,

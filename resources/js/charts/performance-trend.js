@@ -4,10 +4,17 @@ document.addEventListener("alpine:init", () => {
         // Keep Chart.js OUTSIDE Alpine's reactive/proxy system.
         let chart = null;
 
+        const { series, fill } = window.StradenCharts;
+
         return {
             visible: {
                 p95: true,
                 p99: true,
+            },
+
+            colors: {
+                p95: series[0],
+                p99: series[1],
             },
 
             tooltip: {
@@ -33,17 +40,7 @@ document.addEventListener("alpine:init", () => {
                     existing.destroy();
                 }
 
-                const ctx = canvas.getContext("2d");
-
-                const gP95 = ctx.createLinearGradient(0, 0, 0, 240);
-                gP95.addColorStop(0, "rgba(2, 132, 199, 0.2)");
-                gP95.addColorStop(1, "rgba(2, 132, 199, 0.0)");
-
-                const gP99 = ctx.createLinearGradient(0, 0, 0, 240);
-                gP99.addColorStop(0, "rgba(244, 63, 94, 0.15)");
-                gP99.addColorStop(1, "rgba(244, 63, 94, 0.0)");
-
-                chart = new Chart(ctx, {
+                chart = new Chart(canvas.getContext("2d"), {
                     type: "line",
 
                     data: {
@@ -52,27 +49,19 @@ document.addEventListener("alpine:init", () => {
                         datasets: [
                             {
                                 key: "p95",
-                                label: "p95 (ms)",
+                                label: "p95",
                                 data: payload.p95,
-                                borderColor: "#0284c7",
-                                backgroundColor: gP95,
-                                borderWidth: 2,
+                                borderColor: this.colors.p95,
+                                backgroundColor: fill(this.colors.p95, 0.08),
                                 fill: true,
-                                tension: 0.35,
-                                pointRadius: 0,
-                                pointHoverRadius: 5,
                             },
                             {
                                 key: "p99",
-                                label: "p99 (ms)",
+                                label: "p99",
                                 data: payload.p99,
-                                borderColor: "#f43f5e",
-                                backgroundColor: gP99,
-                                borderWidth: 2,
-                                fill: true,
-                                tension: 0.35,
-                                pointRadius: 0,
-                                pointHoverRadius: 5,
+                                borderColor: this.colors.p99,
+                                backgroundColor: this.colors.p99,
+                                fill: false,
                             },
                         ],
                     },
@@ -89,15 +78,11 @@ document.addEventListener("alpine:init", () => {
                         scales: {
                             y: {
                                 beginAtZero: true,
-                                grid: {
-                                    color: "rgba(161, 161, 170, 0.1)",
+                                border: {
+                                    display: false,
                                 },
                                 ticks: {
-                                    color: "#a1a1aa",
-                                    font: {
-                                        size: 11,
-                                    },
-                                    stepSize: 10000,
+                                    maxTicksLimit: 5,
                                     callback: (value) => {
                                         const number = Number(value);
 
@@ -118,12 +103,11 @@ document.addEventListener("alpine:init", () => {
                                 grid: {
                                     display: false,
                                 },
+                                border: {
+                                    display: false,
+                                },
                                 ticks: {
-                                    color: "#a1a1aa",
-                                    font: {
-                                        size: 11,
-                                    },
-                                    autoSkip: false,
+                                    autoSkipPadding: 12,
                                     maxRotation: 0,
                                     minRotation: 0,
 
@@ -180,7 +164,7 @@ document.addEventListener("alpine:init", () => {
                 this.tooltip = {
                     show: true,
                     x: tooltipModel.caretX,
-                    y: tooltipModel.caretY - 12,
+                    y: tooltipModel.caretY,
                     label: points[0]?.label ?? "",
                     rows: points.map((p) => ({
                         label: p.dataset.label,

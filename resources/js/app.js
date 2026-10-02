@@ -1,9 +1,12 @@
 import { Chart, registerables } from 'chart.js';
+import { applyChartDefaults, fill, ink, series, status } from './charts/theme.js';
 import './../../vendor/power-components/livewire-powergrid/dist/powergrid'
 import * as monaco from 'monaco-editor';
 
 Chart.register(...registerables);
+applyChartDefaults(Chart);
 window.Chart = Chart;
+window.StradenCharts = { series, status, ink, fill };
 
 import editorWorkerUrl from 'monaco-editor/esm/vs/editor/editor.worker?worker&url';
 import jsonWorkerUrl from 'monaco-editor/esm/vs/language/json/json.worker?worker&url';
@@ -220,7 +223,6 @@ document.addEventListener('alpine:init', () => {
 });
 
 import './charts/activity-chart.js';
-import './charts/project-doughnut.js';
 import './charts/status-doughnut.js';
 import './charts/performance-trend.js';
 import './charts/run-vus.js';

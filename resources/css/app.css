@@ -14,80 +14,387 @@
 @source '../../vendor/power-components/livewire-powergrid/src/Themes/Tailwind.php';
 @source '../../vendor/power-components/livewire-powergrid/resources/views/**/*.php';
 
+/*
+ * Straden design tokens.
+ *
+ * Neutral, cool greys carry the interface; ink is the only "accent" for
+ * actions. Colour is reserved for meaning: run status and chart series.
+ */
 @theme {
-    /* --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'; */
     --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
     --color-zinc-50: #fafafa;
-    --color-zinc-100: #f5f5f5;
-    --color-zinc-200: #e5e5e5;
-    --color-zinc-300: #d4d4d4;
-    --color-zinc-400: #a3a3a3;
-    --color-zinc-500: #737373;
-    --color-zinc-600: #525252;
-    --color-zinc-700: #404040;
-    --color-zinc-800: #262626;
-    --color-zinc-900: #171717;
-    --color-zinc-950: #0a0a0a;
+    --color-zinc-100: #f4f4f5;
+    --color-zinc-200: #e4e4e7;
+    --color-zinc-300: #d4d4d8;
+    --color-zinc-400: #a1a1aa;
+    --color-zinc-500: #71717a;
+    --color-zinc-600: #52525b;
+    --color-zinc-700: #3f3f46;
+    --color-zinc-800: #27272a;
+    --color-zinc-900: #18181b;
+    --color-zinc-950: #09090b;
 
-    --color-accent: var(--color-neutral-800);
-    --color-accent-content: var(--color-neutral-800);
+    --color-accent: var(--color-zinc-900);
+    --color-accent-content: var(--color-zinc-900);
     --color-accent-foreground: var(--color-white);
-}
 
-@layer theme {
-    .dark {
-        --color-accent: var(--color-white);
-        --color-accent-content: var(--color-white);
-        --color-accent-foreground: var(--color-neutral-800);
-    }
+    /* Data colour: the primary chart series and selected/active data marks. */
+    --color-brand-50: #eef2ff;
+    --color-brand-100: #dfe6fd;
+    --color-brand-500: #3d5bdb;
+    --color-brand-600: #2f49c4;
+    --color-brand-700: #263b9f;
+
+    /* Motion: strong ease-out for anything entering or answering a press. */
+    --ease-snappy: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-move: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+    --default-transition-duration: 150ms;
+    --default-transition-timing-function: ease;
 }
 
 @layer base {
-
     *,
     ::after,
     ::before,
     ::backdrop,
     ::file-selector-button {
-        border-color: var(--color-gray-200, currentColor);
+        border-color: var(--color-zinc-200, currentColor);
+    }
+
+    html {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: 'cv11', 'ss01';
+    }
+
+    ::selection {
+        background-color: var(--color-brand-100);
+        color: var(--color-zinc-900);
+    }
+
+    :focus-visible {
+        outline: 2px solid color-mix(in oklab, var(--color-brand-500) 70%, transparent);
+        outline-offset: 2px;
     }
 }
+
+/* ---------------------------------------------------------------------------
+ * Flux overrides
+ * ------------------------------------------------------------------------- */
 
 [data-flux-field]:not(ui-radio, ui-checkbox) {
     @apply grid gap-2;
 }
 
 [data-flux-label] {
-    @apply  !mb-0 !leading-tight;
+    @apply !mb-0 !leading-tight;
 }
 
 input:focus[data-flux-control],
 textarea:focus[data-flux-control],
 select:focus[data-flux-control] {
-    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
+    @apply outline-hidden border-zinc-400 ring-3 ring-zinc-900/8;
 }
 
-/* \[:where(&)\]:size-4 {
-    @apply size-4;
-} */
-
-@keyframes pixel-on {
-    0%, 100% { opacity: 0.15; }
-    50% { opacity: 1; }
+[data-flux-heading] {
+    letter-spacing: -0.01em;
 }
+
+/* Pressable feedback: the interface heard you. */
+[data-flux-button],
+.ui-pressable {
+    transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+    transition-duration: 150ms, 150ms, 150ms, 150ms, 150ms, 160ms;
+    transition-timing-function: ease, ease, ease, ease, ease, var(--ease-snappy);
+}
+
+[data-flux-button]:active:not(:disabled),
+.ui-pressable:active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+/* Menus and dropdowns scale in from the side of their trigger. */
+[data-flux-menu],
+[data-flux-tooltip-content] {
+    transform-origin: top center;
+    transition:
+        opacity 150ms var(--ease-snappy),
+        transform 150ms var(--ease-snappy),
+        overlay 150ms allow-discrete,
+        display 150ms allow-discrete;
+}
+
+ui-dropdown[position^='top'] > [data-flux-menu] {
+    transform-origin: bottom center;
+}
+
+ui-dropdown[position$='start'] > [data-flux-menu] {
+    transform-origin: top left;
+}
+
+ui-dropdown[position$='end'] > [data-flux-menu] {
+    transform-origin: top right;
+}
+
+ui-dropdown[position^='top'][position$='start'] > [data-flux-menu] {
+    transform-origin: bottom left;
+}
+
+ui-dropdown[position^='top'][position$='end'] > [data-flux-menu] {
+    transform-origin: bottom right;
+}
+
+[data-flux-menu]:popover-open,
+[data-flux-tooltip-content]:popover-open {
+    opacity: 1;
+    transform: scale(1);
+
+    @starting-style {
+        opacity: 0;
+        transform: scale(0.97);
+    }
+}
+
+/* Modals: centred, quick, with a slightly faster exit than entry. */
+[data-flux-modal] > dialog,
+[data-flux-modal] > dialog::backdrop {
+    transition:
+        opacity 120ms ease,
+        transform 120ms var(--ease-snappy),
+        overlay 120ms allow-discrete,
+        display 120ms allow-discrete;
+}
+
+[data-flux-modal] > dialog[open],
+[data-flux-modal] > dialog[open]::backdrop {
+    transition:
+        opacity 200ms var(--ease-snappy),
+        transform 200ms var(--ease-snappy),
+        overlay 200ms allow-discrete,
+        display 200ms allow-discrete;
+}
+
+[data-flux-modal] > dialog::backdrop {
+    background-color: rgb(24 24 27 / 0.35);
+}
+
+/* ---------------------------------------------------------------------------
+ * Straden UI primitives. Use these instead of one-off class soups so every
+ * screen shares the same surfaces, tables and controls.
+ * ------------------------------------------------------------------------- */
+
+@layer components {
+    /* Surfaces */
+    .ui-panel {
+        @apply rounded-xl border border-zinc-200 bg-white;
+    }
+
+    .ui-panel-header {
+        @apply flex min-h-12 items-center justify-between gap-3 border-b border-zinc-200 px-4 py-2.5;
+    }
+
+    .ui-panel-title {
+        @apply text-sm font-medium text-zinc-900;
+    }
+
+    .ui-panel-body {
+        @apply p-4;
+    }
+
+    .ui-panel-footer {
+        @apply flex items-center justify-between gap-3 border-t border-zinc-200 px-4 py-2.5;
+    }
+
+    .ui-inset {
+        @apply rounded-lg bg-zinc-50 ring-1 ring-zinc-200/70 ring-inset;
+    }
+
+    /* Tables */
+    .ui-table {
+        @apply w-full border-separate border-spacing-0 text-sm;
+    }
+
+    .ui-table th {
+        @apply h-9 border-b border-zinc-200 px-4 text-left align-middle text-xs font-medium whitespace-nowrap text-zinc-500;
+    }
+
+    .ui-table td {
+        @apply h-11 border-b border-zinc-100 px-4 align-middle text-zinc-700;
+    }
+
+    .ui-table tbody tr:last-child td {
+        @apply border-b-0;
+    }
+
+    .ui-table tbody tr {
+        transition: background-color 120ms ease;
+    }
+
+    .ui-table-row-link {
+        @apply cursor-pointer hover:bg-zinc-50;
+    }
+
+    .ui-table-sort {
+        @apply inline-flex cursor-pointer items-center gap-1 select-none hover:text-zinc-900;
+        transition: color 120ms ease;
+    }
+
+    /* Lists of rows inside a panel */
+    .ui-list {
+        @apply divide-y divide-zinc-100;
+    }
+
+    .ui-list-row {
+        @apply flex items-center gap-3 px-4 py-3;
+    }
+
+    a.ui-list-row,
+    button.ui-list-row {
+        @apply w-full text-left hover:bg-zinc-50;
+        transition: background-color 120ms ease;
+    }
+
+    /* Native controls that sit next to Flux inputs */
+    .ui-input {
+        @apply h-9 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 shadow-xs placeholder:text-zinc-400;
+        transition: border-color 120ms ease, box-shadow 120ms ease;
+    }
+
+    .ui-input:focus {
+        @apply border-zinc-400 ring-3 ring-zinc-900/8 outline-none;
+    }
+
+    .ui-select {
+        @apply h-8 rounded-lg border border-zinc-200 bg-white pr-7 pl-2.5 text-xs text-zinc-700 shadow-xs;
+    }
+
+    .ui-select:focus {
+        @apply border-zinc-400 ring-3 ring-zinc-900/8 outline-none;
+    }
+
+    /* Small square icon-only button for rows and toolbars */
+    .ui-icon-button {
+        @apply inline-flex size-7 shrink-0 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 disabled:pointer-events-none disabled:opacity-40;
+        transition:
+            color 120ms ease,
+            background-color 120ms ease,
+            transform 160ms var(--ease-snappy);
+    }
+
+    .ui-icon-button:active:not(:disabled) {
+        transform: scale(0.94);
+    }
+
+    /* Inline text link */
+    .ui-link {
+        @apply font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-[3px] hover:decoration-zinc-900;
+        transition: text-decoration-color 120ms ease;
+    }
+
+    /* Selectable tile (option cards, provider pickers) */
+    .ui-tile {
+        @apply rounded-xl border border-zinc-200 bg-white hover:border-zinc-300;
+        transition:
+            border-color 120ms ease,
+            box-shadow 120ms ease,
+            transform 160ms var(--ease-snappy);
+    }
+
+    .ui-tile:active {
+        transform: scale(0.99);
+    }
+
+    .ui-tile[aria-selected='true'],
+    .ui-tile[data-selected] {
+        @apply border-zinc-900 ring-1 ring-zinc-900;
+    }
+
+    /* Code and identifiers */
+    .ui-code {
+        @apply rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[0.8125em] text-zinc-800;
+    }
+
+    .ui-kbd {
+        @apply inline-flex h-5 min-w-5 items-center justify-center rounded border border-zinc-200 bg-white px-1 font-sans text-[11px] font-medium text-zinc-500;
+    }
+
+    /* Numbers that line up */
+    .ui-metric {
+        @apply text-2xl font-semibold tracking-tight text-zinc-900 tabular-nums;
+    }
+
+    /* Monogram square for projects/providers */
+    .ui-monogram {
+        @apply inline-flex shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-xs font-semibold text-zinc-700 ring-1 ring-zinc-200 ring-inset;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+ * Motion utilities
+ * ------------------------------------------------------------------------- */
 
 @keyframes shimmer-text {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
 }
 
-.animate-pixel {
-    animation: pixel-on var(--dur, 650ms) ease-in-out var(--delay, 0ms) infinite;
+@keyframes ui-enter {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
 }
 
+@keyframes ui-fade {
+    from {
+        opacity: 0;
+    }
+}
+
+/* Text shimmer for "working" labels; colour-only so it reads as progress, not decoration. */
 .animate-shimmer {
     animation: shimmer-text 1.4s linear infinite;
+}
+
+/* Single entrance for content that appears in response to an action (new message, revealed result). */
+.animate-enter {
+    animation: ui-enter 220ms var(--ease-snappy) both;
+}
+
+.animate-fade {
+    animation: ui-fade 180ms ease both;
+}
+
+/* Spinners spin a touch faster than default: loading feels quicker. */
+.animate-spin {
+    animation-duration: 0.7s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-flux-button]:active,
+    .ui-pressable:active,
+    .ui-icon-button:active,
+    .ui-tile:active {
+        transform: none;
+    }
+
+    .animate-enter {
+        animation-name: ui-fade;
+    }
+
+    .animate-shimmer {
+        animation: none;
+    }
 }
 
 html {
@@ -96,4 +403,28 @@ html {
 
 [x-cloak] {
     display: none !important;
+}
+
+/* The sidebar may scroll on short screens, but never shows a scrollbar. */
+[data-flux-sidebar] {
+    scrollbar-width: none;
+}
+
+[data-flux-sidebar]::-webkit-scrollbar {
+    display: none;
+}
+
+/* Slim scrollbar for menus and popovers that scroll. */
+.ui-scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-zinc-300) transparent;
+}
+
+.ui-scroll-thin::-webkit-scrollbar {
+    width: 6px;
+}
+
+.ui-scroll-thin::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: var(--color-zinc-300);
 }

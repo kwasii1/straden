@@ -3,14 +3,18 @@ document.addEventListener('alpine:init', () => {
         // Keep the Chart.js instance outside Alpine's reactive state.
         let chart = null;
 
+        const { series, status, ink } = window.StradenCharts;
+
+        // Same order as the payload: passed, failed, running, queued, error.
+        const colors = [status.good, status.critical, series[0], status.neutral, status.warning];
+
         return {
             tooltip: {
                 show: false,
                 x: 0,
                 y: 0,
                 label: '',
-                value: '',
-                color: '',
+                rows: [],
             },
 
             init() {
@@ -28,14 +32,6 @@ document.addEventListener('alpine:init', () => {
                     existing.destroy();
                 }
 
-                const colors = [
-                    '#10b981',
-                    '#f43f5e',
-                    '#0284c7',
-                    '#64748b',
-                    '#f59e0b',
-                ];
-
                 chart = new Chart(canvas.getContext('2d'), {
                     type: 'doughnut',
 
@@ -46,11 +42,10 @@ document.addEventListener('alpine:init', () => {
                             {
                                 data: payload.counts,
                                 backgroundColor: colors,
-                                borderWidth: 3,
-                                borderColor: '#ffffff',
-                                borderRadius: 6,
-                                spacing: 3,
-                                hoverOffset: 6,
+                                borderWidth: 2,
+                                borderColor: ink.surface,
+                                borderRadius: 3,
+                                hoverOffset: 4,
                             },
                         ],
                     },
@@ -58,7 +53,7 @@ document.addEventListener('alpine:init', () => {
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        cutout: '76%',
+                        cutout: '74%',
 
                         plugins: {
                             legend: {
@@ -69,11 +64,7 @@ document.addEventListener('alpine:init', () => {
                                 enabled: false,
 
                                 external: (context) => {
-                                    this.externalTooltip(
-                                        context,
-                                        payload,
-                                        colors
-                                    );
+                                    this.externalTooltip(context);
                                 },
                             },
                         },
@@ -81,7 +72,7 @@ document.addEventListener('alpine:init', () => {
                 });
             },
 
-            externalTooltip(context, payload, colors) {
+            externalTooltip(context) {
                 const tooltipModel = context.tooltip;
 
                 if (!tooltipModel || tooltipModel.opacity === 0) {
@@ -94,10 +85,15 @@ document.addEventListener('alpine:init', () => {
                 this.tooltip = {
                     show: true,
                     x: tooltipModel.caretX,
-                    y: tooltipModel.caretY - 12,
+                    y: tooltipModel.caretY,
                     label: payload.labels[index] ?? '',
-                    value: `${payload.counts[index] ?? 0} runs`,
-                    color: colors[index] ?? '#a1a1aa',
+                    rows: [
+                        {
+                            label: 'Runs',
+                            value: payload.counts[index] ?? 0,
+                            color: colors[index] ?? status.neutral,
+                        },
+                    ],
                 };
             },
 

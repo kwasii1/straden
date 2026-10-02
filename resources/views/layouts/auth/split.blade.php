@@ -1,37 +1,34 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-white antialiased dark:bg-linear-to-b dark:from-neutral-950 dark:to-neutral-900">
-        <div class="relative grid h-dvh flex-col items-center justify-center px-8 sm:px-0 lg:max-w-none lg:grid-cols-2 lg:px-0">
-            <div class="bg-muted relative hidden h-full flex-col p-10 text-white lg:flex dark:border-e dark:border-neutral-800">
-                <div class="absolute inset-0 bg-black"></div>
-                <img src="{{ asset('images/auth-hero.svg') }}" alt="" aria-hidden="true" class="absolute inset-0 size-full object-cover" />
-                <a href="{{ route('home') }}" class="relative z-20 flex items-center text-lg font-medium" wire:navigate>
-                    <span class="flex items-center justify-center">
-                        <x-app-logo-icon class="h-8 w-auto text-white" />
-                    </span>
+    <body class="min-h-screen bg-white text-zinc-900">
+        <div class="grid min-h-dvh lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+            <aside class="relative hidden overflow-hidden border-e border-zinc-200 bg-zinc-50 lg:flex lg:flex-col lg:p-10">
+                <img src="{{ asset('images/auth-panel.jpg') }}" alt="" aria-hidden="true" class="absolute inset-0 size-full object-cover" />
+
+                <a href="{{ route('home') }}" class="relative flex items-center" wire:navigate>
+                    <x-app-logo-icon class="h-7 w-auto text-zinc-900" />
                     <span class="sr-only">{{ config('app.name', 'Straden') }}</span>
                 </a>
 
-                <div class="relative z-20 mt-auto max-w-md space-y-2">
-                    <flux:heading size="xl" class="text-white">{{ __('Pull your system through real load.') }}</flux:heading>
-                    <flux:text class="text-zinc-400">{{ __('Write k6 scripts, run them at scale and let AI turn the metrics into answers.') }}</flux:text>
+                <div class="relative mt-auto w-full rounded-xl bg-white/85 p-5 ring-1 ring-zinc-900/5 backdrop-blur-sm">
+                    <p class="text-2xl font-semibold tracking-tight text-balance text-zinc-900">{{ __('Pull your system through real load.') }}</p>
+                    <p class="mt-2 text-sm text-pretty text-zinc-600">{{ __('Write k6 scripts, run them at scale and let AI turn the metrics into answers.') }}</p>
                 </div>
-            </div>
-            <div class="w-full lg:p-8">
-                <div class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-                    <a href="{{ route('home') }}" class="z-20 flex flex-col items-center gap-2 font-medium lg:hidden" wire:navigate>
-                        <span class="flex items-center justify-center">
-                            <x-app-logo-icon class="h-10 w-auto text-black dark:text-white" />
-                        </span>
+            </aside>
 
+            <main class="flex items-center justify-center px-6 py-12 sm:px-10">
+                <div class="flex w-full max-w-sm flex-col gap-6 animate-enter">
+                    <a href="{{ route('home') }}" class="flex items-center lg:hidden" wire:navigate>
+                        <x-app-logo-icon class="h-7 w-auto text-zinc-900" />
                         <span class="sr-only">{{ config('app.name', 'Straden') }}</span>
                     </a>
+
                     {{ $slot }}
                 </div>
-            </div>
+            </main>
         </div>
 
         @persist('toast')
