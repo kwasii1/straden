@@ -42,10 +42,20 @@ class SyncAiModels extends Command
         }
 
         $data = $response->json();
+
+        if (! is_array($data)) {
+            $this->error('The models.dev catalog response was not valid JSON.');
+
+            return self::FAILURE;
+        }
+
         $catalog = [];
 
         foreach (self::PROVIDERS as $key => $remoteKey) {
-            $models = collect($data[$remoteKey]['models'] ?? [])
+            $remoteModels = $data[$remoteKey]['models'] ?? [];
+            $remoteModels = is_array($remoteModels) ? array_filter($remoteModels, is_array(...)) : [];
+
+            $models = collect($remoteModels)
                 ->filter(fn (array $model) => in_array('text', $model['modalities']['output'] ?? [], true)
                     && ($model['tool_call'] ?? false)
                     && ($model['status'] ?? null) !== 'deprecated'

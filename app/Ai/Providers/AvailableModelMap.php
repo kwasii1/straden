@@ -70,7 +70,8 @@ class AvailableModelMap
 
         if ($catalog === null) {
             $path = resource_path('data/ai-models.json');
-            $catalog = is_file($path) ? (json_decode(file_get_contents($path), true) ?: []) : [];
+            $contents = is_file($path) ? file_get_contents($path) : false;
+            $catalog = $contents === false ? [] : (json_decode($contents, true) ?: []);
         }
 
         return $catalog[$provider] ?? [];
