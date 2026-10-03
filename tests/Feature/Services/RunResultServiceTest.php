@@ -49,10 +49,9 @@ function k6Summary(array $overrides = []): array
 }
 
 test('finalize marks a successful run as passed with parsed metrics', function () {
-    $this->travel(-1)->minute();
-    $run = Run::factory()->running()->create(['started_at' => now()]);
+    $this->freezeSecond();
+    $run = Run::factory()->running()->create(['started_at' => now()->subMinute()]);
     writeRunArtifacts($run, 0, k6Summary());
-    $this->travelBack();
 
     RunResultService::finalize($run);
     $run->refresh();
