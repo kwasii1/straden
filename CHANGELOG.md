@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.0](https://github.com/kwasii1/straden/compare/straden-v1.7.0...straden-v1.8.0) (2026-10-05)
+
+
+### Features
+
+* enhance RunInfluxMetricsTool to report client-side bottleneck s… ([8e1c63f](https://github.com/kwasii1/straden/commit/8e1c63f1237ede44446f1dd1a650f3e2e9fa5fe6))
+* enhance RunInfluxMetricsTool to report client-side bottleneck signals and update descriptions ([4c7f0c1](https://github.com/kwasii1/straden/commit/4c7f0c14f82d86049c65d5ee0403cbe2184d54d8))
+
 ## [1.7.0](https://github.com/kwasii1/straden/compare/straden-v1.6.0...straden-v1.7.0) (2026-10-02)
 
 
