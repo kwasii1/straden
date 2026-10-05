@@ -15,7 +15,7 @@ class RunInfluxMetricsTool implements Tool
 
     public function description(): Stringable|string
     {
-        return 'Fetch the InfluxDB time-series performance metrics recorded for this specific run. Returns aggregated statistics (max VUs, total requests, average/max p95 and p99 latency, average/max error rate, checks passed/failed, data transfer), a per-endpoint breakdown (requests, p95/p99, error rate for each endpoint tested), and a downsampled trend so you can spot when latency or errors spiked. Use this to identify what is slow, which endpoint is slowest, and when the degradation happened.';
+        return 'Fetch the InfluxDB time-series performance metrics recorded for this specific run. Returns aggregated statistics (max VUs, total requests, average/max p95 and p99 latency, average/max error rate, checks passed/failed, data transfer), a per-endpoint breakdown (requests, p95/p99, error rate for each endpoint tested), a downsampled trend so you can spot when latency or errors spiked, and client-side (load generator) signals — iteration duration, time per iteration spent outside HTTP requests, dropped iterations, and connection wait time — so you can tell whether the k6 script or runner itself was the bottleneck rather than the target. Use this to identify what is slow, which endpoint is slowest, and when the degradation happened.';
     }
 
     public function handle(Request $request): Stringable|string
@@ -37,6 +37,7 @@ class RunInfluxMetricsTool implements Tool
         return json_encode(
             array_merge($this->summarize($metrics), [
                 'per_endpoint' => $this->perEndpointBreakdown($service),
+                'client_side' => $this->clientSideSignals($service),
             ]),
             JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
         ) ?: '{}';
@@ -45,6 +46,77 @@ class RunInfluxMetricsTool implements Tool
     public function schema(JsonSchema $schema): array
     {
         return [];
+    }
+
+    /**
+     * Signals that reveal whether the k6 script or load generator, rather than the target, limited the run.
+     *
+     * @return array<string, mixed>
+     */
+    private function clientSideSignals(InfluxDbService $service): array
+    {
+        $runId = $this->run->id;
+
+        try {
+            $iterations = $this->firstRow($service->query(
+                sprintf('SELECT mean("value") AS "avg", percentile("value", 95) AS "p95", count("value") AS "count" FROM "iteration_duration" WHERE "run_id"=\'%s\'', $runId)
+            ));
+
+            $httpTime = $this->firstRow($service->query(
+                sprintf('SELECT sum("value") AS "total" FROM "http_req_duration" WHERE "run_id"=\'%s\'', $runId)
+            ));
+
+            $dropped = $this->firstRow($service->query(
+                sprintf('SELECT sum("value") AS "total" FROM "dropped_iterations" WHERE "run_id"=\'%s\'', $runId)
+            ));
+
+            $blocked = $this->firstRow($service->query(
+                sprintf('SELECT percentile("value", 95) AS "p95" FROM "http_req_blocked" WHERE "run_id"=\'%s\'', $runId)
+            ));
+        } catch (\Throwable) {
+            return ['available' => false];
+        }
+
+        $iterationCount = (int) ($iterations['count'] ?? 0);
+        $avgIteration = is_numeric($iterations['avg'] ?? null) ? (float) $iterations['avg'] : null;
+        $httpTotal = is_numeric($httpTime['total'] ?? null) ? (float) $httpTime['total'] : null;
+
+        $httpPerIteration = $iterationCount > 0 && $httpTotal !== null ? $httpTotal / $iterationCount : null;
+        $nonHttpPerIteration = $avgIteration !== null && $httpPerIteration !== null
+            ? max(0.0, $avgIteration - $httpPerIteration)
+            : null;
+
+        return [
+            'available' => true,
+            'iterations' => $iterationCount,
+            'avg_iteration_ms' => $this->roundNullable($avgIteration),
+            'p95_iteration_ms' => $this->roundNullable(is_numeric($iterations['p95'] ?? null) ? (float) $iterations['p95'] : null),
+            'avg_http_time_per_iteration_ms' => $this->roundNullable($httpPerIteration),
+            'avg_non_http_time_per_iteration_ms' => $this->roundNullable($nonHttpPerIteration),
+            'non_http_share_percent' => $nonHttpPerIteration !== null && $avgIteration > 0
+                ? round($nonHttpPerIteration / $avgIteration * 100, 2)
+                : null,
+            'dropped_iterations' => (int) ($dropped['total'] ?? 0),
+            'p95_blocked_ms' => $this->roundNullable(is_numeric($blocked['p95'] ?? null) ? (float) $blocked['p95'] : null),
+        ];
+    }
+
+    /**
+     * Map the first row of a single-series InfluxDB result into a [column => value] map.
+     *
+     * @param  array<int, mixed>  $results
+     * @return array<string, mixed>
+     */
+    private function firstRow(array $results): array
+    {
+        $series = $results[0]['series'][0] ?? null;
+        $row = $series['values'][0] ?? null;
+
+        if ($series === null || $row === null) {
+            return [];
+        }
+
+        return $this->mapColumns($series['columns'] ?? [], $row);
     }
 
     /** @return array<int, array<string, mixed>> */

@@ -197,3 +197,46 @@ test('run influx metrics tool degrades gracefully without a connector', function
     expect($result['available'])->toBeFalse();
     expect($result['error'])->toContain('InfluxDB');
 });
+
+test('run influx metrics tool reports client-side bottleneck signals', function () {
+    Http::fake(function ($request) {
+        $q = $request['q'] ?? '';
+
+        $series = match (true) {
+            str_contains($q, '"iteration_duration"') && ! str_contains($q, 'GROUP BY') => [
+                'columns' => ['time', 'avg', 'p95', 'count'],
+                'values' => [[0, 1000, 1800, 10]],
+            ],
+            str_contains($q, 'sum("value") AS "total" FROM "http_req_duration"') => [
+                'columns' => ['time', 'total'],
+                'values' => [[0, 2000]],
+            ],
+            str_contains($q, '"dropped_iterations"') => [
+                'columns' => ['time', 'total'],
+                'values' => [[0, 7]],
+            ],
+            str_contains($q, '"http_req_blocked"') && ! str_contains($q, 'GROUP BY') => [
+                'columns' => ['time', 'p95'],
+                'values' => [[0, 45.5]],
+            ],
+            default => null,
+        };
+
+        return Http::response(['results' => [['series' => $series === null ? [] : [$series]]]]);
+    });
+
+    Connector::factory()->influxDb()->create();
+    $run = makeInfluxRun();
+
+    $clientSide = json_decode((string) (new RunInfluxMetricsTool($run))->handle(new Request([])), true)['client_side'];
+
+    expect($clientSide['available'])->toBeTrue();
+    expect($clientSide['iterations'])->toBe(10);
+    expect($clientSide['avg_iteration_ms'])->toEqual(1000.0);
+    expect($clientSide['p95_iteration_ms'])->toEqual(1800.0);
+    expect($clientSide['avg_http_time_per_iteration_ms'])->toEqual(200.0);
+    expect($clientSide['avg_non_http_time_per_iteration_ms'])->toEqual(800.0);
+    expect($clientSide['non_http_share_percent'])->toEqual(80.0);
+    expect($clientSide['dropped_iterations'])->toBe(7);
+    expect($clientSide['p95_blocked_ms'])->toEqual(45.5);
+});
